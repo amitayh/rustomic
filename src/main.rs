@@ -1,37 +1,83 @@
 use std::collections::HashSet;
 
-#[derive(Hash, Eq, Debug)]
-enum DatomValue {
-    I32(i32),
-    // I64(i64),
-    // U32(u32),
-    // U64(u64),
-    // Str(String),
+mod datom;
+mod tx;
+
+#[derive(Hash, Eq, PartialEq, Debug)]
+enum Cardinality {
+    One,
+    Many,
 }
 
-#[derive(Hash, Eq, Debug)]
-enum DatomOp {
-    Added,
-    Retracted
+#[derive(Hash, Eq, PartialEq, Debug)]
+enum ValueType {
+    Ref,
+    Str,
 }
 
-#[derive(Hash, Eq, Debug)]
-struct Datom {
-    e: u64,
-    a: u64,
-    v: DatomValue,
-    tx: u64,
-    op: DatomOp,
+#[derive(Hash, Eq, PartialEq, Debug)]
+struct Attribute {
+    ident: String,
+    cardinality: Cardinality,
+    value_type: ValueType,
+    doc: Option<String>,
 }
+
+// fn to_datoms(attribute: Attribute) -> HashSet<Datom> {
+//     let mut datoms = HashSet::new();
+//     datoms.insert(Datom {
+//         entity: 1, // Attribute entity ID
+//         attribute: 2, // Ident
+//         value: Value::Str(attribute.ident),
+//         tx: 1,
+//         op: Op::Added
+//     });
+//     datoms
+// }
 
 fn main() {
+    let mut schema = HashSet::new();
+    schema.insert(Attribute {
+        ident: String::from("artist/name"),
+        cardinality: Cardinality::One,
+        value_type: ValueType::Str,
+        doc: Some(String::from("An artist's name")),
+    });
+    schema.insert(Attribute {
+        ident: String::from("artist/country"),
+        cardinality: Cardinality::One,
+        value_type: ValueType::Ref,
+        doc: Some(String::from("An artist's country of residence")),
+    });
+    schema.insert(Attribute {
+        ident: String::from("artist/release"),
+        cardinality: Cardinality::Many,
+        value_type: ValueType::Ref,
+        doc: None,
+    });
+
+    let transaction = tx::Transaction {
+        operations: vec![tx::Operation::Add {
+            entity: tx::EntityIdentifier::Existing(1),
+            attribute: 1,
+            value: datom::Value::U32(42),
+        }],
+    };
+
     let mut db = HashSet::new();
-    db.insert(Datom {
-        e: 1,
-        a: 1,
-        v: DatomValue::I32(1),
+    db.insert(datom::Datom {
+        entity: 1,
+        attribute: 2,
+        value: datom::Value::I32(1),
         tx: 1,
-        op: DatomOp::Added
+        op: datom::Op::Added,
+    });
+    db.insert(datom::Datom {
+        entity: 10,
+        attribute: 2,
+        value: datom::Value::I32(1),
+        tx: 1,
+        op: datom::Op::Added,
     });
 
     println!("Hello, world!");

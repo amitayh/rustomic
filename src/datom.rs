@@ -1,11 +1,13 @@
 #[derive(Hash, Eq, PartialEq, Debug)]
 pub enum Value {
+    U8(u8),
     I32(i32),
-    I64(i64),
     U32(u32),
+    I64(i64),
     U64(u64),
     ShortString([u8; 64]),
     Str(String),
+    Ref(u64),
 }
 
 #[derive(Hash, Eq, PartialEq, Debug)]

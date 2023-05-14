@@ -1,21 +1,45 @@
-use std::collections::HashSet;
+use std::{
+    collections::{HashMap, HashSet},
+    iter::Map,
+};
 
 mod datom;
 mod tx;
 
-#[derive(Hash, Eq, PartialEq, Debug)]
+// -----------------------------------------------------------------------------
+
+trait Db {}
+
+// -----------------------------------------------------------------------------
+
 enum Cardinality {
     One,
     Many,
 }
 
-#[derive(Hash, Eq, PartialEq, Debug)]
+impl Cardinality {
+    fn to_value(&self) -> u8 {
+        match self {
+            Cardinality::One => 0,
+            Cardinality::Many => 1,
+        }
+    }
+}
+
 enum ValueType {
     Ref,
     Str,
 }
 
-#[derive(Hash, Eq, PartialEq, Debug)]
+impl ValueType {
+    fn to_value(&self) -> u8 {
+        match self {
+            ValueType::Ref => 0,
+            ValueType::Str => 1,
+        }
+    }
+}
+
 struct Attribute {
     ident: String,
     cardinality: Cardinality,
@@ -23,62 +47,99 @@ struct Attribute {
     doc: Option<String>,
 }
 
-// fn to_datoms(attribute: Attribute) -> HashSet<Datom> {
-//     let mut datoms = HashSet::new();
-//     datoms.insert(Datom {
-//         entity: 1, // Attribute entity ID
-//         attribute: 2, // Ident
-//         value: Value::Str(attribute.ident),
-//         tx: 1,
-//         op: Op::Added
-//     });
-//     datoms
-// }
+impl Attribute {
+    fn to_operation(self) -> Operation {
+        let mut attributes = vec![
+            AttributeValue {
+                attribute: String::from("db/attr/ident"),
+                value: datom::Value::Str(self.ident),
+            },
+            AttributeValue {
+                attribute: String::from("db/attr/cardinality"),
+                value: datom::Value::U8(self.cardinality.to_value()),
+            },
+            AttributeValue {
+                attribute: String::from("db/attr/type"),
+                value: datom::Value::U8(self.value_type.to_value()),
+            },
+        ];
+        if let Some(doc) = self.doc {
+            attributes.push(AttributeValue {
+                attribute: String::from("db/attr/doc"),
+                value: datom::Value::Str(doc),
+            });
+        }
+        Operation {
+            entity: Entity::New,
+            attributes,
+        }
+    }
+}
+
+// -----------------------------------------------------------------------------
+
+struct TransctionResult {
+    tx_data: Vec<datom::Datom>,
+    temp_ids: HashMap<String, u64>,
+}
+
+struct AttributeValue {
+    attribute: String,
+    value: datom::Value,
+}
+
+enum Entity {
+    New,            // Create a new entity and assign ID automatically.
+    Id(u64),        // Update existing entity by ID.
+    TempId(String), // Use a temp ID within transaction.
+}
+
+struct Operation {
+    entity: Entity,
+    attributes: Vec<AttributeValue>,
+}
+
+struct InMemoryDb {
+    next_entity_id: u64,
+    ident_to_entity_id: HashMap<String, u64>,
+}
+
+impl InMemoryDb {
+    fn new() -> InMemoryDb {
+        InMemoryDb {
+            next_entity_id: 0,
+            ident_to_entity_id: HashMap::new(),
+        }
+    }
+
+    fn transact(&self, operations: Vec<Operation>) -> TransctionResult {
+        TransctionResult {
+            tx_data: vec![],
+            temp_ids: HashMap::new(),
+        }
+    }
+}
+
+// -----------------------------------------------------------------------------
 
 fn main() {
-    let mut schema = HashSet::new();
-    schema.insert(Attribute {
-        ident: String::from("artist/name"),
+    let db = InMemoryDb::new();
+
+    db.transact(vec![Attribute {
+        ident: String::from("person/name"),
         cardinality: Cardinality::One,
         value_type: ValueType::Str,
         doc: Some(String::from("An artist's name")),
-    });
-    schema.insert(Attribute {
-        ident: String::from("artist/country"),
-        cardinality: Cardinality::One,
-        value_type: ValueType::Ref,
-        doc: Some(String::from("An artist's country of residence")),
-    });
-    schema.insert(Attribute {
-        ident: String::from("artist/release"),
-        cardinality: Cardinality::Many,
-        value_type: ValueType::Ref,
-        doc: None,
-    });
+    }
+    .to_operation()]);
 
-    let transaction = tx::Transaction {
-        operations: vec![tx::Operation::Add {
-            entity: tx::EntityIdentifier::Existing(1),
-            attribute: 1,
-            value: datom::Value::U32(42),
+    db.transact(vec![Operation {
+        entity: Entity::New,
+        attributes: vec![AttributeValue {
+            attribute: String::from("person/name"),
+            value: datom::Value::Str(String::from("John")),
         }],
-    };
-
-    let mut db = HashSet::new();
-    db.insert(datom::Datom {
-        entity: 1,
-        attribute: 2,
-        value: datom::Value::I32(1),
-        tx: 1,
-        op: datom::Op::Added,
-    });
-    db.insert(datom::Datom {
-        entity: 10,
-        attribute: 2,
-        value: datom::Value::I32(1),
-        tx: 1,
-        op: datom::Op::Added,
-    });
+    }]);
 
     println!("Hello, world!");
 }

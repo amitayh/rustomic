@@ -8,10 +8,6 @@ mod tx;
 
 // -----------------------------------------------------------------------------
 
-trait Db {}
-
-// -----------------------------------------------------------------------------
-
 enum Cardinality {
     One,
     Many,
@@ -112,18 +108,52 @@ impl InMemoryDb {
         }
     }
 
-    fn transact(&self, operations: Vec<Operation>) -> TransctionResult {
+    fn transact(&mut self, operations: Vec<Operation>) -> TransctionResult {
+        let temp_ids = self.generate_temp_ids(&operations);
+        // validate attributes match values
+        let datoms = operations.iter()
+            .flat_map(|operation| {
+                let entity_id = self.get_entity_id(&operation.entity, &temp_ids);
+                vec![1]
+            });
         TransctionResult {
             tx_data: vec![],
-            temp_ids: HashMap::new(),
+            temp_ids
         }
+    }
+
+    fn get_entity_id(&mut self, entity: &Entity, temp_ids: &HashMap<String, u64>) -> Option<u64> {
+        match entity {
+            Entity::New => Some(self.get_next_entity_id()),
+            Entity::Id(id) => Some(*id),
+            Entity::TempId(temp_id) => temp_ids.get(temp_id).copied()
+        }
+    }
+
+    fn generate_temp_ids(&mut self, operations: &Vec<Operation>) -> HashMap<String, u64> {
+        operations
+            .iter()
+            .filter_map(|operation| {
+                if let Entity::TempId(id) = &operation.entity {
+                    Some((id.clone(), self.get_next_entity_id()))
+                } else {
+                    None
+                }
+            })
+            .collect()
+    }
+
+    fn get_next_entity_id(&mut self) -> u64 {
+        let entity_id = self.next_entity_id;
+        self.next_entity_id += 1;
+        entity_id
     }
 }
 
 // -----------------------------------------------------------------------------
 
 fn main() {
-    let db = InMemoryDb::new();
+    let mut db = InMemoryDb::new();
 
     db.transact(vec![Attribute {
         ident: String::from("person/name"),

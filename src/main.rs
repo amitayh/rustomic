@@ -13,8 +13,8 @@ enum Cardinality {
     Many,
 }
 
-impl Cardinality {
-    fn to_value(&self) -> u8 {
+impl Into<u8> for Cardinality {
+    fn into(self) -> u8 {
         match self {
             Cardinality::One => 0,
             Cardinality::Many => 1,
@@ -27,8 +27,8 @@ enum ValueType {
     Str,
 }
 
-impl ValueType {
-    fn to_value(&self) -> u8 {
+impl Into<u8> for ValueType {
+    fn into(self) -> u8 {
         match self {
             ValueType::Ref => 0,
             ValueType::Str => 1,
@@ -43,8 +43,8 @@ struct Attribute {
     doc: Option<String>,
 }
 
-impl Attribute {
-    fn to_operation(self) -> Operation {
+impl Into<Operation> for Attribute {
+    fn into(self) -> Operation {
         let mut attributes = vec![
             AttributeValue {
                 attribute: String::from("db/attr/ident"),
@@ -52,11 +52,11 @@ impl Attribute {
             },
             AttributeValue {
                 attribute: String::from("db/attr/cardinality"),
-                value: datom::Value::U8(self.cardinality.to_value()),
+                value: datom::Value::U8(self.cardinality.into()),
             },
             AttributeValue {
                 attribute: String::from("db/attr/type"),
-                value: datom::Value::U8(self.value_type.to_value()),
+                value: datom::Value::U8(self.value_type.into()),
             },
         ];
         if let Some(doc) = self.doc {
@@ -109,16 +109,23 @@ impl InMemoryDb {
     }
 
     fn transact(&mut self, operations: Vec<Operation>) -> TransctionResult {
+        let tx = self.create_tx_datom();
         let temp_ids = self.generate_temp_ids(&operations);
-        // validate attributes match values
-        let datoms = operations.iter()
+        // validate attributes match value
+        let mut datoms: Vec<datom::Datom> = operations
+            .iter()
             .flat_map(|operation| {
-                let entity_id = self.get_entity_id(&operation.entity, &temp_ids);
-                vec![1]
-            });
+                if let Some(entity_id) = self.get_entity_id(&operation.entity, &temp_ids) {
+                    self.get_datoms(tx.entity, entity_id, &operation.attributes)
+                } else {
+                    vec![]
+                }
+            })
+            .collect();
+        datoms.push(tx);
         TransctionResult {
-            tx_data: vec![],
-            temp_ids
+            tx_data: datoms,
+            temp_ids,
         }
     }
 
@@ -126,8 +133,37 @@ impl InMemoryDb {
         match entity {
             Entity::New => Some(self.get_next_entity_id()),
             Entity::Id(id) => Some(*id),
-            Entity::TempId(temp_id) => temp_ids.get(temp_id).copied()
+            Entity::TempId(temp_id) => temp_ids.get(temp_id).copied(),
         }
+    }
+
+    fn create_tx_datom(&mut self) -> datom::Datom {
+        let transaction_id = self.get_next_entity_id();
+        datom::Datom {
+            entity: transaction_id,
+            attribute: *self.ident_to_entity_id.get("db/tx/time").unwrap(),
+            value: datom::Value::U64(0),
+            tx: transaction_id,
+            op: datom::Op::Added,
+        }
+    }
+
+    fn get_datoms(
+        &self,
+        transaction_id: u64,
+        entity_id: u64,
+        attributes: &Vec<AttributeValue>,
+    ) -> Vec<datom::Datom> {
+        attributes
+            .iter()
+            .map(|attribute| datom::Datom {
+                entity: entity_id,
+                attribute: *self.ident_to_entity_id.get(&attribute.attribute).unwrap(),
+                value: attribute.value.clone(),
+                tx: transaction_id,
+                op: datom::Op::Added,
+            })
+            .collect()
     }
 
     fn generate_temp_ids(&mut self, operations: &Vec<Operation>) -> HashMap<String, u64> {
@@ -161,7 +197,7 @@ fn main() {
         value_type: ValueType::Str,
         doc: Some(String::from("An artist's name")),
     }
-    .to_operation()]);
+    .into()]);
 
     db.transact(vec![Operation {
         entity: Entity::New,

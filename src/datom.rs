@@ -5,9 +5,8 @@ pub enum Value {
     U32(u32),
     I64(i64),
     U64(u64),
-    ShortString([u8; 64]),
+    ShortString(&'static str),
     Str(String),
-    Ref(u64),
 }
 
 #[derive(Hash, Eq, PartialEq, Debug)]

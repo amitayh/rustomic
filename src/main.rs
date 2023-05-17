@@ -4,6 +4,7 @@ use std::{
 };
 
 mod datom;
+mod schema;
 mod tx;
 
 // -----------------------------------------------------------------------------
@@ -100,23 +101,35 @@ struct InMemoryDb {
     ident_to_entity_id: HashMap<String, u64>,
 }
 
+// -----------------------------------------------------------------------------
+
 impl InMemoryDb {
     fn new() -> InMemoryDb {
-        InMemoryDb {
+        let mut db = InMemoryDb {
             next_entity_id: 0,
             ident_to_entity_id: HashMap::new(),
-        }
+        };
+        db
+    }
+
+    fn insert_default_datoms(&mut self) {
+        let datoms = schema::get_default_datoms();
+    }
+
+    fn query(&self, query: Query) -> QueryResult {
+        QueryResult {}
     }
 
     fn transact(&mut self, operations: Vec<Operation>) -> TransctionResult {
+        // validate attributes match value
+        // validate cardinality
         let tx = self.create_tx_datom();
         let temp_ids = self.generate_temp_ids(&operations);
-        // validate attributes match value
         let mut datoms: Vec<datom::Datom> = operations
             .iter()
             .flat_map(|operation| {
                 if let Some(entity_id) = self.get_entity_id(&operation.entity, &temp_ids) {
-                    self.get_datoms(tx.entity, entity_id, &operation.attributes)
+                    self.get_datoms(tx.entity, entity_id, &operation.attributes, &temp_ids)
                 } else {
                     vec![]
                 }
@@ -153,6 +166,7 @@ impl InMemoryDb {
         transaction_id: u64,
         entity_id: u64,
         attributes: &Vec<AttributeValue>,
+        temp_ids: &HashMap<String, u64>,
     ) -> Vec<datom::Datom> {
         attributes
             .iter()
@@ -188,24 +202,115 @@ impl InMemoryDb {
 
 // -----------------------------------------------------------------------------
 
-fn main() {
+struct Variable(String);
+
+struct Clause {
+    entity: u64,
+    attribute: u64,
+    value: u64,
+}
+
+struct Query {
+    find: Vec<Variable>,
+    wher: Vec<Clause>,
+}
+
+struct QueryResult {}
+
+// -----------------------------------------------------------------------------
+
+#[test]
+fn create_entity_by_temp_id() {
     let mut db = InMemoryDb::new();
 
-    db.transact(vec![Attribute {
-        ident: String::from("person/name"),
-        cardinality: Cardinality::One,
-        value_type: ValueType::Str,
-        doc: Some(String::from("An artist's name")),
-    }
-    .into()]);
+    // Create the schema
+    db.transact(vec![
+        Attribute {
+            ident: String::from("artist/name"),
+            cardinality: Cardinality::One,
+            value_type: ValueType::Str,
+            doc: Some(String::from("An artist's name")),
+        }
+        .into(),
+        Attribute {
+            ident: String::from("release/name"),
+            cardinality: Cardinality::One,
+            value_type: ValueType::Str,
+            doc: Some(String::from("An release's name")),
+        }
+        .into(),
+        Attribute {
+            ident: String::from("release/artists"),
+            cardinality: Cardinality::Many,
+            value_type: ValueType::Ref,
+            doc: Some(String::from("Artists of release")),
+        }
+        .into(),
+    ]);
 
-    db.transact(vec![Operation {
-        entity: Entity::New,
-        attributes: vec![AttributeValue {
-            attribute: String::from("person/name"),
-            value: datom::Value::Str(String::from("John")),
-        }],
-    }]);
+    // Insert data
+    let tx_result = db.transact(vec![
+        Operation {
+            entity: Entity::TempId(String::from("john")),
+            attributes: vec![AttributeValue {
+                attribute: String::from("artist/name"),
+                value: datom::Value::Str(String::from("John Lenon")),
+            }],
+        },
+        Operation {
+            entity: Entity::New,
+            attributes: vec![AttributeValue {
+                attribute: String::from("artist/name"),
+                value: datom::Value::Str(String::from("Paul McCartney")),
+            }],
+        },
+        Operation {
+            entity: Entity::TempId(String::from("abbey-road")),
+            attributes: vec![AttributeValue {
+                attribute: String::from("release/name"),
+                value: datom::Value::Str(String::from("Abbey Road")),
+            }],
+        },
+        Operation {
+            entity: Entity::TempId(String::from("abbey-road")),
+            attributes: vec![AttributeValue {
+                attribute: String::from("release/artists"),
+                value: datom::Value::Str(String::from("john")),
+            }],
+        },
+    ]);
 
+    let john_id = tx_result.temp_ids.get(&String::from("john"));
+
+    let query_result = db.query(Query {
+        find: vec![Variable(String::from("release"))],
+        wher: vec![
+            // [?artist :artist/name ?artist-name]
+            Clause {
+                entity: 0,
+                attribute: 0,
+                value: 0,
+            },
+            // [?release :release/artists ?artist]
+            Clause {
+                entity: 0,
+                attribute: 0,
+                value: 0,
+            },
+            // [?release :release/name ?release-name]
+            Clause {
+                entity: 0,
+                attribute: 0,
+                value: 0,
+            },
+        ],
+    });
+
+    assert_eq!(4, 2 + 2);
+}
+
+// -----------------------------------------------------------------------------
+
+fn main() {
     println!("Hello, world!");
 }

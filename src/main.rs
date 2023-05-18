@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 
 mod datom;
+mod query;
 mod schema;
 mod tx;
 
@@ -58,8 +59,8 @@ impl InMemoryDb {
         self.ident_to_entity_id.insert(String::from(ident), entity);
     }
 
-    fn query(&self, query: Query) -> QueryResult {
-        QueryResult {}
+    fn query(&self, query: query::Query) -> query::QueryResult {
+        query::QueryResult {}
     }
 
     fn transact(&mut self, transaction: tx::Transaction) -> tx::TransctionResult {
@@ -79,6 +80,19 @@ impl InMemoryDb {
             })
             .collect();
         datoms.push(tx);
+        datoms.iter().for_each(|datom| {
+            if let datom::Datom {
+                entity,
+                attribute: 1,
+                value: datom::Value::Str(ident),
+                tx: _,
+                op: _,
+            } = datom
+            {
+                self.ident_to_entity(ident, *entity);
+            }
+        });
+        self.datoms.append(&mut datoms);
         tx::TransctionResult {
             tx_data: datoms,
             temp_ids,
@@ -101,7 +115,7 @@ impl InMemoryDb {
         let transaction_id = self.get_next_entity_id();
         datom::Datom {
             entity: transaction_id,
-            attribute: 1, // *self.ident_to_entity_id.get("db/tx/time").unwrap(),
+            attribute: *self.ident_to_entity_id.get("db/tx/time").unwrap(),
             value: datom::Value::U64(0),
             tx: transaction_id,
             op: datom::Op::Added,
@@ -119,7 +133,7 @@ impl InMemoryDb {
             .iter()
             .map(|attribute| datom::Datom {
                 entity: entity_id,
-                attribute: 1, // *self.ident_to_entity_id.get(&attribute.attribute).unwrap(),
+                attribute: *self.ident_to_entity_id.get(&attribute.attribute).unwrap(),
                 value: attribute.value.clone(),
                 tx: transaction_id,
                 op: datom::Op::Added,
@@ -146,23 +160,6 @@ impl InMemoryDb {
         entity_id
     }
 }
-
-// -----------------------------------------------------------------------------
-
-struct Variable(String);
-
-struct Clause {
-    entity: u64,
-    attribute: u64,
-    value: u64,
-}
-
-struct Query {
-    find: Vec<Variable>,
-    wher: Vec<Clause>,
-}
-
-struct QueryResult {}
 
 // -----------------------------------------------------------------------------
 
@@ -233,23 +230,25 @@ fn create_entity_by_temp_id() {
 
     let john_id = tx_result.temp_ids.get(&String::from("john"));
 
-    let query_result = db.query(Query {
-        find: vec![Variable(String::from("release"))],
+    println!("@@@ {:?}", john_id);
+
+    let query_result = db.query(query::Query {
+        find: vec![query::Variable(String::from("release"))],
         wher: vec![
             // [?artist :artist/name ?artist-name]
-            Clause {
+            query::Clause {
                 entity: 0,
                 attribute: 0,
                 value: 0,
             },
             // [?release :release/artists ?artist]
-            Clause {
+            query::Clause {
                 entity: 0,
                 attribute: 0,
                 value: 0,
             },
             // [?release :release/name ?release-name]
-            Clause {
+            query::Clause {
                 entity: 0,
                 attribute: 0,
                 value: 0,

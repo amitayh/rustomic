@@ -1,47 +1,36 @@
 use crate::datom;
+use std::collections::HashMap;
 
-pub enum EntityIdentifier {
-    Existing(u64),
-    Temp(String),
+pub enum Entity {
+    New,            // Create a new entity and assign ID automatically.
+    Id(u64),        // Update existing entity by ID.
+    TempId(String), // Use a temp ID within transaction.
 }
 
 pub struct AttributeValue {
-    attribute: String,
-    value: datom::Value,
+    pub attribute: String,
+    pub value: datom::Value,
 }
 
-pub enum Operation {
-    Add {
-        entity: EntityIdentifier,
-        attribute: u64,
-        value: datom::Value,
-    },
-    Retract {
-        entity: u64,
-        attribute: u64,
-    },
+impl AttributeValue {
+    pub fn new<V: Into<datom::Value>>(attribute: &str, value: V) -> AttributeValue {
+        AttributeValue {
+            attribute: String::from(attribute),
+            value: value.into(),
+        }
+    }
+}
+
+pub struct Operation {
+    pub entity: Entity,
+    pub attributes: Vec<AttributeValue>,
 }
 
 pub struct Transaction {
     pub operations: Vec<Operation>,
 }
 
-#[derive(Hash, Eq, PartialEq, Debug)]
-pub enum Cardinality {
-    One,
-    Many,
-}
-
-#[derive(Hash, Eq, PartialEq, Debug)]
-pub enum ValueType {
-    Ref,
-    Str,
-}
-
-#[derive(Hash, Eq, PartialEq, Debug)]
-pub struct Attribute {
-    pub ident: String,
-    pub cardinality: Cardinality,
-    pub value_type: ValueType,
-    pub doc: Option<String>,
+pub struct TransctionResult {
+    pub tx_data: Vec<datom::Datom>,
+    pub temp_ids: HashMap<String, u64>,
 }

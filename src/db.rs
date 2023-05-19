@@ -1,8 +1,8 @@
 use std::collections::HashMap;
 
 use crate::datom;
-use crate::schema;
 use crate::query;
+use crate::schema;
 use crate::tx;
 
 pub struct InMemoryDb {
@@ -60,7 +60,9 @@ impl InMemoryDb {
     }
 
     pub fn query(&self, query: query::Query) -> query::QueryResult {
-        query::QueryResult {}
+        query::QueryResult {
+            results: vec![vec![datom::Value::U64(0)]],
+        }
     }
 
     pub fn transact(&mut self, transaction: tx::Transaction) -> tx::TransctionResult {
@@ -81,7 +83,14 @@ impl InMemoryDb {
             .collect();
         datoms.push(tx);
         datoms.iter().for_each(|datom| {
-            if let datom::Datom { entity, attribute: 1, value: datom::Value::Str(ident), tx: _, op: _ } = datom {
+            if let datom::Datom {
+                entity,
+                attribute: 1,
+                value: datom::Value::Str(ident),
+                tx: _,
+                op: _,
+            } = datom
+            {
                 self.ident_to_entity(&ident, *entity);
             }
         });

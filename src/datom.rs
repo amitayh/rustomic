@@ -49,13 +49,13 @@ impl Into<Value> for u64 {
     }
 }
 
-#[derive(Hash, Eq, PartialEq, Debug)]
+#[derive(Hash, Eq, PartialEq, Debug, Clone)]
 pub enum Op {
     Added,
     Retracted,
 }
 
-#[derive(Hash, Eq, PartialEq, Debug)]
+#[derive(Hash, Eq, PartialEq, Debug, Clone)]
 pub struct Datom {
     pub entity: u64,
     pub attribute: u64,

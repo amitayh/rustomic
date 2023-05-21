@@ -1,5 +1,7 @@
+use std::collections::hash_set::Intersection;
 use std::collections::BTreeMap;
 use std::collections::HashMap;
+use std::collections::HashSet;
 
 use crate::datom;
 use crate::query;
@@ -70,11 +72,27 @@ impl InMemoryDb {
         self.resolve_idents(&mut wher);
         wher.sort_by_key(|clause| clause.num_grounded_terms());
         wher.reverse();
-        println!("@@@ {:?}", wher);
+        let matching_datoms = wher
+            .iter()
+            .map(|clause| self.find_matching_datoms(&clause))
+            .reduce(|a, b| a.intersection(&b).cloned().collect());
+
+        println!("@@@ matching_datoms {:?}", matching_datoms);
 
         query::QueryResult {
             results: vec![vec![datom::Value::U64(0)]],
         }
+    }
+
+    // TODO: optimize with indexes
+    fn find_matching_datoms(&self, clause: &query::Clause) -> HashSet<&datom::Datom> {
+        let mut matching_datoms = HashSet::new();
+        for datom in &self.datoms {
+            if datom.satisfies(clause) {
+                matching_datoms.insert(datom);
+            }
+        }
+        matching_datoms
     }
 
     fn resolve_idents(&self, wher: &mut Vec<query::Clause>) {

@@ -70,12 +70,172 @@ db, "John Lennon"
 
 -------------------------------------------------------------------------------
 
-[lenon :artist/name "John Lenon"]
-[paul :artist/name "Paul McCartney"]
-[rel1 :release/artists lenon]
-[rel1 :release/artists paul]
-[rel1 :release/name "Release #1"]
-[rel2 :release/artists paul]
-[rel2 :release/name "Release #2"]
+[[lenon :artist/name "John Lenon"]
+ [paul :artist/name "Paul McCartney"]
+ [rel1 :release/artists lenon]
+ [rel1 :release/artists paul]
+ [rel1 :release/name "Release #1"]
+ [rel2 :release/artists paul]
+ [rel2 :release/name "Release #2"]]
+
+# 1. Var to clause
+?artist
+  e: [?artist :artist/name "John Lenon"] 
+  v: [?release :release/artists ?artist]
+
+?release
+  e: [?release :release/artists ?artist]
+  e: [?release :release/name ?release-name]
+
+?release-name
+  v: [?release :release/name ?release-name]
+
+# 2. Clause to datoms
+[?artist :artist/name "John Lenon"]
+  [lenon :artist/name "John Lenon"]
+  ?artist => [lenon]
+
+[?release :release/artists ?artist]
+  [rel1 :release/artists lenon]
+  [rel1 :release/artists paul]
+  [rel2 :release/artists paul]
+  ?release => [rel1]
+  ?artist => [lenon]
+
+[?release :release/name ?release-name]
+  [rel1 :release/name "Release #1"]
+  [rel2 :release/name "Release #2"]
+  ?release => [rel1]
+  ?release-name => ["Release #1]
+
+# 3. Var to datoms
+?artist
+  e: [lenon]
+  <intersect>
+  :v [lenon, paul]
+  = [lenon]
+
+?release
+  e: [rel1, rel2]
+  <intersect>
+  e: [rel1, rel2]
+  = [rel1, rel2]
+
+?release-name
+
+
+
+
+
+
+
+
+[[john :artist/name "John Lenon"]
+ [paul :artist/name "Paul McCartney"]
+ [ar :release/name "Abbey Road"
+ [ar :release/artusts john]]
 
 -------------------------------------------------------------------------------
+
+db datoms
+
+[1 1 "db/attr/ident"]
+[1 3 type/str]
+[1 4 cardinality/one]
+[10 1 "person/name"]
+[10 3 type/str]
+[10 4 cardinality/one]
+[11 10 "John"]
+
+ident_to_entity {
+  "db/attr/ident" => 1
+  "person/name" => 10
+}
+
+query
+
+[:find ?john
+ :where [[?john "person/name" "John"]]]
+
+# 1. Var to clause
+?john => [?john "person/name" "John"]
+
+# 2. Clause to datoms
+[?john "person/name" "John"]
+  
+
+Expected result => [[11]]
+
+sort clauses by grounded terms
+resolve idents
+for clause in clauses:
+  for datom in datoms:
+    
+substitution step
+  1) attribute ident => ID
+  2) ref?
+[?john "person/name" "John"] => [?john 10 "John"]
+
+Iter #1
+clause [?john 10 "John"]
+datom [1 1 "db/attr/ident"]
+satisfy => false
+
+Iter #2
+clause [?john 10 "John"]
+datom [1 3 type/str]
+satisfy => false
+
+Iter #3
+clause [?john 10 "John"]
+datom [1 4 cardinality/one]
+satisfy => false
+
+Iter #4
+clause [?john 10 "John"]
+datom [10 1 10]
+satisfy => false
+
+Iter #5
+clause [?john 10 "John"]
+datom [10 3 type/str]
+satisfy => false
+
+Iter #6
+clause [?john 10 "John"]
+datom [10 4 cardinality/one]
+satisfy => false
+
+Iter #7
+clause [?john 10 "John"]
+datom [11 10 "John"]
+satisfy => true
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

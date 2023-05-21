@@ -1,3 +1,4 @@
+use std::collections::BTreeMap;
 use std::collections::HashMap;
 
 use crate::datom;
@@ -9,6 +10,9 @@ pub struct InMemoryDb {
     next_entity_id: u64,
     ident_to_entity_id: HashMap<String, u64>,
     datoms: Vec<datom::Datom>,
+    // https://docs.datomic.com/pro/query/indexes.html
+    eavt: BTreeMap<u64, BTreeMap<u64, BTreeMap<datom::Value, u64>>>,
+    aevt: BTreeMap<u64, BTreeMap<u64, BTreeMap<datom::Value, u64>>>,
 }
 
 impl InMemoryDb {
@@ -19,39 +23,41 @@ impl InMemoryDb {
             datoms: vec![
                 // "db/attr/ident" attribute
                 // TODO: unique?
-                datom::Datom::new(1, 1, "db/attr/ident", 6),
+                datom::Datom::new(1, 1, schema::DB_ATTR_IDENT, 6),
                 datom::Datom::new(1, 2, "Human readable name of attribute", 6),
                 datom::Datom::new(1, 3, schema::ValueType::Str as u8, 6),
                 datom::Datom::new(1, 4, schema::Cardinality::One as u8, 6),
                 // "db/attr/doc" attribute
-                datom::Datom::new(2, 1, "db/attr/doc", 6),
+                datom::Datom::new(2, 1, schema::DB_ATTR_DOC, 6),
                 datom::Datom::new(2, 2, "Documentation of attribute", 6),
                 datom::Datom::new(2, 3, schema::ValueType::Str as u8, 6),
                 datom::Datom::new(2, 4, schema::Cardinality::One as u8, 6),
                 // "db/attr/type" attribute
-                datom::Datom::new(3, 1, "db/attr/type", 6),
+                datom::Datom::new(3, 1, schema::DB_ATTR_TYPE, 6),
                 datom::Datom::new(3, 2, "Data type of attribute", 6),
                 datom::Datom::new(3, 3, schema::ValueType::U8 as u8, 6),
                 datom::Datom::new(3, 4, schema::Cardinality::One as u8, 6),
                 // "db/attr/cardinality" attribute
-                datom::Datom::new(4, 1, "db/attr/cardinality", 6),
-                datom::Datom::new(4, 2, "schema::Cardinality of attribyte", 6),
+                datom::Datom::new(4, 1, schema::DB_ATTR_CARDINALITY, 6),
+                datom::Datom::new(4, 2, "Cardinality of attribyte", 6),
                 datom::Datom::new(4, 3, schema::ValueType::U8 as u8, 6),
                 datom::Datom::new(4, 4, schema::Cardinality::One as u8, 6),
                 // "db/tx/time" attribute
-                datom::Datom::new(5, 1, "db/tx/time", 6),
+                datom::Datom::new(5, 1, schema::DB_TX_TIME, 6),
                 datom::Datom::new(5, 2, "Transaction's wall clock time", 6),
                 datom::Datom::new(5, 3, schema::ValueType::U64 as u8, 6),
                 datom::Datom::new(5, 4, schema::Cardinality::One as u8, 6),
                 // first transaction
                 datom::Datom::new(6, 5, 0u64, 6),
             ],
+            eavt: BTreeMap::new(),
+            aevt: BTreeMap::new(),
         };
-        db.ident_to_entity("db/attr/ident", 1);
-        db.ident_to_entity("db/attr/doc", 2);
-        db.ident_to_entity("db/attr/type", 3);
-        db.ident_to_entity("db/attr/cardinality", 4);
-        db.ident_to_entity("db/tx/time", 5);
+        db.ident_to_entity(schema::DB_ATTR_IDENT, 1);
+        db.ident_to_entity(schema::DB_ATTR_DOC, 2);
+        db.ident_to_entity(schema::DB_ATTR_TYPE, 3);
+        db.ident_to_entity(schema::DB_ATTR_CARDINALITY, 4);
+        db.ident_to_entity(schema::DB_TX_TIME, 5);
         db
     }
 
@@ -60,8 +66,23 @@ impl InMemoryDb {
     }
 
     pub fn query(&self, query: query::Query) -> query::QueryResult {
+        let mut wher = query.wher.clone();
+        self.resolve_idents(&mut wher);
+        wher.sort_by_key(|clause| clause.num_grounded_terms());
+        wher.reverse();
+        println!("@@@ {:?}", wher);
+
         query::QueryResult {
             results: vec![vec![datom::Value::U64(0)]],
+        }
+    }
+
+    fn resolve_idents(&self, wher: &mut Vec<query::Clause>) {
+        for clause in wher {
+            if let query::AttributePattern::Ident(ident) = &clause.attribute {
+                let entity_id = self.ident_to_entity_id.get(ident).unwrap();
+                clause.attribute = query::AttributePattern::Id(*entity_id);
+            }
         }
     }
 
@@ -85,7 +106,7 @@ impl InMemoryDb {
         datoms.iter().for_each(|datom| {
             if let datom::Datom {
                 entity,
-                attribute: 1,
+                attribute: 1, // "db/attr/ident" attribute
                 value: datom::Value::Str(ident),
                 tx: _,
                 op: _,
@@ -117,7 +138,7 @@ impl InMemoryDb {
         let transaction_id = self.get_next_entity_id();
         datom::Datom {
             entity: transaction_id,
-            attribute: *self.ident_to_entity_id.get("db/tx/time").unwrap(),
+            attribute: *self.ident_to_entity_id.get(schema::DB_TX_TIME).unwrap(),
             value: datom::Value::U64(0),
             tx: transaction_id,
             op: datom::Op::Added,

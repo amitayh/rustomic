@@ -1,5 +1,12 @@
 use crate::tx;
 
+pub const DB_ATTR_IDENT: &str = "db/attr/ident";
+pub const DB_ATTR_CARDINALITY: &str = "db/attr/cardinality";
+pub const DB_ATTR_TYPE: &str = "db/attr/type";
+pub const DB_ATTR_DOC: &str = "db/attr/doc";
+
+pub const DB_TX_TIME: &str = "db/tx/time";
+
 pub enum ValueType {
     U8 = 0,
     I32 = 1,
@@ -25,12 +32,12 @@ pub struct Attribute {
 impl Into<tx::Operation> for Attribute {
     fn into(self) -> tx::Operation {
         let mut attributes = vec![
-            tx::AttributeValue::new("db/attr/ident", self.ident),
-            tx::AttributeValue::new("db/attr/cardinality", self.cardinality as u8),
-            tx::AttributeValue::new("db/attr/type", self.value_type as u8),
+            tx::AttributeValue::new(DB_ATTR_IDENT, self.ident),
+            tx::AttributeValue::new(DB_ATTR_CARDINALITY, self.cardinality as u8),
+            tx::AttributeValue::new(DB_ATTR_TYPE, self.value_type as u8),
         ];
         if let Some(doc) = self.doc {
-            attributes.push(tx::AttributeValue::new("db/attr/doc", doc));
+            attributes.push(tx::AttributeValue::new(DB_ATTR_DOC, doc));
         }
         tx::Operation {
             entity: tx::Entity::New,

@@ -9,6 +9,22 @@ pub enum Value {
     Str(String),
 }
 
+impl Value {
+    pub fn as_u8(&self) -> Option<&u8> {
+        if let Value::U8(value) = self {
+            return Some(value);
+        }
+        None
+    }
+
+    pub fn as_u64(&self) -> Option<&u64> {
+        if let Value::U64(value) = self {
+            return Some(value);
+        }
+        None
+    }
+}
+
 impl Into<Value> for &str {
     fn into(self) -> Value {
         Value::Str(String::from(self))

@@ -1,4 +1,3 @@
-use std::collections::hash_set::Intersection;
 use std::collections::BTreeMap;
 use std::collections::HashMap;
 use std::collections::HashSet;
@@ -7,6 +6,36 @@ use crate::datom;
 use crate::query;
 use crate::schema;
 use crate::tx;
+
+#[derive(Debug)]
+struct Assignment {
+    variables: HashMap<String, Option<datom::Value>>,
+    assigned: usize,
+}
+
+impl Assignment {
+    fn empty(query: &query::Query) -> Assignment {
+        let mut variables = HashMap::new();
+        for clause in &query.wher {
+            for variable in clause.free_variables() {
+                variables.insert(variable, None);
+            }
+        }
+        Assignment {
+            variables,
+            assigned: 0,
+        }
+    }
+
+    fn is_satisfied(&self) -> bool {
+        self.variables.len() == self.assigned
+    }
+
+    fn assign(&mut self, variable: &str, value: datom::Value) {
+        self.variables.insert(String::from(variable), Some(value));
+        self.assigned += 1;
+    }
+}
 
 pub struct InMemoryDb {
     next_entity_id: u64,
@@ -72,6 +101,15 @@ impl InMemoryDb {
         self.resolve_idents(&mut wher);
         wher.sort_by_key(|clause| clause.num_grounded_terms());
         wher.reverse();
+
+        let empty = Assignment::empty(&query);
+
+        for clause in &wher {
+            for datom in self.find_matching_datoms(clause) {
+                // let assignment = Assignment::
+            }
+        }
+
         let matching_datoms = wher
             .iter()
             .map(|clause| self.find_matching_datoms(&clause))
@@ -86,13 +124,10 @@ impl InMemoryDb {
 
     // TODO: optimize with indexes
     fn find_matching_datoms(&self, clause: &query::Clause) -> HashSet<&datom::Datom> {
-        let mut matching_datoms = HashSet::new();
-        for datom in &self.datoms {
-            if datom.satisfies(clause) {
-                matching_datoms.insert(datom);
-            }
-        }
-        matching_datoms
+        self.datoms
+            .iter()
+            .filter(|datom| datom.satisfies(clause))
+            .collect()
     }
 
     fn resolve_idents(&self, wher: &mut Vec<query::Clause>) {

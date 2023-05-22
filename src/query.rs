@@ -21,6 +21,13 @@ impl EntityPattern {
         EntityPattern::Variable(Variable(String::from(name)))
     }
 
+    pub fn variable_name(&self) -> Option<String> {
+        match self {
+            EntityPattern::Variable(variable) => Some(variable.0.clone()),
+            _ => None,
+        }
+    }
+
     pub fn is_grounded(&self) -> bool {
         match self {
             EntityPattern::Id(_) => true,
@@ -46,6 +53,13 @@ impl AttributePattern {
         AttributePattern::Ident(String::from(name))
     }
 
+    pub fn variable_name(&self) -> Option<String> {
+        match self {
+            AttributePattern::Variable(variable) => Some(variable.0.clone()),
+            _ => None,
+        }
+    }
+
     pub fn is_grounded(&self) -> bool {
         match self {
             AttributePattern::Ident(_) | AttributePattern::Id(_) => true,
@@ -62,8 +76,19 @@ pub enum ValuePattern {
 }
 
 impl ValuePattern {
+    pub fn variable(name: &str) -> ValuePattern {
+        ValuePattern::Variable(Variable(String::from(name)))
+    }
+
     pub fn constant<V: Into<datom::Value>>(value: V) -> ValuePattern {
         ValuePattern::Constant(value.into())
+    }
+
+    pub fn variable_name(&self) -> Option<String> {
+        match self {
+            ValuePattern::Variable(variable) => Some(variable.0.clone()),
+            _ => None,
+        }
     }
 
     pub fn is_grounded(&self) -> bool {
@@ -82,6 +107,20 @@ pub struct Clause {
 }
 
 impl Clause {
+    pub fn free_variables(&self) -> Vec<String> {
+        let mut variables = Vec::new();
+        if let Some(variable) = self.entity.variable_name() {
+            variables.push(variable);
+        }
+        if let Some(variable) = self.attribute.variable_name() {
+            variables.push(variable);
+        }
+        if let Some(variable) = self.value.variable_name() {
+            variables.push(variable);
+        }
+        variables
+    }
+
     pub fn num_grounded_terms(&self) -> usize {
         let entity = if self.entity.is_grounded() { 1 } else { 0 };
         let attribute = if self.attribute.is_grounded() { 1 } else { 0 };

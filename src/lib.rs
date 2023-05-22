@@ -38,9 +38,9 @@ mod tests {
         let john_id = tx_result.temp_ids.get(&String::from("john"));
 
         let query_result = db.query(query::Query {
-            find: vec![query::Variable::new("john")],
+            find: vec![query::Variable::new("?john")],
             wher: vec![query::Clause {
-                entity: query::EntityPattern::variable("john"),
+                entity: query::EntityPattern::variable("?john"),
                 attribute: query::AttributePattern::ident("person/name"),
                 value: query::ValuePattern::constant("John Lenon"),
             }],
@@ -81,6 +81,7 @@ mod tests {
         });
 
         // Insert data
+        /*
         let tx_result = db.transact(tx::Transaction {
             operations: vec![
                 tx::Operation {
@@ -95,6 +96,7 @@ mod tests {
                     entity: tx::Entity::TempId(String::from("abbey-road")),
                     attributes: vec![
                         tx::AttributeValue::new("release/name", "Abbey Road"),
+                        // TODO: how to use tempid?
                         tx::AttributeValue::new("release/artists", "john"),
                     ],
                 },
@@ -102,33 +104,49 @@ mod tests {
         });
 
         let john_id = tx_result.temp_ids.get(&String::from("john"));
-
-        let query_result = db.query(query::Query {
-            find: vec![query::Variable::new("release")],
-            wher: vec![
-                /*
-                // [?artist :artist/name ?artist-name]
-                query::Clause {
-                    entity: 0,
-                    attribute: 0,
-                    value: 0,
+        */
+        let john_id = 100u64;
+        let tx_result = db.transact(tx::Transaction {
+            operations: vec![
+                tx::Operation {
+                    entity: tx::Entity::Id(john_id),
+                    attributes: vec![tx::AttributeValue::new("artist/name", "John Lenon")],
                 },
-                // [?release :release/artists ?artist]
-                query::Clause {
-                    entity: 0,
-                    attribute: 0,
-                    value: 0,
+                tx::Operation {
+                    entity: tx::Entity::New,
+                    attributes: vec![tx::AttributeValue::new("artist/name", "Paul McCartney")],
                 },
-                // [?release :release/name ?release-name]
-                query::Clause {
-                    entity: 0,
-                    attribute: 0,
-                    value: 0,
+                tx::Operation {
+                    entity: tx::Entity::TempId(String::from("abbey-road")),
+                    attributes: vec![
+                        tx::AttributeValue::new("release/name", "Abbey Road"),
+                        tx::AttributeValue::new("release/artists", john_id),
+                    ],
                 },
-                */
             ],
         });
 
-        assert_eq!(4, 2 + 2);
+        let query_result = db.query(query::Query {
+            find: vec![query::Variable::new("?release-name")],
+            wher: vec![
+                query::Clause {
+                    entity: query::EntityPattern::variable("?artist"),
+                    attribute: query::AttributePattern::ident("artist/name"),
+                    value: query::ValuePattern::constant("John Lenon"),
+                },
+                query::Clause {
+                    entity: query::EntityPattern::variable("?release"),
+                    attribute: query::AttributePattern::ident("release/artists"),
+                    value: query::ValuePattern::variable("?artist"),
+                },
+                query::Clause {
+                    entity: query::EntityPattern::variable("?release"),
+                    attribute: query::AttributePattern::ident("release/name"),
+                    value: query::ValuePattern::variable("?release-name"),
+                },
+            ],
+        });
+
+        assert_eq!(Some(&john_id), extract_u64(&query_result));
     }
 }

@@ -54,6 +54,7 @@ bind-rel                   = [ [(variable | '_')+] ]
 
 => [[fred], [ethel]]
 
+
 -------------------------------------------------------------------------------
 
 -------------------------------------------------------------------------------
@@ -67,6 +68,14 @@ bind-rel                   = [ [(variable | '_')+] ]
 
 ;; inputs
 db, "John Lennon"
+
+-------------------------------------------------------------------------------
+
+https://www.youtube.com/watch?v=ikVZrivln8c
+
+verify rules match facts
+let model = solve(facts, rules)
+project(model)
 
 -------------------------------------------------------------------------------
 
@@ -127,13 +136,52 @@ db, "John Lennon"
 
 
 
+https://freecontent.manning.com/constraint-satisfaction-problems-in-python/
+
+# create_entity_by_temp_id
+
+[john :artist/name "John Lenon"]
+[paul :artist/name "Paul McCartney"]
+[ar :release/name "Abbey Road"]
+[ar :release/artists john]
+[ar :release/artists paul]
+[ram :release/name "Ram"]
+[ram :release/artists paul]
+
+
+[:find ?release-name
+ :where [?artist :artist/name "John Lenon"]
+        [?release :release/artists ?artist]
+        [?release :release/name ?release-name]]
+
+1. [?artist :artist/name "John Lenon"]
+-----------------------------------
+[john :artist/name "John Lenon"] => {?artist => john}
+
+2. [?release :release/artists ?artist]
+-----------------------------------
+[ar :release/artists john] => {?release => ar, ?artist => john}
+[ar :release/artists paul] => {?release => ar, ?artist => paul}
+[ram :release/artists paul] => {?release => ram, ?artist => john}
+
+3. [?release :release/name ?release-name]
+-----------------------------------
+[ar :release/name "Abbey Road"] => {?release => ar, ?release-name => "Abbey Road"}
+[ram :release/name "Ram"] => {?release => ram, ?release-name => "Ram"}
+
+{?artist => john,
+ ?release => ar,
+ ?release-name "Abbey Road"}
+
+
+assignment = {}
+for clause in clauses:
+  for datom in datoms.filter(_.satisfies(clause)):
+    if datom.satisfies(assignment):
+      assignment = assign_from(datom)
 
 
 
-[[john :artist/name "John Lenon"]
- [paul :artist/name "Paul McCartney"]
- [ar :release/name "Abbey Road"
- [ar :release/artusts john]]
 
 -------------------------------------------------------------------------------
 
@@ -170,6 +218,9 @@ sort clauses by grounded terms
 resolve idents
 for clause in clauses:
   for datom in datoms:
+    if (datom satisfies clause):
+      facts += datom
+
     
 substitution step
   1) attribute ident => ID

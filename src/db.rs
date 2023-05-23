@@ -7,36 +7,6 @@ use crate::query;
 use crate::schema;
 use crate::tx;
 
-#[derive(Debug)]
-struct Assignment {
-    variables: HashMap<String, Option<datom::Value>>,
-    assigned: usize,
-}
-
-impl Assignment {
-    fn empty(query: &query::Query) -> Assignment {
-        let mut variables = HashMap::new();
-        for clause in &query.wher {
-            for variable in clause.free_variables() {
-                variables.insert(variable, None);
-            }
-        }
-        Assignment {
-            variables,
-            assigned: 0,
-        }
-    }
-
-    fn is_satisfied(&self) -> bool {
-        self.variables.len() == self.assigned
-    }
-
-    fn assign(&mut self, variable: &str, value: datom::Value) {
-        self.variables.insert(String::from(variable), Some(value));
-        self.assigned += 1;
-    }
-}
-
 pub struct InMemoryDb {
     next_entity_id: u64,
     ident_to_entity_id: HashMap<String, u64>,
@@ -99,14 +69,13 @@ impl InMemoryDb {
     pub fn query(&self, query: query::Query) -> query::QueryResult {
         let mut wher = query.wher.clone();
         self.resolve_idents(&mut wher);
-        wher.sort_by_key(|clause| clause.num_grounded_terms());
-        wher.reverse();
+        // wher.sort_by_key(|clause| clause.num_grounded_terms());
+        // wher.reverse();
 
-        let empty = Assignment::empty(&query);
-
+        let assignment = query::Assignment::empty(&query);
         for clause in &wher {
             for datom in self.find_matching_datoms(clause) {
-                // let assignment = Assignment::
+                // assignment.assign_from(clause, datom);
             }
         }
 
@@ -119,6 +88,23 @@ impl InMemoryDb {
 
         query::QueryResult {
             results: vec![vec![datom::Value::U64(0)]],
+        }
+    }
+
+    fn resolve(
+        &self,
+        clauses: &[query::Clause],
+        assignment: &query::Assignment,
+    ) -> Vec<query::Assignment> {
+        if assignment.is_complete() {
+            return vec![assignment.clone()];
+        }
+        match clauses {
+            [] => vec![],
+            [clause, rest @ ..] => {
+                let clause_with_assignment = clause.substitute(assignment);
+                vec![]
+            }
         }
     }
 

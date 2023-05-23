@@ -72,6 +72,7 @@ db, "John Lennon"
 -------------------------------------------------------------------------------
 
 https://www.youtube.com/watch?v=ikVZrivln8c
+https://www.cnblogs.com/RDaneelOlivaw/p/8072603.html
 
 verify rules match facts
 let model = solve(facts, rules)
@@ -133,6 +134,7 @@ project(model)
 ?release-name
 
 
+-------------------------------------------------------------------------------
 
 
 
@@ -147,6 +149,8 @@ https://freecontent.manning.com/constraint-satisfaction-problems-in-python/
 [ar :release/artists paul]
 [ram :release/name "Ram"]
 [ram :release/artists paul]
+[imagine :release/name "Imagine"]
+[imagine :release/artists john]
 
 
 [:find ?release-name
@@ -154,32 +158,118 @@ https://freecontent.manning.com/constraint-satisfaction-problems-in-python/
         [?release :release/artists ?artist]
         [?release :release/name ?release-name]]
 
-1. [?artist :artist/name "John Lenon"]
------------------------------------
-[john :artist/name "John Lenon"] => {?artist => john}
-
-2. [?release :release/artists ?artist]
------------------------------------
-[ar :release/artists john] => {?release => ar, ?artist => john}
-[ar :release/artists paul] => {?release => ar, ?artist => paul}
-[ram :release/artists paul] => {?release => ram, ?artist => john}
-
-3. [?release :release/name ?release-name]
------------------------------------
-[ar :release/name "Abbey Road"] => {?release => ar, ?release-name => "Abbey Road"}
-[ram :release/name "Ram"] => {?release => ram, ?release-name => "Ram"}
-
-{?artist => john,
- ?release => ar,
- ?release-name "Abbey Road"}
 
 
-assignment = {}
-for clause in clauses:
-  for datom in datoms.filter(_.satisfies(clause)):
-    if datom.satisfies(assignment):
-      assignment = assign_from(datom)
+c1:[?artist :artist/name "John Lenon"]
+c2:[?release :release/artists ?artist]
+c3:[?release :release/name ?release-name]
 
+
+Variables:
+-
+?artist
+?release
+?release-name
+
+
+
+c1:[?artist :artist/name "John Lenon"]
+  d:[john :artist/name "John Lenon"] => {?artist => john}
+    c2:[?release :release/artists john]
+      d:[ar :release/artists john] => {?artist => john, ?release => ar}
+        c3:[ar :release/name ?release-name]
+          d:[ar :release/name "Abbey Road"] => {?artist => john, ?release => ar, ?release-name => "Abbey Road"} Complete!
+      d:[imagine :release/artists john] => {?artist => john, ?release => imagine}
+        c3:[imagine :release/name ?release-name]
+          d:[imagine :release/name "Imagine"] => {?artist => john, ?release => imagine, ?release-name => "Imagine"} Complete!
+
+
+
+
+
+
+
+
+
+
+
+
+
+-------------------------------------------------------------------------------
+
+// Foo -> Bar -> Baz -> Qux
+[foo :name "Foo"]
+[bar :name "Bar"]
+[baz :name "Baz"]
+[qux :name "Qux"]
+[foo :parent bar]
+[bar :parent baz]
+[baz :parent qux]
+
+[:find [?grandson-name ?grandparent-name]
+ :where [?grandparent :parent ?parent]
+        [?parent :parent ?grandson]
+        [?grandparent :name ?grandparent-name]
+        [?grandson :name ?grandson-name]]
+
+
+c1:[?grandparent :parent ?parent]
+-
+[foo :parent bar] => {?grandparent => foo, ?parent => bar}
+[bar :parent baz] => {?grandparent => bar, ?parent => baz}
+[baz :parent qux] => {?grandparent => baz, ?parent => qux}
+
+
+c2:[?parent :parent ?grandson]
+-
+[foo :parent bar] => {?parent => foo, ?grandson => bar}
+[bar :parent baz] => {?parent => bar, ?grandson => baz}
+[baz :parent qux] => {?parent => baz, ?grandson => qux}
+
+
+c3:[?grandparent :name ?grandparent-name]
+-
+[foo :name "Foo"] => {?grandparent => foo, ?grandparent-name => "Foo"}
+[bar :name "Bar"] => {?grandparent => bar, ?grandparent-name => "Bar"}
+[baz :name "Baz"] => {?grandparent => baz, ?grandparent-name => "Baz"}
+[qux :name "Qux"] => {?grandparent => qux, ?grandparent-name => "Qux"}
+
+
+c4:[?grandson :name ?grandson-name]
+-
+[foo :name "Foo"] => {?grandson => foo, ?grandson-name => "Foo"}
+[bar :name "Bar"] => {?grandson => bar, ?grandson-name => "Bar"}
+[baz :name "Baz"] => {?grandson => baz, ?grandson-name => "Baz"}
+[qux :name "Qux"] => {?grandson => qux, ?grandson-name => "Qux"}
+
+
+Variables
+-
+?grandparent
+?parent
+?grandson
+?grandparent-name
+?grandson-name
+
+
+c1:[?grandparent :parent ?parent]
+  d:[foo :parent bar] => {?grandparent => foo, ?parent => bar}
+    c2:[bar :parent ?grandson]
+      d:[bar :parent baz] => {?grandparent => foo, ?parent => bar, ?grandson => baz}
+        c3:[foo :name ?grandparent-name]
+          d:[foo :name "Foo"] => {?grandparent => foo, ?parent => bar, ?grandson => baz, ?grandparent-name => "Foo"}
+            c4:[baz :name ?grandson-name]
+              d:[baz :name "Baz"] => {?grandparent => foo, ?parent => bar, ?grandson => baz, ?grandparent-name => "Foo", ?grandson-name => "Baz"} Valid assignment!
+  d:[bar :parent baz] => {?grandparent => bar, ?parent => baz}
+    c2:[baz :parent ?grandson]
+      d:[baz :parent qux] => {?grandparent => bar, ?parent => baz, ?grandson => qux}
+        c3:[bar :name ?grandparent-name]
+          d:[bar :name "Bar"] => {?grandparent => bar, ?parent => baz, ?grandson => qux, ?gradparent-name => "Bar"}
+            c4:[qux :name ?grandson-name]
+              d:[qux :name "Qux"] => {?grandparent => bar, ?parent => baz, ?grandson => qux, ?grandparent-name => "Bar", ?grandson-name => "Qux"} Valid assignment!
+  d:[baz :parent qux] => {?grandparent => baz, ?parent => qux}
+    c2:[qux :parent ?grandson]
+      d:None => invalid assignment!
 
 
 

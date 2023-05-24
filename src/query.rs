@@ -19,7 +19,7 @@ trait Pattern {
 
     fn assigned_value<'a>(&'a self, assignment: &'a Assignment) -> Option<&datom::Value> {
         self.variable_name()
-            .and_then(move |variable| assignment.assigned.get(&variable))
+            .and_then(|variable| assignment.assigned.get(&variable))
     }
 }
 
@@ -155,18 +155,16 @@ impl Clause {
         entity + attribute + value
     }
 
-    pub fn substitute(&self, assignment: &Assignment) -> Self {
-        let mut clause = self.clone();
-        if let Some(datom::Value::U64(entity)) = clause.entity.assigned_value(assignment) {
-            clause.entity = EntityPattern::Id(*entity);
+    pub fn substitute(&mut self, assignment: &Assignment) {
+        if let Some(datom::Value::U64(entity)) = self.entity.assigned_value(assignment) {
+            self.entity = EntityPattern::Id(*entity);
         }
-        if let Some(datom::Value::U64(attribute)) = clause.attribute.assigned_value(assignment) {
-            clause.attribute = AttributePattern::Id(*attribute);
+        if let Some(datom::Value::U64(attribute)) = self.attribute.assigned_value(assignment) {
+            self.attribute = AttributePattern::Id(*attribute);
         }
-        if let Some(value) = clause.value.assigned_value(assignment) {
-            clause.value = ValuePattern::Constant(value.clone());
+        if let Some(value) = self.value.assigned_value(assignment) {
+            self.value = ValuePattern::Constant(value.clone());
         }
-        clause
     }
 }
 
@@ -224,11 +222,24 @@ impl Assignment {
         self.unassigned.is_empty()
     }
 
-    pub fn assign(&mut self, variable: &str, value: datom::Value) {
-        let variable0 = String::from(variable);
-        if self.unassigned.contains(&variable0) {
-            self.unassigned.remove(&variable0);
-            self.assigned.insert(variable0, value);
+    pub fn assign<V: Into<datom::Value>>(&mut self, variable: String, value: V) {
+        if self.unassigned.contains(&variable) {
+            self.unassigned.remove(&variable);
+            self.assigned.insert(variable, value.into());
         }
+    }
+
+    pub fn update_with(&self, clause: &Clause, datom: &datom::Datom) -> Self {
+        let mut assignment = self.clone();
+        if let Some(entity_variable) = clause.entity.variable_name() {
+            assignment.assign(entity_variable, datom.entity);
+        }
+        if let Some(attribute_variable) = clause.attribute.variable_name() {
+            assignment.assign(attribute_variable, datom.attribute);
+        }
+        if let Some(value_variable) = clause.value.variable_name() {
+            assignment.assign(value_variable, datom.value.clone());
+        }
+        assignment
     }
 }

@@ -69,10 +69,14 @@ impl InMemoryDb {
     pub fn query(&self, query: query::Query) -> query::QueryResult {
         let mut wher = query.wher.clone();
         self.resolve_idents(&mut wher);
+        let assignment = query::Assignment::empty(&query);
+        let assignments = self.resolve(&mut wher, assignment);
+
+        dbg!(assignments);
         // wher.sort_by_key(|clause| clause.num_grounded_terms());
         // wher.reverse();
 
-        let assignment = query::Assignment::empty(&query);
+        /*
         for clause in &wher {
             for datom in self.find_matching_datoms(clause) {
                 // assignment.assign_from(clause, datom);
@@ -85,6 +89,7 @@ impl InMemoryDb {
             .reduce(|a, b| a.intersection(&b).cloned().collect());
 
         println!("@@@ matching_datoms {:?}", matching_datoms);
+        */
 
         query::QueryResult {
             results: vec![vec![datom::Value::U64(0)]],
@@ -93,8 +98,8 @@ impl InMemoryDb {
 
     fn resolve(
         &self,
-        clauses: &[query::Clause],
-        assignment: &query::Assignment,
+        clauses: &mut [query::Clause],
+        assignment: query::Assignment,
     ) -> Vec<query::Assignment> {
         if assignment.is_complete() {
             return vec![assignment.clone()];
@@ -102,14 +107,19 @@ impl InMemoryDb {
         match clauses {
             [] => vec![],
             [clause, rest @ ..] => {
-                let clause_with_assignment = clause.substitute(assignment);
-                vec![]
+                clause.substitute(&assignment);
+                let mut result = Vec::new();
+                for datom in self.find_matching_datoms(clause) {
+                    let new_assignment = assignment.update_with(&clause, datom);
+                    result.extend(self.resolve(rest, new_assignment));
+                }
+                result
             }
         }
     }
 
     // TODO: optimize with indexes
-    fn find_matching_datoms(&self, clause: &query::Clause) -> HashSet<&datom::Datom> {
+    fn find_matching_datoms(&self, clause: &query::Clause) -> Vec<&datom::Datom> {
         self.datoms
             .iter()
             .filter(|datom| datom.satisfies(clause))

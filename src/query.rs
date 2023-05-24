@@ -13,55 +13,39 @@ impl Variable {
 }
 
 trait Pattern {
-    fn is_grounded(&self) -> bool;
-
-    fn variable_name(&self) -> Option<String>;
+    fn variable_name(&self) -> Option<&String>;
 
     fn assigned_value<'a>(&'a self, assignment: &'a Assignment) -> Option<&datom::Value> {
         self.variable_name()
-            .and_then(|variable| assignment.assigned.get(&variable))
+            .and_then(|variable| assignment.assigned.get(variable))
     }
 }
 
 #[derive(Clone, Debug)]
 pub enum EntityPattern {
-    Variable(Variable),
+    Variable(String),
     Id(u64),
     Blank,
 }
 
 impl EntityPattern {
     pub fn variable(name: &str) -> Self {
-        EntityPattern::Variable(Variable(String::from(name)))
+        EntityPattern::Variable(String::from(name))
     }
 }
 
 impl Pattern for EntityPattern {
-    fn is_grounded(&self) -> bool {
+    fn variable_name(&self) -> Option<&String> {
         match self {
-            EntityPattern::Id(_) => true,
-            _ => false,
-        }
-    }
-
-    fn variable_name(&self) -> Option<String> {
-        match self {
-            EntityPattern::Variable(variable) => Some(variable.0.clone()),
+            EntityPattern::Variable(variable) => Some(&variable),
             _ => None,
         }
     }
 }
 
-#[test]
-fn entity_pattern_is_grounded() {
-    assert!(EntityPattern::Id(0).is_grounded());
-    assert!(!EntityPattern::variable("foo").is_grounded());
-    assert!(!EntityPattern::Blank.is_grounded());
-}
-
 #[derive(Clone, Debug)]
 pub enum AttributePattern {
-    Variable(Variable),
+    Variable(String),
     Ident(String),
     Id(u64),
     Blank,
@@ -69,7 +53,7 @@ pub enum AttributePattern {
 
 impl AttributePattern {
     pub fn variable(name: &str) -> AttributePattern {
-        AttributePattern::Variable(Variable(String::from(name)))
+        AttributePattern::Variable(String::from(name))
     }
 
     pub fn ident(name: &str) -> AttributePattern {
@@ -78,16 +62,9 @@ impl AttributePattern {
 }
 
 impl Pattern for AttributePattern {
-    fn is_grounded(&self) -> bool {
+    fn variable_name(&self) -> Option<&String> {
         match self {
-            AttributePattern::Ident(_) | AttributePattern::Id(_) => true,
-            _ => false,
-        }
-    }
-
-    fn variable_name(&self) -> Option<String> {
-        match self {
-            AttributePattern::Variable(variable) => Some(variable.0.clone()),
+            AttributePattern::Variable(variable) => Some(&variable),
             _ => None,
         }
     }
@@ -95,14 +72,14 @@ impl Pattern for AttributePattern {
 
 #[derive(Clone, Debug)]
 pub enum ValuePattern {
-    Variable(Variable),
+    Variable(String),
     Constant(datom::Value),
     Blank,
 }
 
 impl ValuePattern {
     pub fn variable(name: &str) -> ValuePattern {
-        ValuePattern::Variable(Variable(String::from(name)))
+        ValuePattern::Variable(String::from(name))
     }
 
     pub fn constant<V: Into<datom::Value>>(value: V) -> ValuePattern {
@@ -111,16 +88,9 @@ impl ValuePattern {
 }
 
 impl Pattern for ValuePattern {
-    fn is_grounded(&self) -> bool {
+    fn variable_name(&self) -> Option<&String> {
         match self {
-            ValuePattern::Constant(_) => true,
-            _ => false,
-        }
-    }
-
-    fn variable_name(&self) -> Option<String> {
-        match self {
-            ValuePattern::Variable(variable) => Some(variable.0.clone()),
+            ValuePattern::Variable(variable) => Some(&variable),
             _ => None,
         }
     }
@@ -134,7 +104,7 @@ pub struct Clause {
 }
 
 impl Clause {
-    pub fn free_variables(&self) -> Vec<String> {
+    pub fn free_variables(&self) -> Vec<&String> {
         let mut variables = Vec::new();
         if let Some(variable) = self.entity.variable_name() {
             variables.push(variable);
@@ -146,13 +116,6 @@ impl Clause {
             variables.push(variable);
         }
         variables
-    }
-
-    pub fn num_grounded_terms(&self) -> usize {
-        let entity = self.entity.is_grounded() as usize;
-        let attribute = self.attribute.is_grounded() as usize;
-        let value = self.value.is_grounded() as usize;
-        entity + attribute + value
     }
 
     pub fn substitute(&mut self, assignment: &Assignment) {
@@ -214,6 +177,7 @@ impl Assignment {
                 .wher
                 .iter()
                 .flat_map(|clause| clause.free_variables())
+                .map(|variable| variable.clone())
                 .collect(),
         }
     }
@@ -222,10 +186,10 @@ impl Assignment {
         self.unassigned.is_empty()
     }
 
-    pub fn assign<V: Into<datom::Value>>(&mut self, variable: String, value: V) {
-        if self.unassigned.contains(&variable) {
-            self.unassigned.remove(&variable);
-            self.assigned.insert(variable, value.into());
+    pub fn assign<V: Into<datom::Value>>(&mut self, variable: &String, value: V) {
+        if self.unassigned.contains(variable) {
+            self.unassigned.remove(variable);
+            self.assigned.insert(variable.clone(), value.into());
         }
     }
 

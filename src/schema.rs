@@ -29,6 +29,19 @@ pub struct Attribute {
     pub doc: Option<String>,
 }
 
+impl Attribute {
+    pub fn new(ident: &str, value_type: ValueType, cardinality: Cardinality) -> tx::Operation {
+        tx::Operation {
+            entity: tx::Entity::New,
+            attributes: vec![
+                tx::AttributeValue::new(DB_ATTR_IDENT, ident),
+                tx::AttributeValue::new(DB_ATTR_CARDINALITY, cardinality as u8),
+                tx::AttributeValue::new(DB_ATTR_TYPE, value_type as u8),
+            ],
+        }
+    }
+}
+
 impl Into<tx::Operation> for Attribute {
     fn into(self) -> tx::Operation {
         let mut attributes = vec![

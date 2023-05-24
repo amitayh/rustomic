@@ -8,49 +8,50 @@ pub mod tx;
 mod tests {
     use super::*;
 
-    fn extract_u64(result: &query::QueryResult) -> Option<&u64> {
-        result.results.get(0)?.get(0)?.as_u64()
-    }
-
     #[test]
-    fn create_entity_by_temp_id2() {
+    fn create_entity_by_temp_id() {
         let mut db = db::InMemoryDb::new();
 
         // Create the schema
         db.transact(tx::Transaction {
-            operations: vec![schema::Attribute {
-                ident: String::from("person/name"),
-                cardinality: schema::Cardinality::One,
-                value_type: schema::ValueType::Str,
-                doc: Some(String::from("An person's name")),
-            }
-            .into()],
+            operations: vec![schema::Attribute::new(
+                "person/name",
+                schema::ValueType::Str,
+                schema::Cardinality::One,
+            )],
         });
 
         // Insert data
         let tx_result = db.transact(tx::Transaction {
             operations: vec![tx::Operation {
                 entity: tx::Entity::TempId(String::from("john")),
-                attributes: vec![tx::AttributeValue::new("person/name", "John Lenon")],
+                attributes: vec![tx::AttributeValue::new("person/name", "Joe")],
             }],
         });
 
-        let john_id = tx_result.temp_ids.get(&String::from("john"));
+        let john_id = tx_result.temp_ids.get("john");
 
         let query_result = db.query(query::Query {
             find: vec![query::Variable::new("?john")],
             wher: vec![query::Clause {
                 entity: query::EntityPattern::variable("?john"),
                 attribute: query::AttributePattern::ident("person/name"),
-                value: query::ValuePattern::constant("John Lenon"),
+                value: query::ValuePattern::constant("Joe"),
             }],
         });
 
-        assert_eq!(john_id, extract_u64(&query_result));
+        assert_eq!(
+            john_id,
+            query_result
+                .results
+                .get(0)
+                .and_then(|assignment| assignment.get("?john"))
+                .and_then(|value| value.as_u64())
+        );
     }
 
     #[test]
-    fn create_entity_by_temp_id() {
+    fn reference_temp_id_in_transaction() {
         let mut db = db::InMemoryDb::new();
 
         // Create the schema
@@ -81,8 +82,7 @@ mod tests {
         });
 
         // Insert data
-        /*
-        let tx_result = db.transact(tx::Transaction {
+        db.transact(tx::Transaction {
             operations: vec![
                 tx::Operation {
                     entity: tx::Entity::TempId(String::from("john")),
@@ -96,31 +96,7 @@ mod tests {
                     entity: tx::Entity::TempId(String::from("abbey-road")),
                     attributes: vec![
                         tx::AttributeValue::new("release/name", "Abbey Road"),
-                        // TODO: how to use tempid?
                         tx::AttributeValue::new("release/artists", "john"),
-                    ],
-                },
-            ],
-        });
-
-        let john_id = tx_result.temp_ids.get(&String::from("john"));
-        */
-        let john_id = 100u64;
-        let tx_result = db.transact(tx::Transaction {
-            operations: vec![
-                tx::Operation {
-                    entity: tx::Entity::Id(john_id),
-                    attributes: vec![tx::AttributeValue::new("artist/name", "John Lenon")],
-                },
-                tx::Operation {
-                    entity: tx::Entity::New,
-                    attributes: vec![tx::AttributeValue::new("artist/name", "Paul McCartney")],
-                },
-                tx::Operation {
-                    entity: tx::Entity::TempId(String::from("abbey-road")),
-                    attributes: vec![
-                        tx::AttributeValue::new("release/name", "Abbey Road"),
-                        tx::AttributeValue::new("release/artists", john_id),
                     ],
                 },
             ],
@@ -147,6 +123,13 @@ mod tests {
             ],
         });
 
-        assert_eq!(Some(&john_id), extract_u64(&query_result));
+        assert_eq!(
+            Some("Abbey Road"),
+            query_result
+                .results
+                .get(0)
+                .and_then(|assignment| assignment.get("?release-name"))
+                .and_then(|value| value.as_str())
+        );
     }
 }

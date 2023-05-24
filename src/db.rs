@@ -1,6 +1,5 @@
 use std::collections::BTreeMap;
 use std::collections::HashMap;
-use std::collections::HashSet;
 
 use crate::datom;
 use crate::query;
@@ -70,29 +69,12 @@ impl InMemoryDb {
         let mut wher = query.wher.clone();
         self.resolve_idents(&mut wher);
         let assignment = query::Assignment::empty(&query);
-        let assignments = self.resolve(&mut wher, assignment);
-
-        dbg!(assignments);
-        // wher.sort_by_key(|clause| clause.num_grounded_terms());
-        // wher.reverse();
-
-        /*
-        for clause in &wher {
-            for datom in self.find_matching_datoms(clause) {
-                // assignment.assign_from(clause, datom);
-            }
-        }
-
-        let matching_datoms = wher
-            .iter()
-            .map(|clause| self.find_matching_datoms(&clause))
-            .reduce(|a, b| a.intersection(&b).cloned().collect());
-
-        println!("@@@ matching_datoms {:?}", matching_datoms);
-        */
-
+        let results = self.resolve(&mut wher, assignment);
         query::QueryResult {
-            results: vec![vec![datom::Value::U64(0)]],
+            results: results
+                .into_iter()
+                .map(|assignment| assignment.assigned)
+                .collect(),
         }
     }
 

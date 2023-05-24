@@ -159,7 +159,7 @@ pub struct Query {
 
 #[derive(Debug)]
 pub struct QueryResult {
-    pub results: Vec<Vec<datom::Value>>,
+    pub results: Vec<HashMap<String, datom::Value>>,
 }
 
 // TODO PartialAssignment / CompleteAssignment?

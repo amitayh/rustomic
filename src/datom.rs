@@ -23,6 +23,13 @@ impl Value {
         }
         None
     }
+
+    pub fn as_str(&self) -> Option<&str> {
+        if let Value::Str(value) = self {
+            return Some(value);
+        }
+        None
+    }
 }
 
 impl Into<Value> for &str {

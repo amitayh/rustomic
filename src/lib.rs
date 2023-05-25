@@ -2,6 +2,7 @@ pub mod datom;
 pub mod db;
 pub mod query;
 pub mod schema;
+pub mod storage;
 pub mod tx;
 
 #[cfg(test)]

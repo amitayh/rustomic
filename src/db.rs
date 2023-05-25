@@ -5,6 +5,7 @@ use std::error::Error;
 use crate::datom;
 use crate::query;
 use crate::schema;
+use crate::storage;
 use crate::tx;
 
 pub struct InMemoryDb {
@@ -14,6 +15,11 @@ pub struct InMemoryDb {
     // https://docs.datomic.com/pro/query/indexes.html
     eavt: BTreeMap<u64, BTreeMap<u64, BTreeMap<datom::Value, u64>>>,
     aevt: BTreeMap<u64, BTreeMap<u64, BTreeMap<datom::Value, u64>>>,
+}
+
+pub struct InMemoryDb2<T: storage::Storage> {
+    next_entity_id: u64,
+    storage: T,
 }
 
 impl InMemoryDb {

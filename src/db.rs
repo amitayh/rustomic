@@ -1,5 +1,6 @@
 use std::collections::BTreeMap;
 use std::collections::HashMap;
+use std::error::Error;
 
 use crate::datom;
 use crate::query;
@@ -17,48 +18,14 @@ pub struct InMemoryDb {
 
 impl InMemoryDb {
     pub fn new() -> InMemoryDb {
-        let mut db = InMemoryDb {
-            next_entity_id: 10,
-            ident_to_entity_id: HashMap::new(),
-            datoms: vec![
-                // "db/attr/ident" attribute
-                // TODO: unique?
-                datom::Datom::new(1, 1, schema::DB_ATTR_IDENT, 6),
-                datom::Datom::new(1, 2, "Human readable name of attribute", 6),
-                datom::Datom::new(1, 3, schema::ValueType::Str as u8, 6),
-                datom::Datom::new(1, 4, schema::Cardinality::One as u8, 6),
-                // "db/attr/doc" attribute
-                datom::Datom::new(2, 1, schema::DB_ATTR_DOC, 6),
-                datom::Datom::new(2, 2, "Documentation of attribute", 6),
-                datom::Datom::new(2, 3, schema::ValueType::Str as u8, 6),
-                datom::Datom::new(2, 4, schema::Cardinality::One as u8, 6),
-                // "db/attr/type" attribute
-                datom::Datom::new(3, 1, schema::DB_ATTR_TYPE, 6),
-                datom::Datom::new(3, 2, "Data type of attribute", 6),
-                datom::Datom::new(3, 3, schema::ValueType::U8 as u8, 6),
-                datom::Datom::new(3, 4, schema::Cardinality::One as u8, 6),
-                // "db/attr/cardinality" attribute
-                datom::Datom::new(4, 1, schema::DB_ATTR_CARDINALITY, 6),
-                datom::Datom::new(4, 2, "Cardinality of attribyte", 6),
-                datom::Datom::new(4, 3, schema::ValueType::U8 as u8, 6),
-                datom::Datom::new(4, 4, schema::Cardinality::One as u8, 6),
-                // "db/tx/time" attribute
-                datom::Datom::new(5, 1, schema::DB_TX_TIME, 6),
-                datom::Datom::new(5, 2, "Transaction's wall clock time", 6),
-                datom::Datom::new(5, 3, schema::ValueType::U64 as u8, 6),
-                datom::Datom::new(5, 4, schema::Cardinality::One as u8, 6),
-                // first transaction
-                datom::Datom::new(6, 5, 0u64, 6),
-            ],
+        let initial_tx_id = 10;
+        InMemoryDb {
+            next_entity_id: initial_tx_id,
+            ident_to_entity_id: schema::default_ident_to_entity(),
+            datoms: schema::default_datoms(initial_tx_id),
             eavt: BTreeMap::new(),
             aevt: BTreeMap::new(),
-        };
-        db.ident_to_entity(schema::DB_ATTR_IDENT, 1);
-        db.ident_to_entity(schema::DB_ATTR_DOC, 2);
-        db.ident_to_entity(schema::DB_ATTR_TYPE, 3);
-        db.ident_to_entity(schema::DB_ATTR_CARDINALITY, 4);
-        db.ident_to_entity(schema::DB_TX_TIME, 5);
-        db
+        }
     }
 
     fn ident_to_entity(&mut self, ident: &str, entity: u64) {
@@ -117,8 +84,10 @@ impl InMemoryDb {
         }
     }
 
-    pub fn transact(&mut self, transaction: tx::Transaction) -> tx::TransctionResult {
-        // validate attributes match value
+    pub fn transact(
+        &mut self,
+        transaction: tx::Transaction,
+    ) -> Result<tx::TransctionResult, tx::TransactionError> {
         // validate cardinality
         let tx = self.create_tx_datom();
         let temp_ids = self.generate_temp_ids(&transaction.operations);
@@ -137,7 +106,7 @@ impl InMemoryDb {
         datoms.iter().for_each(|datom| {
             if let datom::Datom {
                 entity,
-                attribute: 1, // "db/attr/ident" attribute
+                attribute: schema::DB_ATTR_IDENT_ID,
                 value: datom::Value::Str(ident),
                 tx: _,
                 op: _,
@@ -146,11 +115,37 @@ impl InMemoryDb {
                 self.ident_to_entity(&ident, *entity);
             }
         });
+        self.validate_transaction(&datoms)?;
         self.datoms.append(&mut datoms);
-        tx::TransctionResult {
+
+        Ok(tx::TransctionResult {
             tx_data: datoms,
             temp_ids,
+        })
+    }
+
+    fn validate_transaction(&self, datoms: &Vec<datom::Datom>) -> Result<(), tx::TransactionError> {
+        for datom in datoms {
+            match self.value_type_of_attribute(datom.attribute) {
+                Some(value_type) => {
+                    if !datom.value.matches_type(value_type) {
+                        return Err(tx::TransactionError::Error);
+                    }
+                }
+                None => return Err(tx::TransactionError::Error),
+            }
         }
+        Ok(())
+    }
+
+    fn value_type_of_attribute(&self, attribute: u64) -> Option<schema::ValueType> {
+        self.datoms
+            .iter()
+            .find(|datom| datom.entity == attribute && datom.attribute == schema::DB_ATTR_TYPE_ID)
+            .and_then(|datom| match datom.value {
+                datom::Value::U8(value) => schema::ValueType::from(value),
+                _ => None,
+            })
     }
 
     fn get_entity_id(
@@ -167,13 +162,7 @@ impl InMemoryDb {
 
     fn create_tx_datom(&mut self) -> datom::Datom {
         let transaction_id = self.get_next_entity_id();
-        datom::Datom {
-            entity: transaction_id,
-            attribute: *self.ident_to_entity_id.get(schema::DB_TX_TIME).unwrap(),
-            value: datom::Value::U64(0),
-            tx: transaction_id,
-            op: datom::Op::Added,
-        }
+        datom::Datom::new(transaction_id, schema::DB_TX_TIME_ID, 0u64, transaction_id)
     }
 
     fn get_datoms(
@@ -209,8 +198,7 @@ impl InMemoryDb {
     }
 
     fn get_next_entity_id(&mut self) -> u64 {
-        let entity_id = self.next_entity_id;
         self.next_entity_id += 1;
-        entity_id
+        self.next_entity_id
     }
 }

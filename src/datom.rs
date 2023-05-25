@@ -32,6 +32,36 @@ impl Value {
     }
 }
 
+impl Into<Value> for u8 {
+    fn into(self) -> Value {
+        Value::U8(self)
+    }
+}
+
+impl Into<Value> for i32 {
+    fn into(self) -> Value {
+        Value::I32(self)
+    }
+}
+
+impl Into<Value> for u32 {
+    fn into(self) -> Value {
+        Value::U32(self)
+    }
+}
+
+impl Into<Value> for i64 {
+    fn into(self) -> Value {
+        Value::I64(self)
+    }
+}
+
+impl Into<Value> for u64 {
+    fn into(self) -> Value {
+        Value::U64(self)
+    }
+}
+
 impl Into<Value> for &str {
     fn into(self) -> Value {
         Value::Str(String::from(self))
@@ -41,18 +71,6 @@ impl Into<Value> for &str {
 impl Into<Value> for String {
     fn into(self) -> Value {
         Value::Str(self)
-    }
-}
-
-impl Into<Value> for u8 {
-    fn into(self) -> Value {
-        Value::U8(self)
-    }
-}
-
-impl Into<Value> for u64 {
-    fn into(self) -> Value {
-        Value::U64(self)
     }
 }
 

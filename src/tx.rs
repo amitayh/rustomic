@@ -34,3 +34,8 @@ pub struct TransctionResult {
     pub tx_data: Vec<datom::Datom>,
     pub temp_ids: HashMap<String, u64>,
 }
+
+#[derive(Debug)]
+pub enum TransactionError {
+    Error,
+}

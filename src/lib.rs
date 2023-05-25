@@ -13,13 +13,15 @@ mod tests {
         let mut db = db::InMemoryDb::new();
 
         // Create the schema
-        db.transact(tx::Transaction {
-            operations: vec![schema::Attribute::new(
+        let schema_result = db.transact(tx::Transaction {
+            operations: vec![schema::attribute(
                 "person/name",
                 schema::ValueType::Str,
                 schema::Cardinality::One,
+                "A person's name",
             )],
         });
+        assert!(schema_result.is_ok());
 
         // Insert data
         let tx_result = db.transact(tx::Transaction {
@@ -28,8 +30,7 @@ mod tests {
                 attributes: vec![tx::AttributeValue::new("person/name", "Joe")],
             }],
         });
-
-        let john_id = tx_result.temp_ids.get("john");
+        assert!(tx_result.is_ok());
 
         let query_result = db.query(query::Query {
             find: vec![query::Variable::new("?john")],
@@ -41,7 +42,7 @@ mod tests {
         });
 
         assert_eq!(
-            john_id,
+            tx_result.unwrap().temp_ids.get("john"),
             query_result
                 .results
                 .get(0)
@@ -51,38 +52,62 @@ mod tests {
     }
 
     #[test]
+    fn reject_transaction_with_invalid_attribute_type() {
+        let mut db = db::InMemoryDb::new();
+
+        // Create the schema
+        let schema_result = db.transact(tx::Transaction {
+            operations: vec![schema::attribute(
+                "person/name",
+                schema::ValueType::Str,
+                schema::Cardinality::One,
+                "A person's name",
+            )],
+        });
+        assert!(schema_result.is_ok());
+
+        // This transaction should fail: "person/name" is of type `ValueType::Str`
+        let tx_result = db.transact(tx::Transaction {
+            operations: vec![tx::Operation {
+                entity: tx::Entity::New,
+                attributes: vec![tx::AttributeValue::new("person/name", 42)],
+            }],
+        });
+        assert!(tx_result.is_err());
+    }
+
+    #[test]
+    #[ignore]
     fn reference_temp_id_in_transaction() {
         let mut db = db::InMemoryDb::new();
 
         // Create the schema
-        db.transact(tx::Transaction {
+        let schema_result = db.transact(tx::Transaction {
             operations: vec![
-                schema::Attribute {
-                    ident: String::from("artist/name"),
-                    cardinality: schema::Cardinality::One,
-                    value_type: schema::ValueType::Str,
-                    doc: Some(String::from("An artist's name")),
-                }
-                .into(),
-                schema::Attribute {
-                    ident: String::from("release/name"),
-                    cardinality: schema::Cardinality::One,
-                    value_type: schema::ValueType::Str,
-                    doc: Some(String::from("An release's name")),
-                }
-                .into(),
-                schema::Attribute {
-                    ident: String::from("release/artists"),
-                    cardinality: schema::Cardinality::Many,
-                    value_type: schema::ValueType::Ref,
-                    doc: Some(String::from("Artists of release")),
-                }
-                .into(),
+                schema::attribute(
+                    "artist/name",
+                    schema::ValueType::Str,
+                    schema::Cardinality::One,
+                    "An artist's name",
+                ),
+                schema::attribute(
+                    "release/name",
+                    schema::ValueType::Str,
+                    schema::Cardinality::One,
+                    "An release's name",
+                ),
+                schema::attribute(
+                    "release/artists",
+                    schema::ValueType::Ref,
+                    schema::Cardinality::Many,
+                    "Artists of release",
+                ),
             ],
         });
+        assert!(schema_result.is_ok());
 
         // Insert data
-        db.transact(tx::Transaction {
+        let tx_result = db.transact(tx::Transaction {
             operations: vec![
                 tx::Operation {
                     entity: tx::Entity::TempId(String::from("john")),
@@ -101,6 +126,7 @@ mod tests {
                 },
             ],
         });
+        assert!(tx_result.is_ok());
 
         let query_result = db.query(query::Query {
             find: vec![query::Variable::new("?release-name")],

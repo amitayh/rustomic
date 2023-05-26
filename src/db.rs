@@ -17,7 +17,7 @@ pub struct InMemoryDb {
     aevt: BTreeMap<u64, BTreeMap<u64, BTreeMap<datom::Value, u64>>>,
 }
 
-pub struct InMemoryDb2<T: storage::Storage> {
+pub struct Db<T: storage::Storage> {
     next_entity_id: u64,
     storage: T,
 }
@@ -42,7 +42,8 @@ impl InMemoryDb {
         let mut wher = query.wher.clone();
         self.resolve_idents(&mut wher);
         let assignment = query::Assignment::empty(&query);
-        let results = self.resolve(&mut wher, assignment);
+        let mut results = Vec::new();
+        self.resolve(&mut wher, assignment, &mut results);
         query::QueryResult {
             results: results
                 .into_iter()
@@ -55,20 +56,21 @@ impl InMemoryDb {
         &self,
         clauses: &mut [query::Clause],
         assignment: query::Assignment,
-    ) -> Vec<query::Assignment> {
+        results: &mut Vec<query::Assignment>,
+    ) {
         if assignment.is_complete() {
-            return vec![assignment.clone()];
+            results.push(assignment);
+            return;
         }
         match clauses {
-            [] => vec![],
+            [] => (),
             [clause, rest @ ..] => {
                 clause.substitute(&assignment);
-                let mut result = Vec::new();
+                // TODO can this be parallelized?
                 for datom in self.find_matching_datoms(clause) {
                     let new_assignment = assignment.update_with(&clause, datom);
-                    result.extend(self.resolve(rest, new_assignment));
+                    self.resolve(rest, new_assignment, results);
                 }
-                result
             }
         }
     }
@@ -104,7 +106,7 @@ impl InMemoryDb {
                 if let Some(entity_id) = self.get_entity_id(&operation.entity, &temp_ids) {
                     self.get_datoms(tx.entity, entity_id, &operation.attributes, &temp_ids)
                 } else {
-                    vec![]
+                    Vec::new()
                 }
             })
             .collect();

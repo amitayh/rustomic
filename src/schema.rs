@@ -55,17 +55,6 @@ impl datom::Value {
             datom::Value::Str(_) => value_type == ValueType::Str,
             _ => false,
         }
-        /*
-        match (self, value_type) {
-            (datom::Value::U8(_), ValueType::U8) => true,
-            (datom::Value::I32(_), ValueType::I32) => true,
-            (datom::Value::U32(_), ValueType::U32) => true,
-            (datom::Value::I64(_), ValueType::I64) => true,
-            (datom::Value::U64(_), ValueType::U64 | ValueType::Ref) => true,
-            (datom::Value::Str(_), ValueType::Str) => true,
-            _ => false,
-        }
-        */
     }
 }
 

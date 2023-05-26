@@ -44,11 +44,7 @@ mod tests {
 
         assert_eq!(
             tx_result.unwrap().temp_ids.get("john"),
-            query_result
-                .results
-                .get(0)
-                .and_then(|assignment| assignment.get("?john"))
-                .and_then(|value| value.as_u64())
+            query_result.results[0]["?john"].as_u64()
         );
     }
 
@@ -152,11 +148,7 @@ mod tests {
 
         assert_eq!(
             Some("Abbey Road"),
-            query_result
-                .results
-                .get(0)
-                .and_then(|assignment| assignment.get("?release-name"))
-                .and_then(|value| value.as_str())
+            query_result.results[0]["?release-name"].as_str()
         );
     }
 }

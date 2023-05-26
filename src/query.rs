@@ -166,7 +166,7 @@ pub struct QueryResult {
 #[derive(Debug, Eq, PartialEq, Clone)]
 pub struct Assignment {
     pub assigned: HashMap<String, datom::Value>,
-    pub unassigned: HashSet<String>,
+    unassigned: HashSet<String>,
 }
 
 impl Assignment {
@@ -186,13 +186,6 @@ impl Assignment {
         self.unassigned.is_empty()
     }
 
-    pub fn assign<V: Into<datom::Value>>(&mut self, variable: &String, value: V) {
-        if self.unassigned.contains(variable) {
-            self.unassigned.remove(variable);
-            self.assigned.insert(variable.clone(), value.into());
-        }
-    }
-
     pub fn update_with(&self, clause: &Clause, datom: &datom::Datom) -> Self {
         let mut assignment = self.clone();
         if let Some(entity_variable) = clause.entity.variable_name() {
@@ -205,5 +198,11 @@ impl Assignment {
             assignment.assign(value_variable, datom.value.clone());
         }
         assignment
+    }
+
+    fn assign<V: Into<datom::Value>>(&mut self, variable: &String, value: V) {
+        if self.unassigned.remove(variable) {
+            self.assigned.insert(variable.clone(), value.into());
+        }
     }
 }

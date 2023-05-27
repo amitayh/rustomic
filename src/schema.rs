@@ -15,8 +15,11 @@ pub const DB_ATTR_TYPE_ID: u64 = 3;
 pub const DB_ATTR_DOC_IDENT: &str = "db/attr/doc";
 pub const DB_ATTR_DOC_ID: u64 = 4;
 
+pub const DB_ATTR_UNIQUE_IDENT: &str = "db/attr/unique";
+pub const DB_ATTR_UNIQUE_ID: u64 = 5;
+
 pub const DB_TX_TIME_IDENT: &str = "db/tx/time";
-pub const DB_TX_TIME_ID: u64 = 5;
+pub const DB_TX_TIME_ID: u64 = 6;
 
 #[derive(PartialEq, Eq)]
 pub enum ValueType {
@@ -63,20 +66,47 @@ pub enum Cardinality {
     Many = 1,
 }
 
-pub fn attribute(
-    ident: &str,
+pub struct Attribute {
+    ident: String,
     value_type: ValueType,
     cardinality: Cardinality,
-    doc: &str,
-) -> tx::Operation {
-    tx::Operation {
-        entity: tx::Entity::New,
-        attributes: vec![
-            tx::AttributeValue::new(DB_ATTR_IDENT_IDENT, ident),
-            tx::AttributeValue::new(DB_ATTR_CARDINALITY_IDENT, cardinality as u8),
-            tx::AttributeValue::new(DB_ATTR_TYPE_IDENT, value_type as u8),
-            tx::AttributeValue::new(DB_ATTR_DOC_IDENT, doc),
-        ],
+    doc: Option<String>,
+    unique: bool,
+}
+
+impl Attribute {
+    pub fn new(ident: &str, value_type: ValueType, cardinality: Cardinality) -> Self {
+        Attribute {
+            ident: String::from(ident),
+            value_type,
+            cardinality,
+            doc: None,
+            unique: false,
+        }
+    }
+
+    pub fn with_doc(mut self, doc: &str) -> Self {
+        self.doc = Some(String::from(doc));
+        self
+    }
+
+    pub fn unique(mut self) -> Self {
+        self.unique = true;
+        self
+    }
+
+    pub fn build(self) -> tx::Operation {
+        let mut operation = tx::Operation::on_new()
+            .set(DB_ATTR_IDENT_IDENT, self.ident)
+            .set(DB_ATTR_CARDINALITY_IDENT, self.cardinality as u8)
+            .set(DB_ATTR_TYPE_IDENT, self.value_type as u8);
+        if let Some(doc) = self.doc {
+            operation.set_mut(DB_ATTR_DOC_IDENT, doc);
+        }
+        if self.unique {
+            operation.set_mut(DB_ATTR_UNIQUE_IDENT, 1u8);
+        }
+        operation
     }
 }
 
@@ -84,11 +114,11 @@ pub fn attribute(
 pub fn default_datoms(tx: u64) -> Vec<datom::Datom> {
     vec![
         // "db/attr/ident" attribute
-        // TODO: unique?
         datom::Datom::new(DB_ATTR_IDENT_ID, DB_ATTR_IDENT_ID, DB_ATTR_IDENT_IDENT, tx),
         datom::Datom::new(DB_ATTR_IDENT_ID, DB_ATTR_DOC_ID, "Human readable name of attribute", tx),
         datom::Datom::new(DB_ATTR_IDENT_ID, DB_ATTR_TYPE_ID, ValueType::Str as u8, tx),
         datom::Datom::new(DB_ATTR_IDENT_ID, DB_ATTR_CARDINALITY_ID, Cardinality::One as u8, tx),
+        datom::Datom::new(DB_ATTR_IDENT_ID, DB_ATTR_UNIQUE_ID, 1u8, tx),
         // "db/attr/doc" attribute
         datom::Datom::new(DB_ATTR_DOC_ID, DB_ATTR_IDENT_ID, DB_ATTR_DOC_IDENT, tx),
         datom::Datom::new(DB_ATTR_DOC_ID, DB_ATTR_DOC_ID, "Documentation of attribute", tx),
@@ -104,6 +134,11 @@ pub fn default_datoms(tx: u64) -> Vec<datom::Datom> {
         datom::Datom::new(DB_ATTR_CARDINALITY_ID, DB_ATTR_DOC_ID, "Cardinality of attribyte", tx),
         datom::Datom::new(DB_ATTR_CARDINALITY_ID, DB_ATTR_TYPE_ID, ValueType::U8 as u8, tx),
         datom::Datom::new(DB_ATTR_CARDINALITY_ID, DB_ATTR_CARDINALITY_ID, Cardinality::One as u8, tx),
+        // "db/attr/unique" attribute
+        datom::Datom::new(DB_ATTR_UNIQUE_ID, DB_ATTR_IDENT_ID, DB_ATTR_UNIQUE_IDENT, tx),
+        datom::Datom::new(DB_ATTR_UNIQUE_ID, DB_ATTR_DOC_ID, "Indicates this attribute is unique", tx),
+        datom::Datom::new(DB_ATTR_UNIQUE_ID, DB_ATTR_TYPE_ID, ValueType::U8 as u8, tx),
+        datom::Datom::new(DB_ATTR_UNIQUE_ID, DB_ATTR_CARDINALITY_ID, Cardinality::One as u8, tx),
         // "db/tx/time" attribute
         datom::Datom::new(DB_TX_TIME_ID, DB_ATTR_IDENT_ID, DB_TX_TIME_IDENT, tx),
         datom::Datom::new(DB_TX_TIME_ID, DB_ATTR_DOC_ID, "Transaction's wall clock time", tx),

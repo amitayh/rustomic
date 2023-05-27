@@ -34,64 +34,6 @@ impl InMemoryDb {
         }
     }
 
-    fn ident_to_entity(&mut self, ident: &str, entity: u64) {
-        self.ident_to_entity_id.insert(String::from(ident), entity);
-    }
-
-    pub fn query(&self, query: query::Query) -> query::QueryResult {
-        let mut wher = query.wher.clone();
-        self.resolve_idents(&mut wher);
-        let assignment = query::Assignment::empty(&query);
-        let mut results = Vec::new();
-        self.resolve(&mut wher, assignment, &mut results);
-        query::QueryResult {
-            results: results
-                .into_iter()
-                .map(|assignment| assignment.assigned)
-                .collect(),
-        }
-    }
-
-    fn resolve(
-        &self,
-        clauses: &mut [query::Clause],
-        assignment: query::Assignment,
-        results: &mut Vec<query::Assignment>,
-    ) {
-        if assignment.is_complete() {
-            results.push(assignment);
-            return;
-        }
-        match clauses {
-            [] => (),
-            [clause, rest @ ..] => {
-                clause.substitute(&assignment);
-                // TODO can this be parallelized?
-                for datom in self.find_matching_datoms(clause) {
-                    let new_assignment = assignment.update_with(&clause, datom);
-                    self.resolve(rest, new_assignment, results);
-                }
-            }
-        }
-    }
-
-    // TODO: optimize with indexes
-    fn find_matching_datoms(&self, clause: &query::Clause) -> Vec<&datom::Datom> {
-        self.datoms
-            .iter()
-            .filter(|datom| datom.satisfies(clause))
-            .collect()
-    }
-
-    fn resolve_idents(&self, wher: &mut Vec<query::Clause>) {
-        for clause in wher {
-            if let query::AttributePattern::Ident(ident) = &clause.attribute {
-                let entity_id = self.ident_to_entity_id.get(ident).unwrap();
-                clause.attribute = query::AttributePattern::Id(*entity_id);
-            }
-        }
-    }
-
     pub fn transact(
         &mut self,
         transaction: tx::Transaction,
@@ -130,6 +72,55 @@ impl InMemoryDb {
             tx_data: datoms,
             temp_ids,
         })
+    }
+
+    pub fn query(&self, query: query::Query) -> query::QueryResult {
+        let mut wher = query.wher.clone();
+        self.resolve_idents(&mut wher);
+        let assignment = query::Assignment::empty(&query);
+        let mut results = Vec::new();
+        self.resolve(&mut wher, assignment, &mut results);
+        query::QueryResult { results }
+    }
+
+    fn ident_to_entity(&mut self, ident: &str, entity: u64) {
+        self.ident_to_entity_id.insert(String::from(ident), entity);
+    }
+
+    fn resolve(
+        &self,
+        clauses: &mut [query::Clause],
+        assignment: query::Assignment,
+        results: &mut Vec<HashMap<String, datom::Value>>,
+    ) {
+        if assignment.is_complete() {
+            results.push(assignment.assigned);
+            return;
+        }
+        if let [clause, rest @ ..] = clauses {
+            clause.substitute(&assignment);
+            // TODO can this be parallelized?
+            for datom in self.find_matching_datoms(clause) {
+                self.resolve(rest, assignment.update_with(clause, datom), results);
+            }
+        }
+    }
+
+    // TODO: optimize with indexes
+    fn find_matching_datoms(&self, clause: &query::Clause) -> Vec<&datom::Datom> {
+        self.datoms
+            .iter()
+            .filter(|datom| datom.satisfies(clause))
+            .collect()
+    }
+
+    fn resolve_idents(&self, wher: &mut Vec<query::Clause>) {
+        for clause in wher {
+            if let query::AttributePattern::Ident(ident) = &clause.attribute {
+                let entity_id = self.ident_to_entity_id.get(ident).unwrap();
+                clause.attribute = query::AttributePattern::Id(*entity_id);
+            }
+        }
     }
 
     fn validate_transaction(&self, datoms: &Vec<datom::Datom>) -> Result<(), tx::TransactionError> {

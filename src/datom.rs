@@ -1,4 +1,4 @@
-#[derive(Hash, Eq, PartialEq, Debug, Clone)]
+#[derive(Hash, Eq, PartialEq, Debug, Clone, PartialOrd, Ord)]
 pub enum Value {
     U8(u8),
     I32(i32),

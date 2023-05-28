@@ -47,8 +47,8 @@ impl<S: Storage, C: Clock> Db<S, C> {
         })
     }
 
-    pub fn query(&mut self, query: Query) -> Result<QueryResult, QueryError> {
-        Err(QueryError::Error)
+    pub fn query(&mut self, _: Query) -> Result<QueryResult, QueryError> {
+        todo!()
     }
 
     fn generate_temp_ids(
@@ -93,13 +93,7 @@ impl<S: Storage, C: Clock> Db<S, C> {
         let entity = self.resolve_entity(&operation.entity, temp_ids)?;
         for AttributeValue { attribute, value } in &operation.attributes {
             let attribute_id = self.resolve_ident(attribute)?;
-            datoms.push(datom::Datom {
-                entity,
-                attribute: attribute_id,
-                value: value.clone(),
-                tx,
-                op: datom::Op::Added,
-            });
+            datoms.push(datom::Datom::new(entity, attribute_id, value.clone(), tx));
         }
         Ok(datoms)
     }

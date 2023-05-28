@@ -2,9 +2,10 @@ use std::collections::BTreeMap;
 use std::collections::HashMap;
 
 use crate::datom;
+use crate::schema::DB_ATTR_IDENT_ID;
 
 pub trait Storage {
-    fn save(&self, datoms: &Vec<datom::Datom>) -> Result<(), StorageError>;
+    fn save(&mut self, datoms: &Vec<datom::Datom>) -> Result<(), StorageError>;
 
     fn resolve_ident(&self, ident: &str) -> Result<u64, StorageError>;
 }
@@ -37,27 +38,45 @@ impl InMemoryStorage {
 }
 
 impl Storage for InMemoryStorage {
-    fn save(&self, datoms: &Vec<datom::Datom>) -> Result<(), StorageError> {
-        /*
-        datoms.iter().for_each(|datom| {
-            if let datom::Datom {
-                entity,
-                attribute: schema::DB_ATTR_IDENT_ID,
-                value: datom::Value::Str(ident),
-                tx: _,
-                op: _,
-            } = datom
-            {
-                self.ident_to_entity(&ident, *entity);
-            }
-        });
-        */
-        todo!();
+    fn save(&mut self, datoms: &Vec<datom::Datom>) -> Result<(), StorageError> {
+        for datom in datoms {
+            self.update_eavt(datom);
+            self.update_aevt(datom);
+            self.update_ident_to_entity_id(datom);
+        }
+        Ok(())
     }
 
     fn resolve_ident(&self, ident: &str) -> Result<u64, StorageError> {
         let entity_id = self.ident_to_entity_id.get(ident).copied();
         entity_id.ok_or_else(|| StorageError::IdentNotFound(String::from(ident)))
+    }
+}
+
+impl InMemoryStorage {
+    fn update_eavt(&mut self, datom: &datom::Datom) {
+        let avt = self.eavt.entry(datom.entity).or_default();
+        let vt = avt.entry(datom.attribute).or_default();
+        vt.insert(datom.value.clone(), datom.tx);
+    }
+
+    fn update_aevt(&mut self, datom: &datom::Datom) {
+        let evt = self.aevt.entry(datom.attribute).or_default();
+        let vt = evt.entry(datom.entity).or_default();
+        vt.insert(datom.value.clone(), datom.tx);
+    }
+
+    fn update_ident_to_entity_id(&mut self, datom: &datom::Datom) {
+        if let datom::Datom {
+            entity,
+            attribute: DB_ATTR_IDENT_ID,
+            value: datom::Value::Str(ident),
+            tx: _,
+            op: _,
+        } = datom
+        {
+            self.ident_to_entity_id.insert(ident.clone(), *entity);
+        }
     }
 }
 

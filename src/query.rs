@@ -3,15 +3,6 @@ use std::collections::HashSet;
 
 use crate::datom;
 
-#[derive(Clone, Debug)]
-pub struct Variable(pub String);
-
-impl Variable {
-    pub fn new(name: &str) -> Variable {
-        Variable(String::from(name))
-    }
-}
-
 trait Pattern {
     fn variable_name(&self) -> Option<&String>;
 
@@ -104,6 +95,29 @@ pub struct Clause {
 }
 
 impl Clause {
+    pub fn new() -> Self {
+        Clause {
+            entity: EntityPattern::Blank,
+            attribute: AttributePattern::Blank,
+            value: ValuePattern::Blank,
+        }
+    }
+
+    pub fn with_entity(mut self, entity: EntityPattern) -> Self {
+        self.entity = entity;
+        self
+    }
+
+    pub fn with_attribute(mut self, attribute: AttributePattern) -> Self {
+        self.attribute = attribute;
+        self
+    }
+
+    pub fn with_value(mut self, value: ValuePattern) -> Self {
+        self.value = value;
+        self
+    }
+
     pub fn free_variables(&self) -> Vec<&String> {
         let mut variables = Vec::new();
         if let Some(variable) = self.entity.variable_name() {
@@ -153,13 +167,37 @@ impl datom::Datom {
 }
 
 pub struct Query {
-    pub find: Vec<Variable>,
+    pub find: Vec<String>,
     pub wher: Vec<Clause>,
+}
+
+impl Query {
+    pub fn new() -> Self {
+        Query {
+            find: Vec::new(),
+            wher: Vec::new(),
+        }
+    }
+
+    pub fn find(mut self, variable: &str) -> Self {
+        self.find.push(String::from(variable));
+        self
+    }
+
+    pub fn wher(mut self, clause: Clause) -> Self {
+        self.wher.push(clause);
+        self
+    }
 }
 
 #[derive(Debug)]
 pub struct QueryResult {
     pub results: Vec<HashMap<String, datom::Value>>,
+}
+
+#[derive(Debug)]
+pub enum QueryError {
+    Error,
 }
 
 // TODO PartialAssignment / CompleteAssignment?

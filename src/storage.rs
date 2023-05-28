@@ -3,13 +3,14 @@ use std::collections::HashMap;
 
 use crate::datom;
 
-pub trait Storage {}
+pub trait Storage {
+    fn save(&self, datoms: &Vec<datom::Datom>) -> Result<(), StorageError>;
+
+    fn resolve_ident(&self, ident: &str) -> Result<u64, StorageError>;
+}
 
 // https://docs.datomic.com/pro/query/indexes.html
 pub struct InMemoryStorage {
-    // TODO is this even needed?
-    datoms: Vec<datom::Datom>,
-
     // The EAVT index provides efficient access to everything about a given entity. Conceptually
     // this is very similar to row access style in a SQL database, except that entities can possess
     // arbitrary attributes rather than being limited to a predefined set of columns.
@@ -28,7 +29,6 @@ pub struct InMemoryStorage {
 impl InMemoryStorage {
     pub fn new() -> Self {
         InMemoryStorage {
-            datoms: Vec::new(),
             eavt: BTreeMap::new(),
             aevt: BTreeMap::new(),
             ident_to_entity_id: HashMap::new(),
@@ -36,4 +36,32 @@ impl InMemoryStorage {
     }
 }
 
-impl Storage for InMemoryStorage {}
+impl Storage for InMemoryStorage {
+    fn save(&self, datoms: &Vec<datom::Datom>) -> Result<(), StorageError> {
+        /*
+        datoms.iter().for_each(|datom| {
+            if let datom::Datom {
+                entity,
+                attribute: schema::DB_ATTR_IDENT_ID,
+                value: datom::Value::Str(ident),
+                tx: _,
+                op: _,
+            } = datom
+            {
+                self.ident_to_entity(&ident, *entity);
+            }
+        });
+        */
+        todo!();
+    }
+
+    fn resolve_ident(&self, ident: &str) -> Result<u64, StorageError> {
+        let entity_id = self.ident_to_entity_id.get(ident).copied();
+        entity_id.ok_or_else(|| StorageError::IdentNotFound(String::from(ident)))
+    }
+}
+
+#[derive(Debug)]
+pub enum StorageError {
+    IdentNotFound(String),
+}

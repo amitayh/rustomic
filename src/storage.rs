@@ -21,20 +21,22 @@ pub trait Storage {
 
 type Vt = BTreeMap<datom::Value, Vec<u64>>;
 type Avt = BTreeMap<u64, Vt>;
+type Eavt = BTreeMap<u64, Avt>;
 type Evt = BTreeMap<u64, Vt>;
+type Aevt = BTreeMap<u64, Evt>;
 
 // https://docs.datomic.com/pro/query/indexes.html
 pub struct InMemoryStorage {
     // The EAVT index provides efficient access to everything about a given entity. Conceptually
     // this is very similar to row access style in a SQL database, except that entities can possess
     // arbitrary attributes rather than being limited to a predefined set of columns.
-    eavt: BTreeMap<u64, Avt>,
+    eavt: Eavt,
 
     // The AEVT index provides efficient access to all values for a given attribute, comparable to
     // the traditional column access style. In the table below, notice how all :release/name
     // attributes are grouped together. This allows Datomic to efficiently query for all values of
     // the :release/name attribute, because they reside next to one another in this index.
-    aevt: BTreeMap<u64, Evt>,
+    aevt: Aevt,
 
     // Lookup entity ID by ident
     ident_to_entity_id: HashMap<String, u64>,
@@ -70,70 +72,16 @@ impl Storage for InMemoryStorage {
 
     fn find_datoms(&self, clause: &Clause) -> Result<Vec<datom::Datom>, StorageError> {
         let mut datoms = Vec::new();
-        // let iter = Iter::new(self, clause);
-        // let iter = Iter {
-        //     storage: self,
-        //     clause,
-        //     state: IterState::Qux,
-        // };
-        // for datom in iter {
-        //     datoms.push(datom);
-        // }
-
-        let lala = match &clause.entity {
-            EntityPattern::Id(entity) => self
-                .eavt
-                .get(entity)
-                .map(|avt| EntityIter::One {
-                    entity,
-                    avt,
-                    done: false,
-                })
-                .unwrap_or(EntityIter::None),
-            _ => EntityIter::All(self.eavt.iter()),
-        };
-        for (entity, avt) in lala {
-            for (attribute, vt) in avt {
-                for (value, tx) in vt {
-                    for t in tx {
-                        let datom = Datom::new(*entity, *attribute, value.clone(), *t);
-                        if datom.satisfies(clause) {
-                            datoms.push(datom);
-                        }
+        for (entity, avt) in self.entity_iter(&self.eavt, clause) {
+            for (attribute, vt) in self.attribute_iter(avt, clause) {
+                for (value, tx) in self.value_iter(vt, clause) {
+                    if let Some(t) = tx.last() {
+                        datoms.push(Datom::new(*entity, *attribute, value.clone(), *t));
                     }
                 }
             }
         }
         Ok(datoms)
-    }
-}
-
-enum EntityIter<'a> {
-    None,
-    One {
-        entity: &'a u64,
-        avt: &'a BTreeMap<u64, Vt>,
-        done: bool,
-    },
-    All(btree_map::Iter<'a, u64, BTreeMap<u64, BTreeMap<datom::Value, Vec<u64>>>>),
-}
-
-impl<'a> Iterator for EntityIter<'a> {
-    type Item = (&'a u64, &'a Avt);
-
-    fn next(&mut self) -> Option<Self::Item> {
-        match self {
-            EntityIter::One {
-                entity,
-                avt,
-                done: done_var @ false,
-            } => {
-                *done_var = true;
-                Some((entity, avt))
-            }
-            EntityIter::All(iter) => iter.next(),
-            _ => None,
-        }
     }
 }
 
@@ -162,6 +110,58 @@ impl InMemoryStorage {
         } = datom
         {
             self.ident_to_entity_id.insert(ident.clone(), *entity);
+        }
+    }
+
+    fn entity_iter<'a>(&self, eavt: &'a Eavt, clause: &'a Clause) -> Iter<'a, u64, Avt> {
+        match &clause.entity {
+            EntityPattern::Id(entity) => eavt
+                .get(entity)
+                .map(|avt| Iter::One(Some((entity, avt))))
+                .unwrap_or(Iter::None),
+            _ => Iter::All(eavt.iter()),
+        }
+    }
+
+    fn attribute_iter<'a>(&self, avt: &'a Avt, clause: &'a Clause) -> Iter<'a, u64, Vt> {
+        match &clause.attribute {
+            AttributePattern::Id(attribute) => avt
+                .get(attribute)
+                .map(|vt| Iter::One(Some((attribute, vt))))
+                .unwrap_or(Iter::None),
+            _ => Iter::All(avt.iter()),
+        }
+    }
+
+    fn value_iter<'a>(&self, vt: &'a Vt, clause: &'a Clause) -> Iter<'a, datom::Value, Vec<u64>> {
+        match &clause.value {
+            ValuePattern::Constant(value) => vt
+                .get(value)
+                .map(|vt| Iter::One(Some((value, vt))))
+                .unwrap_or(Iter::None),
+            _ => Iter::All(vt.iter()),
+        }
+    }
+}
+
+enum Iter<'a, K, V> {
+    None,
+    One(Option<(&'a K, &'a V)>),
+    All(btree_map::Iter<'a, K, V>),
+}
+
+impl<'a, K, V> Iterator for Iter<'a, K, V> {
+    type Item = (&'a K, &'a V);
+
+    fn next(&mut self) -> Option<Self::Item> {
+        match self {
+            Iter::None => None,
+            Iter::One(item) => {
+                let result = *item;
+                *item = None;
+                result
+            }
+            Iter::All(iter) => iter.next(),
         }
     }
 }

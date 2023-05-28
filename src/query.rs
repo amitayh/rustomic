@@ -2,6 +2,7 @@ use std::collections::HashMap;
 use std::collections::HashSet;
 
 use crate::datom;
+use crate::storage::StorageError;
 
 trait Pattern {
     fn variable_name(&self) -> Option<&String>;
@@ -198,6 +199,7 @@ pub struct QueryResult {
 #[derive(Debug)]
 pub enum QueryError {
     Error,
+    StorageError(StorageError),
 }
 
 // TODO PartialAssignment / CompleteAssignment?
@@ -224,7 +226,7 @@ impl Assignment {
         self.unassigned.is_empty()
     }
 
-    pub fn update_with(&self, clause: &Clause, datom: &datom::Datom) -> Self {
+    pub fn update_with(&self, clause: &Clause, datom: datom::Datom) -> Self {
         let mut assignment = self.clone();
         if let Some(entity_variable) = clause.entity.variable_name() {
             assignment.assign(entity_variable, datom.entity);

@@ -1,5 +1,3 @@
-use std::collections::HashMap;
-
 use crate::datom;
 use crate::tx;
 
@@ -111,8 +109,11 @@ impl Attribute {
 }
 
 #[rustfmt::skip]
-pub fn default_datoms(tx: u64) -> Vec<datom::Datom> {
+pub fn default_datoms() -> Vec<datom::Datom> {
+    let tx = 0u64;
     vec![
+        // first transaction
+        datom::Datom::new(tx, DB_TX_TIME_ID, 0u64, tx),
         // "db/attr/ident" attribute
         datom::Datom::new(DB_ATTR_IDENT_ID, DB_ATTR_IDENT_ID, DB_ATTR_IDENT_IDENT, tx),
         datom::Datom::new(DB_ATTR_IDENT_ID, DB_ATTR_DOC_ID, "Human readable name of attribute", tx),
@@ -144,20 +145,5 @@ pub fn default_datoms(tx: u64) -> Vec<datom::Datom> {
         datom::Datom::new(DB_TX_TIME_ID, DB_ATTR_DOC_ID, "Transaction's wall clock time", tx),
         datom::Datom::new(DB_TX_TIME_ID, DB_ATTR_TYPE_ID, ValueType::U64 as u8, tx),
         datom::Datom::new(DB_TX_TIME_ID, DB_ATTR_CARDINALITY_ID, Cardinality::One as u8, tx),
-        // first transaction
-        datom::Datom::new(tx, DB_TX_TIME_ID, 0u64, tx),
     ]
-}
-
-pub fn default_ident_to_entity() -> HashMap<String, u64> {
-    let mut ident_to_entity = HashMap::new();
-    ident_to_entity.insert(String::from(DB_ATTR_IDENT_IDENT), DB_ATTR_IDENT_ID);
-    ident_to_entity.insert(String::from(DB_ATTR_TYPE_IDENT), DB_ATTR_TYPE_ID);
-    ident_to_entity.insert(
-        String::from(DB_ATTR_CARDINALITY_IDENT),
-        DB_ATTR_CARDINALITY_ID,
-    );
-    ident_to_entity.insert(String::from(DB_ATTR_DOC_IDENT), DB_ATTR_DOC_ID);
-    ident_to_entity.insert(String::from(DB_TX_TIME_IDENT), DB_TX_TIME_ID);
-    ident_to_entity
 }

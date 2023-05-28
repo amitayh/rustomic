@@ -58,7 +58,7 @@ mod tests {
 
     #[test]
     fn create_entity_by_temp_id2() {
-        let mut db = InMemoryDb::new();
+        let mut db = create_db();
 
         // Create the schema
         let schema_result = db.transact(
@@ -87,13 +87,13 @@ mod tests {
 
         assert_eq!(
             tx_result.unwrap().temp_ids.get("joe"),
-            query_result.results[0]["?joe"].as_u64()
+            query_result.unwrap().results[0]["?joe"].as_u64()
         );
     }
 
     #[test]
     fn reject_transaction_with_invalid_attribute_type() {
-        let mut db = InMemoryDb::new();
+        let mut db = create_db();
 
         // Create the schema
         let schema_result = db.transact(
@@ -114,7 +114,7 @@ mod tests {
     #[test]
     // #[ignore]
     fn reference_temp_id_in_transaction() {
-        let mut db = InMemoryDb::new();
+        let mut db = create_db();
 
         // Create the schema
         let schema_result = db.transact(
@@ -177,7 +177,7 @@ mod tests {
 
         assert_eq!(
             Some("Abbey Road"),
-            query_result.results[0]["?release-name"].as_str()
+            query_result.unwrap().results[0]["?release-name"].as_str()
         );
     }
 }

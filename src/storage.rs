@@ -14,7 +14,7 @@ use crate::schema::DB_ATTR_IDENT_ID;
 pub trait Storage {
     fn save(&mut self, datoms: &Vec<datom::Datom>) -> Result<(), StorageError>;
 
-    fn resolve_ident(&self, ident: &str) -> Result<u64, StorageError>;
+    fn resolve_ident<'a>(&'a self, ident: &str) -> Result<&'a u64, StorageError>;
 
     fn find_datoms(&self, clause: &Clause) -> Result<Vec<datom::Datom>, StorageError>;
 }
@@ -65,23 +65,20 @@ impl Storage for InMemoryStorage {
         Ok(())
     }
 
-    fn resolve_ident(&self, ident: &str) -> Result<u64, StorageError> {
-        let entity_id = self.ident_to_entity_id.get(ident).copied();
+    fn resolve_ident<'a>(&'a self, ident: &str) -> Result<&'a u64, StorageError> {
+        let entity_id = self.ident_to_entity_id.get(ident);
         entity_id.ok_or_else(|| StorageError::IdentNotFound(String::from(ident)))
     }
 
     fn find_datoms(&self, clause: &Clause) -> Result<Vec<datom::Datom>, StorageError> {
-        let mut datoms = Vec::new();
-        for (entity, avt) in self.entity_iter(&self.eavt, clause) {
-            for (attribute, vt) in self.attribute_iter(avt, clause) {
-                for (value, tx) in self.value_iter(vt, clause) {
-                    if let Some(t) = tx.last() {
-                        datoms.push(Datom::new(*entity, *attribute, value.clone(), *t));
-                    }
-                }
-            }
+        match clause {
+            Clause {
+                entity: EntityPattern::Id(_),
+                attribute: _,
+                value: _,
+            } => self.find_datoms_eavt(clause),
+            _ => self.find_datoms_aevt(clause),
         }
-        Ok(datoms)
     }
 }
 
@@ -113,41 +110,78 @@ impl InMemoryStorage {
         }
     }
 
-    fn entity_iter<'a>(&self, eavt: &'a Eavt, clause: &'a Clause) -> Iter<'a, u64, Avt> {
-        match &clause.entity {
-            EntityPattern::Id(entity) => eavt
-                .get(entity)
-                .map(|avt| Iter::One(Some((entity, avt))))
-                .unwrap_or(Iter::None),
-            _ => Iter::All(eavt.iter()),
+    fn find_datoms_eavt(&self, clause: &Clause) -> Result<Vec<datom::Datom>, StorageError> {
+        let mut datoms = Vec::new();
+        for (entity, avt) in self.e_iter(&self.eavt, &clause.entity) {
+            for (attribute, vt) in self.a_iter(avt, &clause.attribute)? {
+                for (value, tx) in self.v_iter(vt, &clause.value) {
+                    if let Some(t) = tx.last() {
+                        datoms.push(Datom::new(*entity, *attribute, value.clone(), *t));
+                    }
+                }
+            }
+        }
+        Ok(datoms)
+    }
+
+    fn find_datoms_aevt(&self, clause: &Clause) -> Result<Vec<datom::Datom>, StorageError> {
+        let mut datoms = Vec::new();
+        for (attribute, evt) in self.a_iter(&self.aevt, &clause.attribute)? {
+            for (entity, vt) in self.e_iter(evt, &clause.entity) {
+                for (value, tx) in self.v_iter(vt, &clause.value) {
+                    if let Some(t) = tx.last() {
+                        datoms.push(Datom::new(*entity, *attribute, value.clone(), *t));
+                    }
+                }
+            }
+        }
+        Ok(datoms)
+    }
+
+    fn e_iter<'a, V>(
+        &self,
+        map: &'a BTreeMap<u64, V>,
+        entity: &'a EntityPattern,
+    ) -> Iter<'a, u64, V> {
+        match entity {
+            EntityPattern::Id(id) => self.iter_one(map, id),
+            _ => Iter::Many(map.iter()),
         }
     }
 
-    fn attribute_iter<'a>(&self, avt: &'a Avt, clause: &'a Clause) -> Iter<'a, u64, Vt> {
-        match &clause.attribute {
-            AttributePattern::Id(attribute) => avt
-                .get(attribute)
-                .map(|vt| Iter::One(Some((attribute, vt))))
-                .unwrap_or(Iter::None),
-            _ => Iter::All(avt.iter()),
+    fn a_iter<'a, V>(
+        &'a self,
+        map: &'a BTreeMap<u64, V>,
+        entity: &'a AttributePattern,
+    ) -> Result<Iter<'a, u64, V>, StorageError> {
+        match entity {
+            AttributePattern::Ident(ident) => {
+                let id = self.resolve_ident(ident)?;
+                Ok(self.iter_one(map, id))
+            }
+            AttributePattern::Id(id) => Ok(self.iter_one(map, &id)),
+            _ => Ok(Iter::Many(map.iter())),
         }
     }
 
-    fn value_iter<'a>(&self, vt: &'a Vt, clause: &'a Clause) -> Iter<'a, datom::Value, Vec<u64>> {
-        match &clause.value {
-            ValuePattern::Constant(value) => vt
-                .get(value)
-                .map(|vt| Iter::One(Some((value, vt))))
-                .unwrap_or(Iter::None),
-            _ => Iter::All(vt.iter()),
+    fn v_iter<'a>(&self, vt: &'a Vt, value: &'a ValuePattern) -> Iter<'a, datom::Value, Vec<u64>> {
+        match value {
+            ValuePattern::Constant(value) => self.iter_one(vt, value),
+            _ => Iter::Many(vt.iter()),
         }
+    }
+
+    fn iter_one<'a, K: Ord, V>(&self, map: &'a BTreeMap<K, V>, key: &'a K) -> Iter<'a, K, V> {
+        map.get(key)
+            .map(|value| Iter::One(Some((key, value))))
+            .unwrap_or(Iter::Zero)
     }
 }
 
 enum Iter<'a, K, V> {
-    None,
+    Zero,
     One(Option<(&'a K, &'a V)>),
-    All(btree_map::Iter<'a, K, V>),
+    Many(btree_map::Iter<'a, K, V>),
 }
 
 impl<'a, K, V> Iterator for Iter<'a, K, V> {
@@ -155,13 +189,13 @@ impl<'a, K, V> Iterator for Iter<'a, K, V> {
 
     fn next(&mut self) -> Option<Self::Item> {
         match self {
-            Iter::None => None,
+            Iter::Zero => None,
             Iter::One(item) => {
                 let result = *item;
                 *item = None;
                 result
             }
-            Iter::All(iter) => iter.next(),
+            Iter::Many(iter) => iter.next(),
         }
     }
 }

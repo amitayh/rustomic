@@ -39,10 +39,9 @@ impl<S: Storage, C: Clock> Db<S, C> {
     }
 
     pub fn query(&mut self, query: Query) -> Result<QueryResult, QueryError> {
-        let mut wher = query.wher.clone();
-        self.resolve_idents(&mut wher)?;
-        let assignment = Assignment::empty(&query);
         let mut results = Vec::new();
+        let mut wher = query.wher.clone();
+        let assignment = Assignment::empty(&query);
         self.resolve(&mut wher, assignment, &mut results)?;
         Ok(QueryResult { results })
     }
@@ -95,7 +94,7 @@ impl<S: Storage, C: Clock> Db<S, C> {
                 .resolve_ident(attribute)
                 .map_err(|err| TransactionError::StorageError(err))?;
 
-            datoms.push(datom::Datom::new(entity, attribute_id, value.clone(), tx));
+            datoms.push(datom::Datom::new(entity, *attribute_id, value.clone(), tx));
         }
         Ok(datoms)
     }
@@ -126,19 +125,6 @@ impl<S: Storage, C: Clock> Db<S, C> {
     }
 
     // --------------------------------------------------------------------------------------------
-
-    fn resolve_idents(&self, wher: &mut Vec<Clause>) -> Result<(), QueryError> {
-        for clause in wher {
-            if let AttributePattern::Ident(ident) = &clause.attribute {
-                let entity_id = self
-                    .storage
-                    .resolve_ident(ident)
-                    .map_err(|err| QueryError::StorageError(err))?;
-                clause.attribute = AttributePattern::Id(entity_id);
-            }
-        }
-        Ok(())
-    }
 
     fn resolve(
         &self,

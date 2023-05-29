@@ -1,5 +1,8 @@
-use crate::{datom, storage::StorageError};
 use std::collections::HashMap;
+
+use crate::datom::Datom;
+use crate::datom::Value;
+use crate::storage::StorageError;
 
 pub enum Entity {
     New,            // Create a new entity and assign ID automatically.
@@ -9,7 +12,7 @@ pub enum Entity {
 
 pub struct AttributeValue {
     pub attribute: String,
-    pub value: datom::Value,
+    pub value: Value,
 }
 
 pub struct Operation {
@@ -37,12 +40,12 @@ impl Operation {
         Self::new(Entity::TempId(String::from(temp_id)))
     }
 
-    pub fn set<V: Into<datom::Value>>(mut self, attribute: &str, value: V) -> Self {
+    pub fn set<V: Into<Value>>(mut self, attribute: &str, value: V) -> Self {
         self.set_mut(attribute, value);
         self
     }
 
-    pub fn set_mut<V: Into<datom::Value>>(&mut self, attribute: &str, value: V) {
+    pub fn set_mut<V: Into<Value>>(&mut self, attribute: &str, value: V) {
         self.attributes.push(AttributeValue {
             attribute: String::from(attribute),
             value: value.into(),
@@ -69,13 +72,12 @@ impl Transaction {
 
 #[derive(Debug)]
 pub struct TransctionResult {
-    pub tx_data: Vec<datom::Datom>,
+    pub tx_data: Vec<Datom>,
     pub temp_ids: HashMap<String, u64>,
 }
 
 #[derive(Debug)]
 pub enum TransactionError {
-    Error, // TODO: remove this
     DuplicateTempId(String),
     TempIdNotFound(String),
     StorageError(StorageError),

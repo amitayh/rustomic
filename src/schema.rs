@@ -1,4 +1,5 @@
-use crate::datom;
+use crate::datom::Datom;
+use crate::datom::Value;
 use crate::tx;
 
 pub const DB_ATTR_IDENT_IDENT: &str = "db/attr/ident";
@@ -45,15 +46,15 @@ impl ValueType {
     }
 }
 
-impl datom::Value {
+impl Value {
     pub fn matches_type(&self, value_type: ValueType) -> bool {
         match self {
-            datom::Value::U8(_) => value_type == ValueType::U8,
-            datom::Value::I32(_) => value_type == ValueType::I32,
-            datom::Value::U32(_) => value_type == ValueType::U32,
-            datom::Value::I64(_) => value_type == ValueType::I64,
-            datom::Value::U64(_) => value_type == ValueType::U64 || value_type == ValueType::Ref,
-            datom::Value::Str(_) => value_type == ValueType::Str,
+            Value::U8(_) => value_type == ValueType::U8,
+            Value::I32(_) => value_type == ValueType::I32,
+            Value::U32(_) => value_type == ValueType::U32,
+            Value::I64(_) => value_type == ValueType::I64,
+            Value::U64(_) => value_type == ValueType::U64 || value_type == ValueType::Ref,
+            Value::Str(_) => value_type == ValueType::Str,
             _ => false,
         }
     }
@@ -109,41 +110,41 @@ impl Attribute {
 }
 
 #[rustfmt::skip]
-pub fn default_datoms() -> Vec<datom::Datom> {
+pub fn default_datoms() -> Vec<Datom> {
     let tx = 0u64;
     vec![
         // first transaction
-        datom::Datom::new(tx, DB_TX_TIME_ID, 0u64, tx),
+        Datom::new(tx, DB_TX_TIME_ID, 0u64, tx),
         // "db/attr/ident" attribute
-        datom::Datom::new(DB_ATTR_IDENT_ID, DB_ATTR_IDENT_ID, DB_ATTR_IDENT_IDENT, tx),
-        datom::Datom::new(DB_ATTR_IDENT_ID, DB_ATTR_DOC_ID, "Human readable name of attribute", tx),
-        datom::Datom::new(DB_ATTR_IDENT_ID, DB_ATTR_TYPE_ID, ValueType::Str as u8, tx),
-        datom::Datom::new(DB_ATTR_IDENT_ID, DB_ATTR_CARDINALITY_ID, Cardinality::One as u8, tx),
-        datom::Datom::new(DB_ATTR_IDENT_ID, DB_ATTR_UNIQUE_ID, 1u8, tx),
+        Datom::new(DB_ATTR_IDENT_ID, DB_ATTR_IDENT_ID, DB_ATTR_IDENT_IDENT, tx),
+        Datom::new(DB_ATTR_IDENT_ID, DB_ATTR_DOC_ID, "Human readable name of attribute", tx),
+        Datom::new(DB_ATTR_IDENT_ID, DB_ATTR_TYPE_ID, ValueType::Str as u8, tx),
+        Datom::new(DB_ATTR_IDENT_ID, DB_ATTR_CARDINALITY_ID, Cardinality::One as u8, tx),
+        Datom::new(DB_ATTR_IDENT_ID, DB_ATTR_UNIQUE_ID, 1u8, tx),
         // "db/attr/doc" attribute
-        datom::Datom::new(DB_ATTR_DOC_ID, DB_ATTR_IDENT_ID, DB_ATTR_DOC_IDENT, tx),
-        datom::Datom::new(DB_ATTR_DOC_ID, DB_ATTR_DOC_ID, "Documentation of attribute", tx),
-        datom::Datom::new(DB_ATTR_DOC_ID, DB_ATTR_TYPE_ID, ValueType::Str as u8, tx),
-        datom::Datom::new(DB_ATTR_DOC_ID, DB_ATTR_CARDINALITY_ID, Cardinality::One as u8, tx),
+        Datom::new(DB_ATTR_DOC_ID, DB_ATTR_IDENT_ID, DB_ATTR_DOC_IDENT, tx),
+        Datom::new(DB_ATTR_DOC_ID, DB_ATTR_DOC_ID, "Documentation of attribute", tx),
+        Datom::new(DB_ATTR_DOC_ID, DB_ATTR_TYPE_ID, ValueType::Str as u8, tx),
+        Datom::new(DB_ATTR_DOC_ID, DB_ATTR_CARDINALITY_ID, Cardinality::One as u8, tx),
         // "db/attr/type" attribute
-        datom::Datom::new(DB_ATTR_TYPE_ID, DB_ATTR_IDENT_ID, DB_ATTR_TYPE_IDENT, tx),
-        datom::Datom::new(DB_ATTR_TYPE_ID, DB_ATTR_DOC_ID, "Data type of attribute", tx),
-        datom::Datom::new(DB_ATTR_TYPE_ID, DB_ATTR_TYPE_ID, ValueType::U8 as u8, tx),
-        datom::Datom::new(DB_ATTR_TYPE_ID, DB_ATTR_CARDINALITY_ID, Cardinality::One as u8, tx),
+        Datom::new(DB_ATTR_TYPE_ID, DB_ATTR_IDENT_ID, DB_ATTR_TYPE_IDENT, tx),
+        Datom::new(DB_ATTR_TYPE_ID, DB_ATTR_DOC_ID, "Data type of attribute", tx),
+        Datom::new(DB_ATTR_TYPE_ID, DB_ATTR_TYPE_ID, ValueType::U8 as u8, tx),
+        Datom::new(DB_ATTR_TYPE_ID, DB_ATTR_CARDINALITY_ID, Cardinality::One as u8, tx),
         // "db/attr/cardinality" attribute
-        datom::Datom::new(DB_ATTR_CARDINALITY_ID, DB_ATTR_IDENT_ID, DB_ATTR_CARDINALITY_IDENT, tx),
-        datom::Datom::new(DB_ATTR_CARDINALITY_ID, DB_ATTR_DOC_ID, "Cardinality of attribyte", tx),
-        datom::Datom::new(DB_ATTR_CARDINALITY_ID, DB_ATTR_TYPE_ID, ValueType::U8 as u8, tx),
-        datom::Datom::new(DB_ATTR_CARDINALITY_ID, DB_ATTR_CARDINALITY_ID, Cardinality::One as u8, tx),
+        Datom::new(DB_ATTR_CARDINALITY_ID, DB_ATTR_IDENT_ID, DB_ATTR_CARDINALITY_IDENT, tx),
+        Datom::new(DB_ATTR_CARDINALITY_ID, DB_ATTR_DOC_ID, "Cardinality of attribyte", tx),
+        Datom::new(DB_ATTR_CARDINALITY_ID, DB_ATTR_TYPE_ID, ValueType::U8 as u8, tx),
+        Datom::new(DB_ATTR_CARDINALITY_ID, DB_ATTR_CARDINALITY_ID, Cardinality::One as u8, tx),
         // "db/attr/unique" attribute
-        datom::Datom::new(DB_ATTR_UNIQUE_ID, DB_ATTR_IDENT_ID, DB_ATTR_UNIQUE_IDENT, tx),
-        datom::Datom::new(DB_ATTR_UNIQUE_ID, DB_ATTR_DOC_ID, "Indicates this attribute is unique", tx),
-        datom::Datom::new(DB_ATTR_UNIQUE_ID, DB_ATTR_TYPE_ID, ValueType::U8 as u8, tx),
-        datom::Datom::new(DB_ATTR_UNIQUE_ID, DB_ATTR_CARDINALITY_ID, Cardinality::One as u8, tx),
+        Datom::new(DB_ATTR_UNIQUE_ID, DB_ATTR_IDENT_ID, DB_ATTR_UNIQUE_IDENT, tx),
+        Datom::new(DB_ATTR_UNIQUE_ID, DB_ATTR_DOC_ID, "Indicates this attribute is unique", tx),
+        Datom::new(DB_ATTR_UNIQUE_ID, DB_ATTR_TYPE_ID, ValueType::U8 as u8, tx),
+        Datom::new(DB_ATTR_UNIQUE_ID, DB_ATTR_CARDINALITY_ID, Cardinality::One as u8, tx),
         // "db/tx/time" attribute
-        datom::Datom::new(DB_TX_TIME_ID, DB_ATTR_IDENT_ID, DB_TX_TIME_IDENT, tx),
-        datom::Datom::new(DB_TX_TIME_ID, DB_ATTR_DOC_ID, "Transaction's wall clock time", tx),
-        datom::Datom::new(DB_TX_TIME_ID, DB_ATTR_TYPE_ID, ValueType::U64 as u8, tx),
-        datom::Datom::new(DB_TX_TIME_ID, DB_ATTR_CARDINALITY_ID, Cardinality::One as u8, tx),
+        Datom::new(DB_TX_TIME_ID, DB_ATTR_IDENT_ID, DB_TX_TIME_IDENT, tx),
+        Datom::new(DB_TX_TIME_ID, DB_ATTR_DOC_ID, "Transaction's wall clock time", tx),
+        Datom::new(DB_TX_TIME_ID, DB_ATTR_TYPE_ID, ValueType::U64 as u8, tx),
+        Datom::new(DB_TX_TIME_ID, DB_ATTR_CARDINALITY_ID, Cardinality::One as u8, tx),
     ]
 }

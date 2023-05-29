@@ -1,7 +1,8 @@
 use std::collections::HashMap;
 
 use crate::clock::Clock;
-use crate::datom;
+use crate::datom::Datom;
+use crate::datom::Value;
 use crate::query::*;
 use crate::schema::*;
 use crate::storage::Storage;
@@ -68,7 +69,7 @@ impl<S: Storage, C: Clock> Db<S, C> {
         &mut self,
         transaction: &Transaction,
         temp_ids: &HashMap<String, u64>,
-    ) -> Result<Vec<datom::Datom>, TransactionError> {
+    ) -> Result<Vec<Datom>, TransactionError> {
         let mut datoms = Vec::new();
         let tx = self.create_tx_datom();
         for operation in &transaction.operations {
@@ -85,7 +86,7 @@ impl<S: Storage, C: Clock> Db<S, C> {
         tx: u64,
         operation: &Operation,
         temp_ids: &HashMap<String, u64>,
-    ) -> Result<Vec<datom::Datom>, TransactionError> {
+    ) -> Result<Vec<Datom>, TransactionError> {
         let mut datoms = Vec::new();
         let entity = self.resolve_entity(&operation.entity, temp_ids)?;
         for AttributeValue { attribute, value } in &operation.attributes {
@@ -94,14 +95,14 @@ impl<S: Storage, C: Clock> Db<S, C> {
                 .resolve_ident(attribute)
                 .map_err(|err| TransactionError::StorageError(err))?;
 
-            datoms.push(datom::Datom::new(entity, attribute_id, value.clone(), tx));
+            datoms.push(Datom::new(entity, attribute_id, value.clone(), tx));
         }
         Ok(datoms)
     }
 
-    fn create_tx_datom(&mut self) -> datom::Datom {
+    fn create_tx_datom(&mut self) -> Datom {
         let tx = self.next_entity_id();
-        datom::Datom::new(tx, DB_TX_TIME_ID, self.clock.now(), tx)
+        Datom::new(tx, DB_TX_TIME_ID, self.clock.now(), tx)
     }
 
     fn resolve_entity(
@@ -130,7 +131,7 @@ impl<S: Storage, C: Clock> Db<S, C> {
         &self,
         clauses: &mut [Clause],
         assignment: Assignment,
-        results: &mut Vec<HashMap<String, datom::Value>>,
+        results: &mut Vec<HashMap<String, Value>>,
     ) -> Result<usize, QueryError> {
         if assignment.is_complete() {
             results.push(assignment.assigned);

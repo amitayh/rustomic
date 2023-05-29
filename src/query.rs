@@ -1,13 +1,14 @@
 use std::collections::HashMap;
 use std::collections::HashSet;
 
-use crate::datom;
+use crate::datom::Datom;
+use crate::datom::Value;
 use crate::storage::StorageError;
 
 trait Pattern {
     fn variable_name(&self) -> Option<&String>;
 
-    fn assigned_value<'a>(&'a self, assignment: &'a Assignment) -> Option<&datom::Value> {
+    fn assigned_value<'a>(&'a self, assignment: &'a Assignment) -> Option<&Value> {
         self.variable_name()
             .and_then(|variable| assignment.assigned.get(variable))
     }
@@ -65,7 +66,7 @@ impl Pattern for AttributePattern {
 #[derive(Clone, Debug)]
 pub enum ValuePattern {
     Variable(String),
-    Constant(datom::Value),
+    Constant(Value),
     Blank,
 }
 
@@ -74,7 +75,7 @@ impl ValuePattern {
         ValuePattern::Variable(String::from(name))
     }
 
-    pub fn constant<V: Into<datom::Value>>(value: V) -> ValuePattern {
+    pub fn constant<V: Into<Value>>(value: V) -> ValuePattern {
         ValuePattern::Constant(value.into())
     }
 }
@@ -134,10 +135,10 @@ impl Clause {
     }
 
     pub fn substitute(&mut self, assignment: &Assignment) {
-        if let Some(datom::Value::U64(entity)) = self.entity.assigned_value(assignment) {
+        if let Some(Value::U64(entity)) = self.entity.assigned_value(assignment) {
             self.entity = EntityPattern::Id(*entity);
         }
-        if let Some(datom::Value::U64(attribute)) = self.attribute.assigned_value(assignment) {
+        if let Some(Value::U64(attribute)) = self.attribute.assigned_value(assignment) {
             self.attribute = AttributePattern::Id(*attribute);
         }
         if let Some(value) = self.value.assigned_value(assignment) {
@@ -146,7 +147,7 @@ impl Clause {
     }
 }
 
-impl datom::Datom {
+impl Datom {
     pub fn satisfies(&self, clause: &Clause) -> bool {
         if let EntityPattern::Id(entity) = clause.entity {
             if entity != self.entity {
@@ -193,7 +194,7 @@ impl Query {
 
 #[derive(Debug)]
 pub struct QueryResult {
-    pub results: Vec<HashMap<String, datom::Value>>,
+    pub results: Vec<HashMap<String, Value>>,
 }
 
 #[derive(Debug)]
@@ -205,7 +206,7 @@ pub enum QueryError {
 // TODO PartialAssignment / CompleteAssignment?
 #[derive(Debug, Eq, PartialEq, Clone)]
 pub struct Assignment {
-    pub assigned: HashMap<String, datom::Value>,
+    pub assigned: HashMap<String, Value>,
     unassigned: HashSet<String>,
 }
 
@@ -226,7 +227,7 @@ impl Assignment {
         self.unassigned.is_empty()
     }
 
-    pub fn update_with(&self, clause: &Clause, datom: datom::Datom) -> Self {
+    pub fn update_with(&self, clause: &Clause, datom: Datom) -> Self {
         let mut assignment = self.clone();
         if let Some(entity_variable) = clause.entity.variable_name() {
             assignment.assign(entity_variable, datom.entity);
@@ -240,7 +241,7 @@ impl Assignment {
         assignment
     }
 
-    fn assign<V: Into<datom::Value>>(&mut self, variable: &String, value: V) {
+    fn assign<V: Into<Value>>(&mut self, variable: &String, value: V) {
         if self.unassigned.remove(variable) {
             self.assigned.insert(variable.clone(), value.into());
         }

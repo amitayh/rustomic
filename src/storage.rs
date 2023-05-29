@@ -176,9 +176,9 @@ impl InMemoryStorage {
     fn a_iter<'a, V>(
         &'a self,
         map: &'a BTreeMap<Attribute, V>,
-        entity: &'a AttributePattern,
+        attribute: &'a AttributePattern,
     ) -> Result<Iter<'a, Attribute, V>, StorageError> {
-        match entity {
+        match attribute {
             AttributePattern::Id(id) => Ok(self.kv_iter(map, id)),
             AttributePattern::Ident(ident) => {
                 let id = self.resolve_ident_internal(ident)?;
@@ -190,12 +190,12 @@ impl InMemoryStorage {
 
     fn v_iter<'a>(
         &self,
-        vt: &'a BTreeMap<Value, Vec<Transaction>>,
+        map: &'a BTreeMap<Value, Vec<Transaction>>,
         value: &'a ValuePattern,
     ) -> Iter<'a, Value, Vec<Transaction>> {
         match value {
-            ValuePattern::Constant(value) => self.kv_iter(vt, value),
-            _ => Iter::Many(vt.iter()),
+            ValuePattern::Constant(value) => self.kv_iter(map, value),
+            _ => Iter::Many(map.iter()),
         }
     }
 

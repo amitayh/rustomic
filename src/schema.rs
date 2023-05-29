@@ -19,7 +19,7 @@ pub const DB_ATTR_UNIQUE_ID: u64 = 5;
 pub const DB_TX_TIME_IDENT: &str = "db/tx/time";
 pub const DB_TX_TIME_ID: u64 = 6;
 
-#[derive(PartialEq, Eq)]
+#[derive(Debug, PartialEq, Eq)]
 pub enum ValueType {
     U8 = 0,
     I32 = 1,

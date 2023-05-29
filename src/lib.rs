@@ -57,41 +57,6 @@ mod tests {
     }
 
     #[test]
-    fn create_entity_by_temp_id2() {
-        let mut db = create_db();
-
-        // Create the schema
-        let schema_result = db.transact(
-            Transaction::new().with(
-                Attribute::new("person/name", ValueType::Str, Cardinality::One)
-                    .with_doc("A person's name")
-                    .build(),
-            ),
-        );
-        assert!(schema_result.is_ok());
-
-        // Insert data
-        let tx_result = db.transact(
-            Transaction::new().with(Operation::on_temp_id("joe").set("person/name", "Joe")),
-        );
-        assert!(tx_result.is_ok());
-
-        let query_result = db.query(
-            Query::new().find("?joe").wher(
-                Clause::new()
-                    .with_entity(EntityPattern::variable("?joe"))
-                    .with_attribute(AttributePattern::ident("person/name"))
-                    .with_value(ValuePattern::constant("Joe")),
-            ),
-        );
-
-        assert_eq!(
-            tx_result.unwrap().temp_ids.get("joe"),
-            query_result.unwrap().results[0]["?joe"].as_u64()
-        );
-    }
-
-    #[test]
     fn reject_transaction_with_invalid_attribute_type() {
         let mut db = create_db();
 

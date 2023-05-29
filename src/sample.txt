@@ -352,31 +352,3 @@ clause [?john 10 "John"]
 datom [11 10 "John"]
 satisfy => true
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

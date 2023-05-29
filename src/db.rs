@@ -94,7 +94,7 @@ impl<S: Storage, C: Clock> Db<S, C> {
                 .resolve_ident(attribute)
                 .map_err(|err| TransactionError::StorageError(err))?;
 
-            datoms.push(datom::Datom::new(entity, *attribute_id, value.clone(), tx));
+            datoms.push(datom::Datom::new(entity, attribute_id, value.clone(), tx));
         }
         Ok(datoms)
     }
@@ -131,11 +131,12 @@ impl<S: Storage, C: Clock> Db<S, C> {
         clauses: &mut [Clause],
         assignment: Assignment,
         results: &mut Vec<HashMap<String, datom::Value>>,
-    ) -> Result<(), QueryError> {
+    ) -> Result<usize, QueryError> {
         if assignment.is_complete() {
             results.push(assignment.assigned);
-            return Ok(());
+            return Ok(1);
         }
+        let mut assignments = 0;
         if let [clause, rest @ ..] = clauses {
             clause.substitute(&assignment);
             let datoms = self
@@ -145,9 +146,10 @@ impl<S: Storage, C: Clock> Db<S, C> {
 
             // TODO can this be parallelized?
             for datom in datoms {
-                self.resolve(rest, assignment.update_with(clause, datom), results)?;
+                assignments +=
+                    self.resolve(rest, assignment.update_with(clause, datom), results)?;
             }
         }
-        Ok(())
+        Ok(assignments)
     }
 }

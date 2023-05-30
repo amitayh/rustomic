@@ -3,6 +3,7 @@ use std::collections::BTreeMap;
 use std::collections::HashMap;
 
 use crate::datom::Datom;
+use crate::datom::Op;
 use crate::datom::Value;
 use crate::query::AttributePattern;
 use crate::query::Clause;
@@ -17,7 +18,7 @@ use crate::schema::DB_ATTR_TYPE_ID;
 type Entity = u64;
 type Attribute = u64;
 type Transaction = u64;
-type Index<A, B, C> = BTreeMap<A, BTreeMap<B, BTreeMap<C, Vec<Transaction>>>>;
+type Index<A, B, C> = BTreeMap<A, BTreeMap<B, BTreeMap<C, BTreeMap<Transaction, Op>>>>;
 
 pub trait Storage {
     fn save(&mut self, datoms: &Vec<Datom>) -> Result<(), StorageError>;
@@ -48,7 +49,7 @@ pub struct InMemoryStorage {
     // true (or some value for :db/unique) when installing or altering the attribute. The AVET
     // index also supports the indexRange API, which returns all attribute values in a particular
     // range.
-    _avet: Index<Attribute, Value, Entity>,
+    avet: Index<Attribute, Value, Entity>,
 
     // The VAET index contains all and only datoms whose attribute has a :db/valueType of
     // :db.type/ref. This is also known as the reverse index since it allows efficient navigation
@@ -64,7 +65,7 @@ impl InMemoryStorage {
         let mut storage = InMemoryStorage {
             eavt: BTreeMap::new(),
             aevt: BTreeMap::new(),
-            _avet: BTreeMap::new(),
+            avet: BTreeMap::new(),
             _vaet: BTreeMap::new(),
             ident_to_entity: HashMap::new(),
         };
@@ -103,9 +104,14 @@ impl Storage for InMemoryStorage {
         match clause {
             Clause {
                 entity: EntityPattern::Id(_),
-                attribute: _,
+                attribute: AttributePattern::Id(_) | AttributePattern::Ident(_),
                 value: _,
             } => self.find_datoms_eavt(clause),
+            Clause {
+                entity: _,
+                attribute: AttributePattern::Id(_) | AttributePattern::Ident(_),
+                value: ValuePattern::Constant(_)
+            } => self.find_datoms_avet(clause),
             _ => self.find_datoms_aevt(clause),
         }
     }
@@ -125,6 +131,7 @@ impl InMemoryStorage {
         for datom in datoms {
             self.update_eavt(datom);
             self.update_aevt(datom);
+            self.update_avet(datom);
             self.update_ident_to_entity_id(datom);
         }
     }
@@ -133,14 +140,21 @@ impl InMemoryStorage {
         let avt = self.eavt.entry(datom.entity).or_default();
         let vt = avt.entry(datom.attribute).or_default();
         let t = vt.entry(datom.value.clone()).or_default();
-        t.push(datom.tx);
+        t.insert(datom.tx, datom.op.clone());
     }
 
     fn update_aevt(&mut self, datom: &Datom) {
         let evt = self.aevt.entry(datom.attribute).or_default();
         let vt = evt.entry(datom.entity).or_default();
         let t = vt.entry(datom.value.clone()).or_default();
-        t.push(datom.tx);
+        t.insert(datom.tx, datom.op.clone());
+    }
+
+    fn update_avet(&mut self, datom: &Datom) {
+        let vet = self.avet.entry(datom.attribute).or_default();
+        let et = vet.entry(datom.value.clone()).or_default();
+        let t = et.entry(datom.entity).or_default();
+        t.insert(datom.tx, datom.op.clone());
     }
 
     fn update_ident_to_entity_id(&mut self, datom: &Datom) {
@@ -160,9 +174,15 @@ impl InMemoryStorage {
         let mut datoms = Vec::new();
         for (entity, avt) in self.e_iter(&self.eavt, &clause.entity) {
             for (attribute, vt) in self.a_iter(avt, &clause.attribute)? {
-                for (value, tx) in self.v_iter(vt, &clause.value) {
-                    if let Some(t) = tx.last() {
-                        datoms.push(Datom::new(*entity, *attribute, value.clone(), *t));
+                for (value, t) in self.v_iter(vt, &clause.value) {
+                    if let Some((tx, op)) = t.last_key_value() {
+                        datoms.push(Datom {
+                            entity: *entity,
+                            attribute: *attribute,
+                            value: value.clone(),
+                            tx: *tx,
+                            op: op.clone(),
+                        })
                     }
                 }
             }
@@ -174,9 +194,35 @@ impl InMemoryStorage {
         let mut datoms = Vec::new();
         for (attribute, evt) in self.a_iter(&self.aevt, &clause.attribute)? {
             for (entity, vt) in self.e_iter(evt, &clause.entity) {
-                for (value, tx) in self.v_iter(vt, &clause.value) {
-                    if let Some(t) = tx.last() {
-                        datoms.push(Datom::new(*entity, *attribute, value.clone(), *t));
+                for (value, t) in self.v_iter(vt, &clause.value) {
+                    if let Some((tx, op)) = t.last_key_value() {
+                        datoms.push(Datom {
+                            entity: *entity,
+                            attribute: *attribute,
+                            value: value.clone(),
+                            tx: *tx,
+                            op: op.clone(),
+                        })
+                    }
+                }
+            }
+        }
+        Ok(datoms)
+    }
+
+    fn find_datoms_avet(&self, clause: &Clause) -> Result<Vec<Datom>, StorageError> {
+        let mut datoms = Vec::new();
+        for (attribute, vet) in self.a_iter(&self.avet, &clause.attribute)? {
+            for (value, et) in self.v_iter(vet, &clause.value) {
+                for (entity, t) in self.e_iter(et, &clause.entity) {
+                    if let Some((tx, op)) = t.last_key_value() {
+                        datoms.push(Datom {
+                            entity: *entity,
+                            attribute: *attribute,
+                            value: value.clone(),
+                            tx: *tx,
+                            op: op.clone(),
+                        })
                     }
                 }
             }
@@ -210,11 +256,11 @@ impl InMemoryStorage {
         }
     }
 
-    fn v_iter<'a>(
+    fn v_iter<'a, V>(
         &self,
-        map: &'a BTreeMap<Value, Vec<Transaction>>,
+        map: &'a BTreeMap<Value, V>,
         value: &'a ValuePattern,
-    ) -> Iter<'a, Value, Vec<Transaction>> {
+    ) -> Iter<'a, Value, V> {
         match value {
             ValuePattern::Constant(value) => self.kv_iter(map, value),
             _ => Iter::Many(map.iter()),

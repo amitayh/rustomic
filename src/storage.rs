@@ -24,6 +24,8 @@ pub trait Storage {
 
     fn resolve_ident(&self, ident: &str) -> Result<Entity, StorageError>;
 
+    fn attribute_type(&self, attribute: Attribute) -> Result<ValueType, StorageError>;
+
     fn find_datoms(&self, clause: &Clause) -> Result<Vec<Datom>, StorageError>;
 }
 
@@ -32,13 +34,11 @@ pub struct InMemoryStorage {
     // The EAVT index provides efficient access to everything about a given entity. Conceptually
     // this is very similar to row access style in a SQL database, except that entities can possess
     // arbitrary attributes rather than being limited to a predefined set of columns.
-    //eavt: BTreeMap<Entity, BTreeMap<Attribute, BTreeMap<Value, Vec<Transaction>>>>,
     eavt: Index<Entity, Attribute, Value>,
 
     // The AEVT index provides efficient access to all values for a given attribute, comparable to
     // the traditional column access style. In the table below, notice how all :release/name
-    // attributes are grouped together. This allows Datomic to efficiently query for all values of
-    // the :release/name attribute, because they reside next to one another in this index.
+    // attributes are grouped together.
     aevt: Index<Attribute, Entity, Value>,
 
     // The AVET index provides efficient access to particular combinations of attribute and value.
@@ -87,6 +87,18 @@ impl Storage for InMemoryStorage {
         self.resolve_ident_internal(ident).copied()
     }
 
+    fn attribute_type(&self, attribute: Attribute) -> Result<ValueType, StorageError> {
+        let clause = Clause::new()
+            .with_entity(EntityPattern::Id(attribute))
+            .with_attribute(AttributePattern::Id(DB_ATTR_TYPE_ID));
+        Ok(self
+            .find_datoms(&clause)?
+            .first()
+            .and_then(|datom| datom.value.as_u8())
+            .and_then(|value| ValueType::from(*value))
+            .ok_or(StorageError::InvalidAttributeType)?)
+    }
+
     fn find_datoms(&self, clause: &Clause) -> Result<Vec<Datom>, StorageError> {
         match clause {
             Clause {
@@ -109,18 +121,6 @@ impl InMemoryStorage {
         }
     }
 
-    fn attribute_type(&self, attribute: Attribute) -> Result<ValueType, StorageError> {
-        let clause = Clause::new()
-            .with_entity(EntityPattern::Id(attribute))
-            .with_attribute(AttributePattern::Id(DB_ATTR_TYPE_ID));
-        Ok(self
-            .find_datoms(&clause)?
-            .first()
-            .and_then(|datom| datom.value.as_u8())
-            .and_then(|value| ValueType::from(*value))
-            .ok_or(StorageError::InvalidAttributeType)?)
-    }
-
     fn save_internal(&mut self, datoms: &Vec<Datom>) {
         for datom in datoms {
             self.update_eavt(datom);
@@ -128,6 +128,7 @@ impl InMemoryStorage {
             self.update_ident_to_entity_id(datom);
         }
     }
+
     fn update_eavt(&mut self, datom: &Datom) {
         let avt = self.eavt.entry(datom.entity).or_default();
         let vt = avt.entry(datom.attribute).or_default();

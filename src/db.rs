@@ -95,7 +95,18 @@ impl<S: Storage, C: Clock> Db<S, C> {
                 .resolve_ident(attribute)
                 .map_err(|err| TransactionError::StorageError(err))?;
 
-            datoms.push(Datom::new(entity, attribute_id, value.clone(), tx));
+            let attribute_type = self
+                .storage
+                .attribute_type(attribute_id)
+                .map_err(|err| TransactionError::StorageError(err))?;
+
+            let v = if let Some(id) = value.as_str().and_then(|str| temp_ids.get(str)) {
+                Value::U64(*id)
+            } else {
+                value.clone()
+            };
+
+            datoms.push(Datom::new(entity, attribute_id, v, tx));
         }
         Ok(datoms)
     }

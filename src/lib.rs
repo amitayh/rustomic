@@ -77,7 +77,6 @@ mod tests {
     }
 
     #[test]
-    // #[ignore]
     fn reference_temp_id_in_transaction() {
         let mut db = create_db();
 

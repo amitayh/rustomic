@@ -1,6 +1,7 @@
 use std::collections::btree_map;
 use std::collections::BTreeMap;
 use std::collections::HashMap;
+use std::collections::btree_map::Range;
 
 use crate::datom::Datom;
 use crate::datom::Op;
@@ -258,6 +259,7 @@ impl InMemoryStorage {
     ) -> Iter<'a, Value, V> {
         match value {
             ValuePattern::Constant(value) => self.kv_iter(map, value),
+            ValuePattern::Range(start, end) => Iter::Range(map.range((*start, *end))),
             _ => Iter::Many(map.iter()),
         }
     }
@@ -277,6 +279,7 @@ impl InMemoryStorage {
 enum Iter<'a, K, V> {
     Zero,
     One(Option<(&'a K, &'a V)>),
+    Range(Range<'a, K, V>),
     Many(btree_map::Iter<'a, K, V>),
 }
 
@@ -291,6 +294,7 @@ impl<'a, K, V> Iterator for Iter<'a, K, V> {
                 *item = None;
                 result
             }
+            Iter::Range(range) => range.next(),
             Iter::Many(iter) => iter.next(),
         }
     }

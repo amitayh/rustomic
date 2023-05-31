@@ -1,5 +1,7 @@
 use std::collections::HashMap;
 use std::collections::HashSet;
+use std::ops::Bound;
+use std::ops::RangeBounds;
 
 use crate::datom::Datom;
 use crate::datom::Value;
@@ -64,23 +66,28 @@ impl Pattern for AttributePattern {
 }
 
 #[derive(Clone, Debug)]
-pub enum ValuePattern {
+pub enum ValuePattern<'a> {
     Variable(String),
     Constant(Value),
+    Range(Bound<&'a Value>, Bound<&'a Value>),
     Blank,
 }
 
-impl ValuePattern {
-    pub fn variable(name: &str) -> ValuePattern {
+impl<'a> ValuePattern<'a> {
+    pub fn variable(name: &str) -> Self {
         ValuePattern::Variable(String::from(name))
     }
 
-    pub fn constant<V: Into<Value>>(value: V) -> ValuePattern {
+    pub fn constant<V: Into<Value>>(value: V) -> Self {
         ValuePattern::Constant(value.into())
+    }
+
+    pub fn range<R: RangeBounds<Value>>(range: &'a R) -> Self {
+        ValuePattern::Range(range.start_bound(), range.end_bound())
     }
 }
 
-impl Pattern for ValuePattern {
+impl<'a> Pattern for ValuePattern<'a> {
     fn variable_name(&self) -> Option<&String> {
         match self {
             ValuePattern::Variable(variable) => Some(&variable),
@@ -90,13 +97,13 @@ impl Pattern for ValuePattern {
 }
 
 #[derive(Clone, Debug)]
-pub struct Clause {
+pub struct Clause<'a> {
     pub entity: EntityPattern,
     pub attribute: AttributePattern,
-    pub value: ValuePattern,
+    pub value: ValuePattern<'a>,
 }
 
-impl Clause {
+impl<'a> Clause<'a> {
     pub fn new() -> Self {
         Clause {
             entity: EntityPattern::Blank,
@@ -115,7 +122,7 @@ impl Clause {
         self
     }
 
-    pub fn with_value(mut self, value: ValuePattern) -> Self {
+    pub fn with_value(mut self, value: ValuePattern<'a>) -> Self {
         self.value = value;
         self
     }
@@ -168,12 +175,12 @@ impl Datom {
     }
 }
 
-pub struct Query {
+pub struct Query<'a> {
     pub find: Vec<String>,
-    pub wher: Vec<Clause>,
+    pub wher: Vec<Clause<'a>>,
 }
 
-impl Query {
+impl<'a> Query<'a> {
     pub fn new() -> Self {
         Query {
             find: Vec::new(),
@@ -186,7 +193,7 @@ impl Query {
         self
     }
 
-    pub fn wher(mut self, clause: Clause) -> Self {
+    pub fn wher(mut self, clause: Clause<'a>) -> Self {
         self.wher.push(clause);
         self
     }

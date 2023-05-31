@@ -20,7 +20,7 @@ pub const DB_ATTR_UNIQUE_ID: u64 = 5;
 pub const DB_TX_TIME_IDENT: &str = "db/tx/time";
 pub const DB_TX_TIME_ID: u64 = 6;
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, PartialEq, Eq, Clone, Copy)]
 pub enum ValueType {
     U8 = 0,
     I32 = 1,
@@ -32,6 +32,23 @@ pub enum ValueType {
 }
 
 impl ValueType {
+    /// ```
+    /// use rustomic::schema::ValueType;
+    ///
+    /// let value_types = vec![
+    ///     ValueType::U8,
+    ///     ValueType::I32,
+    ///     ValueType::U32,
+    ///     ValueType::I64,
+    ///     ValueType::U64,
+    ///     ValueType::Str,
+    ///     ValueType::Ref,
+    /// ];
+    /// for value_type in value_types {
+    ///     assert_eq!(Some(value_type), ValueType::from(value_type as u8));
+    /// }
+    /// assert_eq!(None, ValueType::from(42));
+    /// ```
     pub fn from(value: u8) -> Option<ValueType> {
         match value {
             0 => Some(ValueType::U8),
@@ -47,6 +64,17 @@ impl ValueType {
 }
 
 impl Value {
+    /// ```
+    /// use rustomic::datom::Value;
+    /// use rustomic::schema::ValueType;
+    ///
+    /// assert!(Value::U8(42).matches_type(ValueType::U8));
+    /// assert!(Value::I64(42).matches_type(ValueType::I64));
+    /// assert!(Value::U64(42).matches_type(ValueType::U64));
+    /// assert!(Value::U64(42).matches_type(ValueType::Ref));
+    /// assert!(Value::Str(String::from("foo")).matches_type(ValueType::Str));
+    /// assert!(!Value::U64(42).matches_type(ValueType::Str));
+    /// ```
     pub fn matches_type(&self, value_type: ValueType) -> bool {
         match self {
             Value::U8(_) => value_type == ValueType::U8,
@@ -55,7 +83,6 @@ impl Value {
             Value::I64(_) => value_type == ValueType::I64,
             Value::U64(_) => value_type == ValueType::U64 || value_type == ValueType::Ref,
             Value::Str(_) => value_type == ValueType::Str,
-            _ => false,
         }
     }
 }

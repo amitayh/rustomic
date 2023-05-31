@@ -5,11 +5,20 @@ pub enum Value {
     U32(u32),
     I64(i64),
     U64(u64),
-    ShortString(&'static str),
     Str(String),
 }
 
 impl Value {
+    /// ```
+    /// use rustomic::datom::Value;
+    ///
+    /// let str_value = Value::Str(String::from("foo"));
+    /// assert_eq!(None, str_value.as_u8());
+    ///
+    /// let value = 42;
+    /// let u8_value = Value::U8(value);
+    /// assert_eq!(Some(&value), u8_value.as_u8());
+    /// ```
     pub fn as_u8(&self) -> Option<&u8> {
         if let Value::U8(value) = self {
             return Some(value);
@@ -17,6 +26,16 @@ impl Value {
         None
     }
 
+    /// ```
+    /// use rustomic::datom::Value;
+    ///
+    /// let str_value = Value::Str(String::from("foo"));
+    /// assert_eq!(None, str_value.as_u64());
+    ///
+    /// let value = 42;
+    /// let u64_value = Value::U64(value);
+    /// assert_eq!(Some(&value), u64_value.as_u64());
+    /// ```
     pub fn as_u64(&self) -> Option<&u64> {
         if let Value::U64(value) = self {
             return Some(value);
@@ -24,6 +43,15 @@ impl Value {
         None
     }
 
+    /// ```
+    /// use rustomic::datom::Value;
+    ///
+    /// let u64_value = Value::U64(42);
+    /// assert_eq!(None, u64_value.as_str());
+    ///
+    /// let str_value = Value::Str(String::from("foo"));
+    /// assert_eq!(Some("foo"), str_value.as_str());
+    /// ```
     pub fn as_str(&self) -> Option<&str> {
         if let Value::Str(value) = self {
             return Some(value);

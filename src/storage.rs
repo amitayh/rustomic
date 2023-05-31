@@ -51,11 +51,6 @@ pub struct InMemoryStorage {
     // range.
     avet: Index<Attribute, Value, Entity>,
 
-    // The VAET index contains all and only datoms whose attribute has a :db/valueType of
-    // :db.type/ref. This is also known as the reverse index since it allows efficient navigation
-    // of relationships in reverse.
-    _vaet: Index<Value, Attribute, Entity>,
-
     // Lookup entity ID by ident
     ident_to_entity: HashMap<String, Entity>,
 }
@@ -66,7 +61,6 @@ impl InMemoryStorage {
             eavt: BTreeMap::new(),
             aevt: BTreeMap::new(),
             avet: BTreeMap::new(),
-            _vaet: BTreeMap::new(),
             ident_to_entity: HashMap::new(),
         };
         let init_datoms = default_datoms();
@@ -77,6 +71,7 @@ impl InMemoryStorage {
 
 impl Storage for InMemoryStorage {
     fn save(&mut self, datoms: &Vec<Datom>) -> Result<(), StorageError> {
+        // TODO: add reverse index for attribute of type `Ref`
         for datom in datoms {
             self.validate(datom)?
         }
@@ -110,7 +105,7 @@ impl Storage for InMemoryStorage {
             Clause {
                 entity: _,
                 attribute: AttributePattern::Id(_) | AttributePattern::Ident(_),
-                value: ValuePattern::Constant(_)
+                value: ValuePattern::Constant(_),
             } => self.find_datoms_avet(clause),
             _ => self.find_datoms_aevt(clause),
         }

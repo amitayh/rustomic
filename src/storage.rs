@@ -90,7 +90,7 @@ impl Storage for InMemoryStorage {
         Ok(self
             .find_datoms(&clause)?
             .first()
-            .and_then(|datom| datom.value.as_u8())
+            .and_then(|datom| datom.value.as_u64())
             .and_then(|value| ValueType::from(*value))
             .ok_or(StorageError::InvalidAttributeType)?)
     }

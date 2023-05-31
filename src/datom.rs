@@ -1,31 +1,12 @@
 #[derive(Hash, Eq, PartialEq, Debug, Clone, PartialOrd, Ord)]
 pub enum Value {
-    U8(u8),
-    I32(i32),
-    U32(u32),
     I64(i64),
     U64(u64),
+    // F64(f64),
     Str(String),
 }
 
 impl Value {
-    /// ```
-    /// use rustomic::datom::Value;
-    ///
-    /// let str_value = Value::Str(String::from("foo"));
-    /// assert_eq!(None, str_value.as_u8());
-    ///
-    /// let value = 42;
-    /// let u8_value = Value::U8(value);
-    /// assert_eq!(Some(&value), u8_value.as_u8());
-    /// ```
-    pub fn as_u8(&self) -> Option<&u8> {
-        if let Value::U8(value) = self {
-            return Some(value);
-        }
-        None
-    }
-
     /// ```
     /// use rustomic::datom::Value;
     ///
@@ -60,21 +41,15 @@ impl Value {
     }
 }
 
-impl Into<Value> for u8 {
-    fn into(self) -> Value {
-        Value::U8(self)
-    }
-}
-
 impl Into<Value> for i32 {
     fn into(self) -> Value {
-        Value::I32(self)
+        Value::I64(self.into())
     }
 }
 
 impl Into<Value> for u32 {
     fn into(self) -> Value {
-        Value::U32(self)
+        Value::U64(self.into())
     }
 }
 
@@ -89,6 +64,12 @@ impl Into<Value> for u64 {
         Value::U64(self)
     }
 }
+
+// impl Into<Value> for f64 {
+//     fn into(self) -> Value {
+//         Value::F64(self)
+//     }
+// }
 
 impl Into<Value> for &str {
     fn into(self) -> Value {

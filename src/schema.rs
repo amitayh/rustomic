@@ -22,13 +22,11 @@ pub const DB_TX_TIME_ID: u64 = 6;
 
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
 pub enum ValueType {
-    U8 = 0,
-    I32 = 1,
-    U32 = 2,
-    I64 = 3,
-    U64 = 4,
-    Str = 5,
-    Ref = 6,
+    I64 = 1,
+    U64 = 2,
+    // F64 = 3,
+    Str = 4,
+    Ref = 5,
 }
 
 impl ValueType {
@@ -36,28 +34,24 @@ impl ValueType {
     /// use rustomic::schema::ValueType;
     ///
     /// let value_types = vec![
-    ///     ValueType::U8,
-    ///     ValueType::I32,
-    ///     ValueType::U32,
     ///     ValueType::I64,
     ///     ValueType::U64,
+    ///     // ValueType::F64,
     ///     ValueType::Str,
     ///     ValueType::Ref,
     /// ];
     /// for value_type in value_types {
-    ///     assert_eq!(Some(value_type), ValueType::from(value_type as u8));
+    ///     assert_eq!(Some(value_type), ValueType::from(value_type as u64));
     /// }
     /// assert_eq!(None, ValueType::from(42));
     /// ```
-    pub fn from(value: u8) -> Option<ValueType> {
+    pub fn from(value: u64) -> Option<ValueType> {
         match value {
-            0 => Some(ValueType::U8),
-            1 => Some(ValueType::I32),
-            2 => Some(ValueType::U32),
-            3 => Some(ValueType::I64),
-            4 => Some(ValueType::U64),
-            5 => Some(ValueType::Str),
-            6 => Some(ValueType::Ref),
+            1 => Some(ValueType::I64),
+            2 => Some(ValueType::U64),
+            // 3 => Some(ValueType::F64),
+            4 => Some(ValueType::Str),
+            5 => Some(ValueType::Ref),
             _ => None,
         }
     }
@@ -68,7 +62,6 @@ impl Value {
     /// use rustomic::datom::Value;
     /// use rustomic::schema::ValueType;
     ///
-    /// assert!(Value::U8(42).matches_type(ValueType::U8));
     /// assert!(Value::I64(42).matches_type(ValueType::I64));
     /// assert!(Value::U64(42).matches_type(ValueType::U64));
     /// assert!(Value::U64(42).matches_type(ValueType::Ref));
@@ -77,11 +70,9 @@ impl Value {
     /// ```
     pub fn matches_type(&self, value_type: ValueType) -> bool {
         match self {
-            Value::U8(_) => value_type == ValueType::U8,
-            Value::I32(_) => value_type == ValueType::I32,
-            Value::U32(_) => value_type == ValueType::U32,
             Value::I64(_) => value_type == ValueType::I64,
             Value::U64(_) => value_type == ValueType::U64 || value_type == ValueType::Ref,
+            // Value::F64(_) => value_type == ValueType::F64,
             Value::Str(_) => value_type == ValueType::Str,
         }
     }
@@ -124,13 +115,13 @@ impl Attribute {
     pub fn build(self) -> tx::Operation {
         let mut operation = tx::Operation::on_new()
             .set(DB_ATTR_IDENT_IDENT, self.ident)
-            .set(DB_ATTR_CARDINALITY_IDENT, self.cardinality as u8)
-            .set(DB_ATTR_TYPE_IDENT, self.value_type as u8);
+            .set(DB_ATTR_CARDINALITY_IDENT, self.cardinality as u64)
+            .set(DB_ATTR_TYPE_IDENT, self.value_type as u64);
         if let Some(doc) = self.doc {
             operation.set_mut(DB_ATTR_DOC_IDENT, doc);
         }
         if self.unique {
-            operation.set_mut(DB_ATTR_UNIQUE_IDENT, 1u8);
+            operation.set_mut(DB_ATTR_UNIQUE_IDENT, 1u64);
         }
         operation
     }
@@ -145,33 +136,33 @@ pub fn default_datoms() -> Vec<Datom> {
         // "db/attr/ident" attribute
         Datom::new(DB_ATTR_IDENT_ID, DB_ATTR_IDENT_ID, DB_ATTR_IDENT_IDENT, tx),
         Datom::new(DB_ATTR_IDENT_ID, DB_ATTR_DOC_ID, "Human readable name of attribute", tx),
-        Datom::new(DB_ATTR_IDENT_ID, DB_ATTR_TYPE_ID, ValueType::Str as u8, tx),
-        Datom::new(DB_ATTR_IDENT_ID, DB_ATTR_CARDINALITY_ID, Cardinality::One as u8, tx),
-        Datom::new(DB_ATTR_IDENT_ID, DB_ATTR_UNIQUE_ID, 1u8, tx),
+        Datom::new(DB_ATTR_IDENT_ID, DB_ATTR_TYPE_ID, ValueType::Str as u64, tx),
+        Datom::new(DB_ATTR_IDENT_ID, DB_ATTR_CARDINALITY_ID, Cardinality::One as u64, tx),
+        Datom::new(DB_ATTR_IDENT_ID, DB_ATTR_UNIQUE_ID, 1u64, tx),
         // "db/attr/doc" attribute
         Datom::new(DB_ATTR_DOC_ID, DB_ATTR_IDENT_ID, DB_ATTR_DOC_IDENT, tx),
         Datom::new(DB_ATTR_DOC_ID, DB_ATTR_DOC_ID, "Documentation of attribute", tx),
-        Datom::new(DB_ATTR_DOC_ID, DB_ATTR_TYPE_ID, ValueType::Str as u8, tx),
-        Datom::new(DB_ATTR_DOC_ID, DB_ATTR_CARDINALITY_ID, Cardinality::One as u8, tx),
+        Datom::new(DB_ATTR_DOC_ID, DB_ATTR_TYPE_ID, ValueType::Str as u64, tx),
+        Datom::new(DB_ATTR_DOC_ID, DB_ATTR_CARDINALITY_ID, Cardinality::One as u64, tx),
         // "db/attr/type" attribute
         Datom::new(DB_ATTR_TYPE_ID, DB_ATTR_IDENT_ID, DB_ATTR_TYPE_IDENT, tx),
         Datom::new(DB_ATTR_TYPE_ID, DB_ATTR_DOC_ID, "Data type of attribute", tx),
-        Datom::new(DB_ATTR_TYPE_ID, DB_ATTR_TYPE_ID, ValueType::U8 as u8, tx),
-        Datom::new(DB_ATTR_TYPE_ID, DB_ATTR_CARDINALITY_ID, Cardinality::One as u8, tx),
+        Datom::new(DB_ATTR_TYPE_ID, DB_ATTR_TYPE_ID, ValueType::U64 as u64, tx),
+        Datom::new(DB_ATTR_TYPE_ID, DB_ATTR_CARDINALITY_ID, Cardinality::One as u64, tx),
         // "db/attr/cardinality" attribute
         Datom::new(DB_ATTR_CARDINALITY_ID, DB_ATTR_IDENT_ID, DB_ATTR_CARDINALITY_IDENT, tx),
         Datom::new(DB_ATTR_CARDINALITY_ID, DB_ATTR_DOC_ID, "Cardinality of attribyte", tx),
-        Datom::new(DB_ATTR_CARDINALITY_ID, DB_ATTR_TYPE_ID, ValueType::U8 as u8, tx),
-        Datom::new(DB_ATTR_CARDINALITY_ID, DB_ATTR_CARDINALITY_ID, Cardinality::One as u8, tx),
+        Datom::new(DB_ATTR_CARDINALITY_ID, DB_ATTR_TYPE_ID, ValueType::U64 as u64, tx),
+        Datom::new(DB_ATTR_CARDINALITY_ID, DB_ATTR_CARDINALITY_ID, Cardinality::One as u64, tx),
         // "db/attr/unique" attribute
         Datom::new(DB_ATTR_UNIQUE_ID, DB_ATTR_IDENT_ID, DB_ATTR_UNIQUE_IDENT, tx),
         Datom::new(DB_ATTR_UNIQUE_ID, DB_ATTR_DOC_ID, "Indicates this attribute is unique", tx),
-        Datom::new(DB_ATTR_UNIQUE_ID, DB_ATTR_TYPE_ID, ValueType::U8 as u8, tx),
-        Datom::new(DB_ATTR_UNIQUE_ID, DB_ATTR_CARDINALITY_ID, Cardinality::One as u8, tx),
+        Datom::new(DB_ATTR_UNIQUE_ID, DB_ATTR_TYPE_ID, ValueType::U64 as u64, tx),
+        Datom::new(DB_ATTR_UNIQUE_ID, DB_ATTR_CARDINALITY_ID, Cardinality::One as u64, tx),
         // "db/tx/time" attribute
         Datom::new(DB_TX_TIME_ID, DB_ATTR_IDENT_ID, DB_TX_TIME_IDENT, tx),
         Datom::new(DB_TX_TIME_ID, DB_ATTR_DOC_ID, "Transaction's wall clock time", tx),
-        Datom::new(DB_TX_TIME_ID, DB_ATTR_TYPE_ID, ValueType::U64 as u8, tx),
-        Datom::new(DB_TX_TIME_ID, DB_ATTR_CARDINALITY_ID, Cardinality::One as u8, tx),
+        Datom::new(DB_TX_TIME_ID, DB_ATTR_TYPE_ID, ValueType::U64 as u64, tx),
+        Datom::new(DB_TX_TIME_ID, DB_ATTR_CARDINALITY_ID, Cardinality::One as u64, tx),
     ]
 }

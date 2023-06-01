@@ -191,27 +191,6 @@ impl<'a> Clause<'a> {
     }
 }
 
-impl Datom {
-    pub fn satisfies(&self, clause: &Clause) -> bool {
-        if let EntityPattern::Id(entity) = clause.entity {
-            if entity != self.entity {
-                return false;
-            }
-        }
-        if let AttributePattern::Id(attribute) = clause.attribute {
-            if attribute != self.attribute {
-                return false;
-            }
-        }
-        if let ValuePattern::Constant(value) = &clause.value {
-            if value != &self.value {
-                return false;
-            }
-        }
-        true
-    }
-}
-
 #[derive(Debug)]
 pub struct Query<'a> {
     pub find: Vec<String>,

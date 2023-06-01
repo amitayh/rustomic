@@ -151,16 +151,19 @@ impl<S: Storage, C: Clock> Db<S, C> {
         }
         let mut assignments = 0;
         if let [clause, rest @ ..] = clauses {
-            let assigned = clause.assign(&assignment);
+            let assigned_clause = clause.assign(&assignment);
             let datoms = self
                 .storage
-                .find_datoms(&assigned)
+                .find_datoms(&assigned_clause)
                 .map_err(|err| QueryError::StorageError(err))?;
 
             // TODO can this be parallelized?
             for datom in datoms {
-                assignments +=
-                    self.resolve(rest, assignment.update_with(&assigned, datom), results)?;
+                assignments += self.resolve(
+                    rest,
+                    assignment.update_with(&assigned_clause, datom),
+                    results,
+                )?;
             }
         }
         Ok(assignments)

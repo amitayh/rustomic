@@ -24,6 +24,41 @@ mod tests {
     }
 
     #[test]
+    fn return_empty_result() {
+        let mut db = create_db();
+
+        // Create the schema
+        let schema_result = db.transact(
+            Transaction::new().with(
+                Attribute::new("person/name", ValueType::Str, Cardinality::One)
+                    .with_doc("A person's name")
+                    .build(),
+            ),
+        );
+        assert!(schema_result.is_ok());
+
+        // Insert data
+        let tx_result = db.transact(
+            Transaction::new()
+                .with(Operation::on_new().set("person/name", "Alice"))
+                .with(Operation::on_new().set("person/name", "Bob")),
+        );
+        assert!(tx_result.is_ok());
+
+        let query_result = db.query(
+            Query::new().find("?name").wher(
+                Clause::new()
+                    .with_entity(EntityPattern::variable("?name"))
+                    .with_attribute(AttributePattern::ident("person/name"))
+                    .with_value(ValuePattern::constant("Eve")),
+            ),
+        );
+
+        assert!(query_result.is_ok());
+        assert!(query_result.unwrap().results.is_empty());
+    }
+
+    #[test]
     fn create_entity_by_temp_id() {
         let mut db = create_db();
 
@@ -156,34 +191,18 @@ mod tests {
         // Create the schema
         let schema_result = db.transact(
             Transaction::new()
-                .with(Attribute::new("person/name", ValueType::Str, Cardinality::One).build())
-                .with(Attribute::new("person/age", ValueType::I64, Cardinality::One).build()),
+                .with(Attribute::new("name", ValueType::Str, Cardinality::One).build())
+                .with(Attribute::new("age", ValueType::I64, Cardinality::One).build()),
         );
         assert!(schema_result.is_ok());
 
         // Insert data
         let tx_result = db.transact(
             Transaction::new()
-                .with(
-                    Operation::on_new()
-                        .set("person/name", "John")
-                        .set("person/age", 33),
-                )
-                .with(
-                    Operation::on_new()
-                        .set("person/name", "Paul")
-                        .set("person/age", 31),
-                )
-                .with(
-                    Operation::on_new()
-                        .set("person/name", "George")
-                        .set("person/age", 30),
-                )
-                .with(
-                    Operation::on_new()
-                        .set("person/name", "Ringo")
-                        .set("person/age", 32),
-                ),
+                .with(Operation::on_new().set("name", "John").set("age", 33))
+                .with(Operation::on_new().set("name", "Paul").set("age", 31))
+                .with(Operation::on_new().set("name", "George").set("age", 30))
+                .with(Operation::on_new().set("name", "Ringo").set("age", 32)),
         );
         assert!(tx_result.is_ok());
 
@@ -193,7 +212,7 @@ mod tests {
                 .wher(
                     Clause::new()
                         .with_entity(EntityPattern::variable("?person"))
-                        .with_attribute(AttributePattern::ident("person/age"))
+                        .with_attribute(AttributePattern::ident("age"))
                         // .with_value(ValuePattern::range(32..)),
                         .with_value(ValuePattern::Range(
                             Bound::Included(&Value::I64(32)),
@@ -203,7 +222,7 @@ mod tests {
                 .wher(
                     Clause::new()
                         .with_entity(EntityPattern::variable("?person"))
-                        .with_attribute(AttributePattern::ident("person/name"))
+                        .with_attribute(AttributePattern::ident("name"))
                         .with_value(ValuePattern::variable("?name")),
                 ),
         );

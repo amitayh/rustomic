@@ -8,7 +8,7 @@ use crate::datom::Value;
 use crate::storage::StorageError;
 
 trait Pattern {
-    fn variable_name(&self) -> Option<&String>;
+    fn variable_name(&self) -> Option<&str>;
 
     fn assigned_value<'a>(&'a self, assignment: &'a Assignment) -> Option<&Value> {
         self.variable_name()
@@ -17,38 +17,38 @@ trait Pattern {
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub enum EntityPattern {
-    Variable(String),
+pub enum EntityPattern<'a> {
+    Variable(&'a str),
     Id(u64),
     Blank,
 }
 
-impl EntityPattern {
-    pub fn variable(name: &str) -> Self {
-        EntityPattern::Variable(String::from(name))
+impl<'a> EntityPattern<'a> {
+    pub fn variable(name: &'a str) -> Self {
+        EntityPattern::Variable(name)
     }
 }
 
-impl Pattern for EntityPattern {
-    fn variable_name(&self) -> Option<&String> {
-        match self {
-            EntityPattern::Variable(variable) => Some(&variable),
+impl<'a> Pattern for EntityPattern<'a> {
+    fn variable_name(&self) -> Option<&str> {
+        match *self {
+            EntityPattern::Variable(variable) => Some(variable),
             _ => None,
         }
     }
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub enum AttributePattern {
-    Variable(String),
+pub enum AttributePattern<'a> {
+    Variable(&'a str),
     Ident(String),
     Id(u64),
     Blank,
 }
 
-impl AttributePattern {
+impl<'a> AttributePattern<'a> {
     pub fn variable(name: &str) -> AttributePattern {
-        AttributePattern::Variable(String::from(name))
+        AttributePattern::Variable(name)
     }
 
     pub fn ident(name: &str) -> AttributePattern {
@@ -56,10 +56,10 @@ impl AttributePattern {
     }
 }
 
-impl Pattern for AttributePattern {
-    fn variable_name(&self) -> Option<&String> {
-        match self {
-            AttributePattern::Variable(variable) => Some(&variable),
+impl<'a> Pattern for AttributePattern<'a> {
+    fn variable_name(&self) -> Option<&str> {
+        match *self {
+            AttributePattern::Variable(variable) => Some(variable),
             _ => None,
         }
     }
@@ -67,15 +67,15 @@ impl Pattern for AttributePattern {
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum ValuePattern<'a> {
-    Variable(String),
+    Variable(&'a str),
     Constant(Value),
     Range(Bound<&'a Value>, Bound<&'a Value>),
     Blank,
 }
 
 impl<'a> ValuePattern<'a> {
-    pub fn variable(name: &str) -> Self {
-        ValuePattern::Variable(String::from(name))
+    pub fn variable(name: &'a str) -> Self {
+        ValuePattern::Variable(name)
     }
 
     pub fn constant<V: Into<Value>>(value: V) -> Self {
@@ -89,9 +89,9 @@ impl<'a> ValuePattern<'a> {
 }
 
 impl<'a> Pattern for ValuePattern<'a> {
-    fn variable_name(&self) -> Option<&String> {
-        match self {
-            ValuePattern::Variable(variable) => Some(&variable),
+    fn variable_name(&self) -> Option<&str> {
+        match *self {
+            ValuePattern::Variable(variable) => Some(variable),
             _ => None,
         }
     }
@@ -99,8 +99,8 @@ impl<'a> Pattern for ValuePattern<'a> {
 
 #[derive(Clone, Debug)]
 pub struct Clause<'a> {
-    pub entity: EntityPattern,
-    pub attribute: AttributePattern,
+    pub entity: EntityPattern<'a>,
+    pub attribute: AttributePattern<'a>,
     pub value: ValuePattern<'a>,
 }
 
@@ -113,12 +113,12 @@ impl<'a> Clause<'a> {
         }
     }
 
-    pub fn with_entity(mut self, entity: EntityPattern) -> Self {
+    pub fn with_entity(mut self, entity: EntityPattern<'a>) -> Self {
         self.entity = entity;
         self
     }
 
-    pub fn with_attribute(mut self, attribute: AttributePattern) -> Self {
+    pub fn with_attribute(mut self, attribute: AttributePattern<'a>) -> Self {
         self.attribute = attribute;
         self
     }
@@ -138,11 +138,11 @@ impl<'a> Clause<'a> {
     ///
     /// let free_variables = clause.free_variables();
     /// assert_eq!(3, free_variables.len());
-    /// assert!(free_variables.contains(&&String::from("foo")));
-    /// assert!(free_variables.contains(&&String::from("bar")));
-    /// assert!(free_variables.contains(&&String::from("baz")));
+    /// assert!(free_variables.contains(&"foo"));
+    /// assert!(free_variables.contains(&"bar"));
+    /// assert!(free_variables.contains(&"baz"));
     /// ```
-    pub fn free_variables(&self) -> Vec<&String> {
+    pub fn free_variables(&self) -> Vec<&str> {
         let mut variables = Vec::new();
         if let Some(variable) = self.entity.variable_name() {
             variables.push(variable);
@@ -166,9 +166,9 @@ impl<'a> Clause<'a> {
     ///     .with_value(ValuePattern::variable("baz"));
     ///
     /// let mut assignment = Assignment::new(clause.free_variables().into_iter().collect());
-    /// assignment.assign(&String::from("foo"), 1u64);
-    /// assignment.assign(&String::from("bar"), 2u64);
-    /// assignment.assign(&String::from("baz"), 3u64);
+    /// assignment.assign("foo", 1u64);
+    /// assignment.assign("bar", 2u64);
+    /// assignment.assign("baz", 3u64);
     ///
     /// let assigned = clause.assign(&assignment);
     ///
@@ -231,11 +231,11 @@ pub enum QueryError {
 #[derive(Debug, Eq, PartialEq, Clone)]
 pub struct Assignment<'a> {
     pub assigned: HashMap<String, Value>,
-    unassigned: HashSet<&'a String>,
+    unassigned: HashSet<&'a str>,
 }
 
 impl<'a> Assignment<'a> {
-    pub fn new(variables: HashSet<&'a String>) -> Self {
+    pub fn new(variables: HashSet<&'a str>) -> Self {
         Assignment {
             assigned: HashMap::new(),
             unassigned: variables,
@@ -270,9 +270,9 @@ impl<'a> Assignment<'a> {
         assignment
     }
 
-    pub fn assign<V: Into<Value>>(&mut self, variable: &String, value: V) {
+    pub fn assign<V: Into<Value>>(&mut self, variable: &str, value: V) {
         if self.unassigned.remove(variable) {
-            self.assigned.insert(variable.clone(), value.into());
+            self.assigned.insert(String::from(variable), value.into());
         }
     }
 }

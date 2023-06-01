@@ -41,9 +41,9 @@ impl<S: Storage, C: Clock> Db<S, C> {
 
     pub fn query(&mut self, query: Query) -> Result<QueryResult, QueryError> {
         let mut results = Vec::new();
-        let mut wher = query.wher.clone();
-        let assignment = Assignment::empty(&query);
-        self.resolve(&mut wher, assignment, &mut results)?;
+        let wher = query.wher.clone();
+        let assignment = Assignment::from_query(&query);
+        self.resolve(&wher, assignment, &mut results)?;
         Ok(QueryResult { results })
     }
 
@@ -141,7 +141,7 @@ impl<S: Storage, C: Clock> Db<S, C> {
 
     fn resolve(
         &self,
-        clauses: &mut [Clause],
+        clauses: &[Clause],
         assignment: Assignment,
         results: &mut Vec<HashMap<String, Value>>,
     ) -> Result<usize, QueryError> {
@@ -151,16 +151,16 @@ impl<S: Storage, C: Clock> Db<S, C> {
         }
         let mut assignments = 0;
         if let [clause, rest @ ..] = clauses {
-            clause.substitute(&assignment);
+            let assigned = clause.assign(&assignment);
             let datoms = self
                 .storage
-                .find_datoms(clause)
+                .find_datoms(&assigned)
                 .map_err(|err| QueryError::StorageError(err))?;
 
             // TODO can this be parallelized?
             for datom in datoms {
                 assignments +=
-                    self.resolve(rest, assignment.update_with(clause, datom), results)?;
+                    self.resolve(rest, assignment.update_with(&assigned, datom), results)?;
             }
         }
         Ok(assignments)

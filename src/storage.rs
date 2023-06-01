@@ -1,7 +1,7 @@
 use std::collections::btree_map;
+use std::collections::btree_map::Range;
 use std::collections::BTreeMap;
 use std::collections::HashMap;
-use std::collections::btree_map::Range;
 
 use crate::datom::Datom;
 use crate::datom::Op;
@@ -106,7 +106,7 @@ impl Storage for InMemoryStorage {
             Clause {
                 entity: _,
                 attribute: AttributePattern::Id(_) | AttributePattern::Ident(_),
-                value: ValuePattern::Constant(_),
+                value: ValuePattern::Constant(_) | ValuePattern::Range(_, _),
             } => self.find_datoms_avet(clause),
             _ => self.find_datoms_aevt(clause),
         }

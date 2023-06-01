@@ -8,7 +8,10 @@ pub mod tx;
 
 #[cfg(test)]
 mod tests {
+    use std::ops::Bound;
+
     use crate::clock::MockClock;
+    use crate::datom::Value;
     use crate::storage::InMemoryStorage;
 
     use super::db::*;
@@ -139,9 +142,81 @@ mod tests {
                 ),
         );
 
+        assert!(query_result.is_ok());
         assert_eq!(
             Some("Abbey Road"),
             query_result.unwrap().results[0]["?release-name"].as_str()
         );
+    }
+
+    #[test]
+    fn support_range_queries() {
+        let mut db = create_db();
+
+        // Create the schema
+        let schema_result = db.transact(
+            Transaction::new()
+                .with(Attribute::new("person/name", ValueType::Str, Cardinality::One).build())
+                .with(Attribute::new("person/age", ValueType::I64, Cardinality::One).build()),
+        );
+        assert!(schema_result.is_ok());
+
+        // Insert data
+        let tx_result = db.transact(
+            Transaction::new()
+                .with(
+                    Operation::on_new()
+                        .set("person/name", "John")
+                        .set("person/age", 33),
+                )
+                .with(
+                    Operation::on_new()
+                        .set("person/name", "Paul")
+                        .set("person/age", 31),
+                )
+                .with(
+                    Operation::on_new()
+                        .set("person/name", "George")
+                        .set("person/age", 30),
+                )
+                .with(
+                    Operation::on_new()
+                        .set("person/name", "Ringo")
+                        .set("person/age", 32),
+                ),
+        );
+        assert!(tx_result.is_ok());
+
+        let query_result = db.query(
+            Query::new()
+                .find("?name")
+                .wher(
+                    Clause::new()
+                        .with_entity(EntityPattern::variable("?person"))
+                        .with_attribute(AttributePattern::ident("person/age"))
+                        // .with_value(ValuePattern::range(32..)),
+                        .with_value(ValuePattern::Range(
+                            Bound::Included(&Value::I64(32)),
+                            Bound::Unbounded,
+                        )),
+                )
+                .wher(
+                    Clause::new()
+                        .with_entity(EntityPattern::variable("?person"))
+                        .with_attribute(AttributePattern::ident("person/name"))
+                        .with_value(ValuePattern::variable("?name")),
+                ),
+        );
+
+        assert!(query_result.is_ok());
+        let results = query_result.unwrap().results;
+        let names: Vec<&str> = results
+            .iter()
+            .flat_map(|assignment| assignment["?name"].as_str().into_iter())
+            .collect();
+
+        assert_eq!(2, names.len());
+        assert!(names.contains(&"John"));
+        assert!(names.contains(&"Ringo"));
     }
 }

@@ -16,7 +16,7 @@ trait Pattern {
     }
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub enum EntityPattern {
     Variable(String),
     Id(u64),
@@ -38,7 +38,7 @@ impl Pattern for EntityPattern {
     }
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub enum AttributePattern {
     Variable(String),
     Ident(String),
@@ -65,7 +65,7 @@ impl Pattern for AttributePattern {
     }
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub enum ValuePattern<'a> {
     Variable(String),
     Constant(Value),
@@ -82,8 +82,9 @@ impl<'a> ValuePattern<'a> {
         ValuePattern::Constant(value.into())
     }
 
-    pub fn range<R: RangeBounds<Value>>(range: &'a R) -> Self {
-        ValuePattern::Range(range.start_bound(), range.end_bound())
+    // TODO implement this??
+    pub fn range<V: Into<Value>, R: RangeBounds<V> + 'a>(_: R) -> Self {
+        todo!()
     }
 }
 
@@ -127,6 +128,20 @@ impl<'a> Clause<'a> {
         self
     }
 
+    /// ```
+    /// use rustomic::query::*;
+    ///
+    /// let clause = Clause::new()
+    ///     .with_entity(EntityPattern::variable("foo"))
+    ///     .with_attribute(AttributePattern::variable("bar"))
+    ///     .with_value(ValuePattern::variable("baz"));
+    ///
+    /// let free_variables = clause.free_variables();
+    /// assert_eq!(3, free_variables.len());
+    /// assert!(free_variables.contains(&&String::from("foo")));
+    /// assert!(free_variables.contains(&&String::from("bar")));
+    /// assert!(free_variables.contains(&&String::from("baz")));
+    /// ```
     pub fn free_variables(&self) -> Vec<&String> {
         let mut variables = Vec::new();
         if let Some(variable) = self.entity.variable_name() {
@@ -141,16 +156,38 @@ impl<'a> Clause<'a> {
         variables
     }
 
-    pub fn substitute(&mut self, assignment: &Assignment) {
+    /// ```
+    /// use rustomic::query::*;
+    /// use rustomic::datom::*;
+    ///
+    /// let clause = Clause::new()
+    ///     .with_entity(EntityPattern::variable("foo"))
+    ///     .with_attribute(AttributePattern::variable("bar"))
+    ///     .with_value(ValuePattern::variable("baz"));
+    ///
+    /// let mut assignment = Assignment::new(clause.free_variables().into_iter().collect());
+    /// assignment.assign(&String::from("foo"), 1u64);
+    /// assignment.assign(&String::from("bar"), 2u64);
+    /// assignment.assign(&String::from("baz"), 3u64);
+    ///
+    /// let assigned = clause.assign(&assignment);
+    ///
+    /// assert_eq!(EntityPattern::Id(1), assigned.entity);
+    /// assert_eq!(AttributePattern::Id(2), assigned.attribute);
+    /// assert_eq!(ValuePattern::Constant(Value::U64(3)), assigned.value);
+    /// ```
+    pub fn assign(&self, assignment: &Assignment) -> Self {
+        let mut clause = self.clone();
         if let Some(Value::U64(entity)) = self.entity.assigned_value(assignment) {
-            self.entity = EntityPattern::Id(*entity);
+            clause.entity = EntityPattern::Id(*entity);
         }
         if let Some(Value::U64(attribute)) = self.attribute.assigned_value(assignment) {
-            self.attribute = AttributePattern::Id(*attribute);
+            clause.attribute = AttributePattern::Id(*attribute);
         }
         if let Some(value) = self.value.assigned_value(assignment) {
-            self.value = ValuePattern::Constant(value.clone());
+            clause.value = ValuePattern::Constant(value.clone());
         }
+        clause
     }
 }
 
@@ -175,6 +212,7 @@ impl Datom {
     }
 }
 
+#[derive(Debug)]
 pub struct Query<'a> {
     pub find: Vec<String>,
     pub wher: Vec<Clause<'a>>,
@@ -212,22 +250,27 @@ pub enum QueryError {
 
 // TODO PartialAssignment / CompleteAssignment?
 #[derive(Debug, Eq, PartialEq, Clone)]
-pub struct Assignment {
+pub struct Assignment<'a> {
     pub assigned: HashMap<String, Value>,
-    unassigned: HashSet<String>,
+    unassigned: HashSet<&'a String>,
 }
 
-impl Assignment {
-    pub fn empty(query: &Query) -> Self {
+impl<'a> Assignment<'a> {
+    pub fn new(variables: HashSet<&'a String>) -> Self {
         Assignment {
             assigned: HashMap::new(),
-            unassigned: query
+            unassigned: variables,
+        }
+    }
+
+    pub fn from_query(query: &'a Query) -> Self {
+        Assignment::new(
+            query
                 .wher
                 .iter()
                 .flat_map(|clause| clause.free_variables())
-                .map(|variable| variable.clone())
                 .collect(),
-        }
+        )
     }
 
     pub fn is_complete(&self) -> bool {
@@ -248,7 +291,7 @@ impl Assignment {
         assignment
     }
 
-    fn assign<V: Into<Value>>(&mut self, variable: &String, value: V) {
+    pub fn assign<V: Into<Value>>(&mut self, variable: &String, value: V) {
         if self.unassigned.remove(variable) {
             self.assigned.insert(variable.clone(), value.into());
         }

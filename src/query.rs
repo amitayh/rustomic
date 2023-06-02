@@ -82,9 +82,10 @@ impl<'a> ValuePattern<'a> {
         ValuePattern::Constant(value.into())
     }
 
-    // TODO implement this??
-    pub fn range<V: Into<Value>, R: RangeBounds<V> + 'a>(_: R) -> Self {
-        todo!()
+    pub fn range<R: RangeBounds<Value>>(range: &'a R) -> Self {
+        let start = range.start_bound();
+        let end = range.end_bound();
+        ValuePattern::Range(start, end)
     }
 }
 

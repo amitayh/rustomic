@@ -8,8 +8,6 @@ pub mod tx;
 
 #[cfg(test)]
 mod tests {
-    use std::ops::Bound;
-
     use crate::clock::MockClock;
     use crate::datom::Value;
     use crate::storage::InMemoryStorage;
@@ -213,11 +211,7 @@ mod tests {
                     Clause::new()
                         .with_entity(EntityPattern::variable("?person"))
                         .with_attribute(AttributePattern::ident("age"))
-                        // .with_value(ValuePattern::range(32..)),
-                        .with_value(ValuePattern::Range(
-                            Bound::Included(&Value::I64(32)),
-                            Bound::Unbounded,
-                        )),
+                        .with_value(ValuePattern::range(&(Value::I64(32)..))),
                 )
                 .wher(
                     Clause::new()

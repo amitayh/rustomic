@@ -83,18 +83,18 @@ pub enum Cardinality {
     Many = 1,
 }
 
-pub struct Attribute {
-    ident: String,
+pub struct Attribute<'a> {
+    ident: &'a str,
     value_type: ValueType,
     cardinality: Cardinality,
-    doc: Option<String>,
+    doc: Option<&'a str>,
     unique: bool,
 }
 
-impl Attribute {
-    pub fn new(ident: &str, value_type: ValueType, cardinality: Cardinality) -> Self {
+impl<'a> Attribute<'a> {
+    pub fn new(ident: &'a str, value_type: ValueType, cardinality: Cardinality) -> Self {
         Attribute {
-            ident: String::from(ident),
+            ident,
             value_type,
             cardinality,
             doc: None,
@@ -102,8 +102,8 @@ impl Attribute {
         }
     }
 
-    pub fn with_doc(mut self, doc: &str) -> Self {
-        self.doc = Some(String::from(doc));
+    pub fn with_doc(mut self, doc: &'a str) -> Self {
+        self.doc = Some(doc);
         self
     }
 

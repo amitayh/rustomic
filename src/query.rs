@@ -41,7 +41,7 @@ impl<'a> Pattern for EntityPattern<'a> {
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum AttributePattern<'a> {
     Variable(&'a str),
-    Ident(String),
+    Ident(&'a str),
     Id(u64),
     Blank,
 }
@@ -52,7 +52,7 @@ impl<'a> AttributePattern<'a> {
     }
 
     pub fn ident(name: &str) -> AttributePattern {
-        AttributePattern::Ident(String::from(name))
+        AttributePattern::Ident(name)
     }
 }
 

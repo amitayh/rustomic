@@ -41,9 +41,8 @@ impl<S: Storage, C: Clock> Db<S, C> {
 
     pub fn query(&mut self, query: Query) -> Result<QueryResult, QueryError> {
         let mut results = Vec::new();
-        let wher = query.wher.clone();
         let assignment = Assignment::from_query(&query);
-        self.resolve(&wher, assignment, &mut results)?;
+        self.resolve(&query.wher, assignment, &mut results)?;
         Ok(QueryResult { results })
     }
 

@@ -194,7 +194,7 @@ impl<'a> Clause<'a> {
 
 #[derive(Debug)]
 pub struct Query<'a> {
-    pub find: Vec<String>,
+    pub find: Vec<&'a str>,
     pub wher: Vec<Clause<'a>>,
 }
 
@@ -206,8 +206,8 @@ impl<'a> Query<'a> {
         }
     }
 
-    pub fn find(mut self, variable: &str) -> Self {
-        self.find.push(String::from(variable));
+    pub fn find(mut self, variable: &'a str) -> Self {
+        self.find.push(variable);
         self
     }
 

@@ -83,6 +83,23 @@ pub enum Cardinality {
     Many = 1,
 }
 
+impl Cardinality {
+    /// ```
+    /// use rustomic::schema::Cardinality;
+    ///
+    /// assert_eq!(Some(Cardinality::One), Cardinality::from(0));
+    /// assert_eq!(Some(Cardinality::Many), Cardinality::from(1));
+    /// assert_eq!(None, Cardinality::from(42));
+    /// ```
+    pub fn from(value: u64) -> Option<Cardinality> {
+        match value {
+            0 => Some(Cardinality::One),
+            1 => Some(Cardinality::Many),
+            _ => None,
+        }
+    }
+}
+
 pub struct Attribute<'a> {
     ident: &'a str,
     value_type: ValueType,

@@ -10,10 +10,12 @@ use crate::query::AttributePattern;
 use crate::query::Clause;
 use crate::query::EntityPattern;
 use crate::query::ValuePattern;
+use crate::schema::Cardinality;
 use crate::schema::default_datoms;
 use crate::schema::ValueType;
 use crate::schema::DB_ATTR_IDENT_ID;
 use crate::schema::DB_ATTR_TYPE_ID;
+use crate::schema::DB_ATTR_CARDINALITY_ID;
 
 // TODO: create structs?
 type Entity = u64;
@@ -50,6 +52,7 @@ pub struct InMemoryStorage {
     // true (or some value for :db/unique) when installing or altering the attribute. The AVET
     // index also supports the indexRange API, which returns all attribute values in a particular
     // range.
+    // TODO: this should only contain datoms with index
     avet: Index<Attribute, Value, Entity>,
 
     // Lookup entity ID by ident
@@ -170,7 +173,9 @@ impl InMemoryStorage {
         let mut datoms = Vec::new();
         for (entity, avt) in self.e_iter(&self.eavt, &clause.entity) {
             for (attribute, vt) in self.a_iter(avt, &clause.attribute)? {
+                //let cardinality = self.
                 for (value, t) in self.v_iter(vt, &clause.value) {
+                    println!("@@@ {:?}", value);
                     if let Some((tx, op)) = t.last_key_value() {
                         datoms.push(Datom {
                             entity: *entity,
@@ -274,6 +279,34 @@ impl InMemoryStorage {
         let entity = self.ident_to_entity.get(ident);
         entity.ok_or_else(|| StorageError::IdentNotFound(String::from(ident)))
     }
+
+    /*
+    fn resolve_cardinality(&self, attribute: &u64) -> Result<Cardinality, StorageError> {
+        let foo = self.eavt.get(attribute)
+            .and_then(|avt| avt.get(&DB_ATTR_CARDINALITY_ID))
+            .and_then(|vt| {
+                let one = vt.get(&Value::U64(Cardinality::One as u64)).and_then(|t| t.last_key_value());
+                let many = vt.get(&Value::U64(Cardinality::Many as u64)).and_then(|t| t.last_key_value());
+                todo!()
+            })
+            .ok_or_else(|| StorageError::Error)?; // TODO: use better error type
+            
+        let mut max_tx = None;
+        for (Value::U64(cardinality), t) in foo {
+            if let Some((curr, Op::Added)) = t.last_key_value() {
+                match max_tx {
+                    Some((_, prev)) if curr > prev => {
+                        max_tx = Some((cardinality, curr));
+                    },
+                    _ => {
+                    }
+                }
+            }
+        }
+        max_tx.and_then(|(cardinality, _)| Cardinality::from(*cardinality))
+            .ok_or_else(|| StorageError::Error) // TODO: use better error type
+    }
+    */
 }
 
 enum Iter<'a, K, V> {
@@ -302,6 +335,7 @@ impl<'a, K, V> Iterator for Iter<'a, K, V> {
 
 #[derive(Debug)]
 pub enum StorageError {
+    Error,
     IdentNotFound(String),
     InvalidAttributeType,
 }

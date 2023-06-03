@@ -232,4 +232,62 @@ mod tests {
         assert!(names.contains(&"John"));
         assert!(names.contains(&"Ringo"));
     }
+
+    #[test]
+    fn return_current_value_with_cardinality_one() {
+        let mut db = create_db();
+
+        // Create the schema
+        let schema_result = db.transact(
+            Transaction::new()
+                .with(Attribute::new("name", ValueType::Str, Cardinality::One).build())
+                .with(Attribute::new("likes", ValueType::Str, Cardinality::One).build()),
+        );
+        assert!(schema_result.is_ok());
+
+        // Insert initial data
+        let tx_result1 = db.transact(
+            Transaction::new().with(
+                Operation::on_temp_id("joe")
+                    .set("name", "Joe")
+                    .set("likes", "Pizza"),
+            ),
+        );
+        assert!(tx_result1.is_ok());
+        let joe_id = tx_result1.unwrap().temp_ids["joe"];
+
+        // Update what Joe likes
+        let tx_result2 = db.transact(
+            Transaction::new().with(
+                Operation::on_id(joe_id)
+                    .set("name", "Joe")
+                    .set("likes", "Ice cream"),
+            ),
+        );
+        assert!(tx_result2.is_ok());
+
+        println!("------------------------");
+
+        let query_result = db.query(
+            Query::new().find("?likes").wher(
+                Clause::new()
+                    .with_entity(EntityPattern::Id(joe_id))
+                    .with_attribute(AttributePattern::ident("likes"))
+                    .with_value(ValuePattern::variable("?likes")),
+            ),
+        );
+
+        assert!(query_result.is_ok());
+        let results = query_result.unwrap().results;
+        let likes: Vec<&str> = results
+            .iter()
+            .flat_map(|assignment| assignment["?likes"].as_str().into_iter())
+            .collect();
+
+        assert_eq!(1, likes.len());
+        assert!(likes.contains(&"Ice cream"));
+    }
+
+    // TODO return all values with cardinality one
+    // TODO retract
 }

@@ -194,21 +194,12 @@ impl<'a> Clause<'a> {
 
 #[derive(Debug)]
 pub struct Query<'a> {
-    pub find: Vec<&'a str>,
     pub wher: Vec<Clause<'a>>,
 }
 
 impl<'a> Query<'a> {
     pub fn new() -> Self {
-        Query {
-            find: Vec::new(),
-            wher: Vec::new(),
-        }
-    }
-
-    pub fn find(mut self, variable: &'a str) -> Self {
-        self.find.push(variable);
-        self
+        Query { wher: Vec::new() }
     }
 
     pub fn wher(mut self, clause: Clause<'a>) -> Self {

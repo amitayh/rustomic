@@ -8,6 +8,8 @@ pub mod tx;
 
 #[cfg(test)]
 mod tests {
+    use std::collections::HashSet;
+
     use crate::clock::MockClock;
     use crate::datom::Value;
     use crate::storage::InMemoryStorage;
@@ -44,7 +46,7 @@ mod tests {
         assert!(tx_result.is_ok());
 
         let query_result = db.query(
-            Query::new().find("?name").wher(
+            Query::new().wher(
                 Clause::new()
                     .with_entity(EntityPattern::variable("?name"))
                     .with_attribute(AttributePattern::ident("person/name"))
@@ -77,7 +79,7 @@ mod tests {
         assert!(tx_result.is_ok());
 
         let query_result = db.query(
-            Query::new().find("?joe").wher(
+            Query::new().wher(
                 Clause::new()
                     .with_entity(EntityPattern::variable("?joe"))
                     .with_attribute(AttributePattern::ident("person/name"))
@@ -154,7 +156,6 @@ mod tests {
 
         let query_result = db.query(
             Query::new()
-                .find("?release-name")
                 .wher(
                     Clause::new()
                         .with_entity(EntityPattern::variable("?artist"))
@@ -206,7 +207,6 @@ mod tests {
 
         let query_result = db.query(
             Query::new()
-                .find("?name")
                 .wher(
                     Clause::new()
                         .with_entity(EntityPattern::variable("?person"))
@@ -234,8 +234,7 @@ mod tests {
     }
 
     #[test]
-    //#[ignore = "not implemented"]
-    fn return_current_value_with_cardinality_one() {
+    fn return_latest_value_with_cardinality_one() {
         let mut db = create_db();
 
         // Create the schema
@@ -267,10 +266,8 @@ mod tests {
         );
         assert!(tx_result2.is_ok());
 
-        println!("------------------------");
-
         let query_result = db.query(
-            Query::new().find("?likes").wher(
+            Query::new().wher(
                 Clause::new()
                     .with_entity(EntityPattern::Id(joe_id))
                     .with_attribute(AttributePattern::ident("likes"))
@@ -280,15 +277,68 @@ mod tests {
 
         assert!(query_result.is_ok());
         let results = query_result.unwrap().results;
-        let likes: Vec<&str> = results
+        let likes: HashSet<&str> = results
             .iter()
             .flat_map(|assignment| assignment["?likes"].as_str().into_iter())
             .collect();
 
         assert_eq!(1, likes.len());
-        assert!(likes.contains(&"Ice cream"));
+        assert!(likes.contains("Ice cream"));
     }
 
-    // TODO return all values with cardinality one
+    #[test]
+    fn return_all_values_with_cardinality_many() {
+        let mut db = create_db();
+
+        // Create the schema
+        let schema_result = db.transact(
+            Transaction::new()
+                .with(Attribute::new("name", ValueType::Str, Cardinality::One).build())
+                .with(Attribute::new("likes", ValueType::Str, Cardinality::Many).build()),
+        );
+        assert!(schema_result.is_ok());
+
+        // Insert initial data
+        let tx_result1 = db.transact(
+            Transaction::new().with(
+                Operation::on_temp_id("joe")
+                    .set("name", "Joe")
+                    .set("likes", "Pizza"),
+            ),
+        );
+        assert!(tx_result1.is_ok());
+        let joe_id = tx_result1.unwrap().temp_ids["joe"];
+
+        // Update what Joe likes
+        let tx_result2 = db.transact(
+            Transaction::new().with(
+                Operation::on_id(joe_id)
+                    .set("name", "Joe")
+                    .set("likes", "Ice cream"),
+            ),
+        );
+        assert!(tx_result2.is_ok());
+
+        let query_result = db.query(
+            Query::new().wher(
+                Clause::new()
+                    .with_entity(EntityPattern::Id(joe_id))
+                    .with_attribute(AttributePattern::ident("likes"))
+                    .with_value(ValuePattern::variable("?likes")),
+            ),
+        );
+
+        assert!(query_result.is_ok());
+        let results = query_result.unwrap().results;
+        let likes: HashSet<&str> = results
+            .iter()
+            .flat_map(|assignment| assignment["?likes"].as_str().into_iter())
+            .collect();
+
+        assert_eq!(2, likes.len());
+        assert!(likes.contains("Pizza"));
+        assert!(likes.contains("Ice cream"));
+    }
+
     // TODO retract
 }

@@ -78,7 +78,7 @@ impl Value {
     }
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Eq, Clone, Copy)]
 pub enum Cardinality {
     One = 0,
     Many = 1,
@@ -101,12 +101,13 @@ impl Cardinality {
     }
 }
 
+#[derive(Debug)]
 pub struct Attribute<'a> {
-    ident: &'a str,
-    value_type: ValueType,
-    cardinality: Cardinality,
-    doc: Option<&'a str>,
-    unique: bool,
+    pub ident: &'a str,
+    pub value_type: ValueType,
+    pub cardinality: Cardinality,
+    pub doc: Option<&'a str>,
+    pub unique: bool,
 }
 
 impl<'a> Attribute<'a> {
@@ -142,6 +143,64 @@ impl<'a> Attribute<'a> {
             operation.set_mut(DB_ATTR_UNIQUE_IDENT, 1u64);
         }
         operation
+    }
+}
+
+pub struct AttributeBuilder<'a> {
+    ident: Option<&'a str>,
+    value_type: Option<ValueType>,
+    cardinality: Option<Cardinality>,
+    doc: Option<&'a str>,
+    unique: bool,
+}
+
+impl<'a> AttributeBuilder<'a> {
+    pub fn new() -> Self {
+        AttributeBuilder {
+            ident: None,
+            value_type: None,
+            cardinality: None,
+            doc: None,
+            unique: false,
+        }
+    }
+
+    pub fn with_ident(&mut self, ident: &'a str) -> &mut Self {
+        self.ident = Some(ident);
+        self
+    }
+
+    pub fn with_type(&mut self, value_type: ValueType) -> &mut Self {
+        self.value_type = Some(value_type);
+        self
+    }
+
+    pub fn with_cardinality(&mut self, cardinality: Cardinality) -> &mut Self {
+        self.cardinality = Some(cardinality);
+        self
+    }
+
+    pub fn with_doc(&mut self, doc: &'a str) -> &mut Self {
+        self.doc = Some(doc);
+        self
+    }
+
+    pub fn with_unique(&mut self) -> &mut Self {
+        self.unique = true;
+        self
+    }
+
+    pub fn build(&self) -> Option<Attribute<'a>> {
+        match (self.ident, self.value_type, self.cardinality) {
+            (Some(ident), Some(value_type), Some(cardinality)) => Some(Attribute {
+                ident,
+                value_type,
+                cardinality,
+                doc: self.doc,
+                unique: self.unique,
+            }),
+            _ => None,
+        }
     }
 }
 

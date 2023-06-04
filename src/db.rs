@@ -96,12 +96,12 @@ impl<S: Storage, C: Clock> Db<S, C> {
 
             let mut v = value.clone();
             if let Some(id) = value.as_str().and_then(|str| temp_ids.get(str)) {
-                let attribute_type = self
+                let attribute = self
                     .storage
-                    .attribute_type(attribute_id)
+                    .find_attribute(attribute_id)
                     .map_err(|err| TransactionError::StorageError(err))?;
 
-                if attribute_type == ValueType::Ref {
+                if attribute.value_type == ValueType::Ref {
                     v = Value::U64(*id);
                 }
             };

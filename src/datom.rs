@@ -20,7 +20,7 @@ impl Value {
     pub fn as_u64(&self) -> Option<&u64> {
         match self {
             Value::U64(value) => Some(value),
-            _ => None
+            _ => None,
         }
     }
 
@@ -36,7 +36,7 @@ impl Value {
     pub fn as_str(&self) -> Option<&str> {
         match self {
             Value::Str(value) => Some(value),
-            _ => None
+            _ => None,
         }
     }
 }

@@ -234,6 +234,7 @@ mod tests {
     }
 
     #[test]
+    //#[ignore = "not implemented"]
     fn return_current_value_with_cardinality_one() {
         let mut db = create_db();
 

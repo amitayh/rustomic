@@ -10,12 +10,10 @@ use crate::query::AttributePattern;
 use crate::query::Clause;
 use crate::query::EntityPattern;
 use crate::query::ValuePattern;
-use crate::schema::Cardinality;
 use crate::schema::default_datoms;
 use crate::schema::ValueType;
 use crate::schema::DB_ATTR_IDENT_ID;
 use crate::schema::DB_ATTR_TYPE_ID;
-use crate::schema::DB_ATTR_CARDINALITY_ID;
 
 // TODO: create structs?
 type Entity = u64;
@@ -173,9 +171,20 @@ impl InMemoryStorage {
         let mut datoms = Vec::new();
         for (entity, avt) in self.e_iter(&self.eavt, &clause.entity) {
             for (attribute, vt) in self.a_iter(avt, &clause.attribute)? {
-                //let cardinality = self.
+                let mut last_value = None;
                 for (value, t) in self.v_iter(vt, &clause.value) {
-                    println!("@@@ {:?}", value);
+                    for (tx, _) in t.iter() {
+                        match last_value {
+                            Some((prev_tx, _)) if tx > prev_tx => {
+                                last_value = Some((tx, value))
+                            },
+                            None => {
+                                last_value = Some((tx, value))
+                            },
+                            _ => {},
+                        }
+                    }
+                    /*
                     if let Some((tx, op)) = t.last_key_value() {
                         datoms.push(Datom {
                             entity: *entity,
@@ -185,6 +194,16 @@ impl InMemoryStorage {
                             op: op.clone(),
                         })
                     }
+                    */
+                }
+                if let Some((tx, value)) = last_value {
+                    datoms.push(Datom {
+                        entity: *entity,
+                        attribute: *attribute,
+                        value: value.clone(),
+                        tx: *tx,
+                        op: Op::Added,
+                    })
                 }
             }
         }
@@ -193,6 +212,25 @@ impl InMemoryStorage {
 
     fn find_datoms_aevt(&self, clause: &Clause) -> Result<Vec<Datom>, StorageError> {
         let mut datoms = Vec::new();
+
+        /*
+        let foo = self.a_iter(&self.aevt, &clause.attribute)?.flat_map(|(attribute, evt)| {
+            self.e_iter(evt, &clause.entity).flat_map(|(entity, vt)| {
+                self.v_iter(vt, &clause.value).flat_map(|(value, t)| {
+                    t.last_key_value().map(|(tx, op)| {
+                        Datom {
+                            entity: *entity,
+                            attribute: *attribute,
+                            value: value.clone(),
+                            tx: *tx,
+                            op: op.clone(),
+                        }
+                    }).into_iter()
+                })
+            })
+        });
+        */
+
         for (attribute, evt) in self.a_iter(&self.aevt, &clause.attribute)? {
             for (entity, vt) in self.e_iter(evt, &clause.entity) {
                 for (value, t) in self.v_iter(vt, &clause.value) {

@@ -18,10 +18,10 @@ impl Value {
     /// assert_eq!(Some(&value), u64_value.as_u64());
     /// ```
     pub fn as_u64(&self) -> Option<&u64> {
-        if let Value::U64(value) = self {
-            return Some(value);
+        match self {
+            Value::U64(value) => Some(value),
+            _ => None
         }
-        None
     }
 
     /// ```
@@ -34,10 +34,10 @@ impl Value {
     /// assert_eq!(Some("foo"), str_value.as_str());
     /// ```
     pub fn as_str(&self) -> Option<&str> {
-        if let Value::Str(value) = self {
-            return Some(value);
+        match self {
+            Value::Str(value) => Some(value),
+            _ => None
         }
-        None
     }
 }
 

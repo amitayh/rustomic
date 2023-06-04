@@ -78,6 +78,7 @@ impl Value {
     }
 }
 
+#[derive(Debug, PartialEq)]
 pub enum Cardinality {
     One = 0,
     Many = 1,

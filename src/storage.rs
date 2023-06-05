@@ -363,6 +363,7 @@ impl InMemoryStorage {
         latest.map(|(_, value)| value)
     }
 
+    // TODO consolidate these 2 methods
     fn latest_values<'a>(
         &self,
         vt: &'a BTreeMap<Value, BTreeMap<TransactionId, Op>>,

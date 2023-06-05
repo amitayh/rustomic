@@ -13,6 +13,7 @@ type AttributeId = u64;
 type TransactionId = u64;
 type Index<A, B, C> = BTreeMap<A, BTreeMap<B, BTreeMap<C, BTreeMap<TransactionId, Op>>>>;
 
+// TODO: separate read / write?
 pub trait Storage {
     //type Iter: Iterator<Item = Datom>;
 

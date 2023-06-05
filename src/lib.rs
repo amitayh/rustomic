@@ -4,19 +4,23 @@ pub mod db;
 pub mod query;
 pub mod schema;
 pub mod storage;
+pub mod transactor;
 pub mod tx;
 
 #[cfg(test)]
 mod tests {
+    use std::collections::HashSet;
     use std::sync::Arc;
     use std::sync::RwLock;
 
     use crate::clock::MockClock;
     use crate::storage::InMemoryStorage;
 
+    use super::datom::*;
     use super::db::*;
     use super::query::*;
     use super::schema::*;
+    use super::transactor::*;
     use super::tx::*;
 
     fn create_db() -> (Transactor<InMemoryStorage, MockClock>, Db<InMemoryStorage>) {
@@ -28,10 +32,10 @@ mod tests {
 
     #[test]
     fn return_empty_result() {
-        let (mut transacor, db) = create_db();
+        let (mut transactor, db) = create_db();
 
         // Create the schema
-        let schema_result = transacor.transact(
+        let schema_result = transactor.transact(
             Transaction::new().with(
                 Attribute::new("person/name", ValueType::Str, Cardinality::One)
                     .with_doc("A person's name")
@@ -41,7 +45,7 @@ mod tests {
         assert!(schema_result.is_ok());
 
         // Insert data
-        let tx_result = transacor.transact(
+        let tx_result = transactor.transact(
             Transaction::new()
                 .with(Operation::on_new().set("person/name", "Alice"))
                 .with(Operation::on_new().set("person/name", "Bob")),
@@ -61,13 +65,12 @@ mod tests {
         assert!(query_result.unwrap().results.is_empty());
     }
 
-    /*
     #[test]
     fn create_entity_by_temp_id() {
-        let mut db = create_db();
+        let (mut transactor, db) = create_db();
 
         // Create the schema
-        let schema_result = db.transact(
+        let schema_result = transactor.transact(
             Transaction::new().with(
                 Attribute::new("person/name", ValueType::Str, Cardinality::One)
                     .with_doc("A person's name")
@@ -77,7 +80,7 @@ mod tests {
         assert!(schema_result.is_ok());
 
         // Insert data
-        let tx_result = db.transact(
+        let tx_result = transactor.transact(
             Transaction::new().with(Operation::on_temp_id("joe").set("person/name", "Joe")),
         );
         assert!(tx_result.is_ok());
@@ -100,10 +103,10 @@ mod tests {
 
     #[test]
     fn reject_transaction_with_invalid_attribute_type() {
-        let mut db = create_db();
+        let (mut transactor, _) = create_db();
 
         // Create the schema
-        let schema_result = db.transact(
+        let schema_result = transactor.transact(
             Transaction::new().with(
                 Attribute::new("person/name", ValueType::Str, Cardinality::One)
                     .with_doc("A person's name")
@@ -113,17 +116,17 @@ mod tests {
         assert!(schema_result.is_ok());
 
         // This transaction should fail: "person/name" is of type `ValueType::Str`
-        let tx_result =
-            db.transact(Transaction::new().with(Operation::on_new().set("person/name", 42)));
+        let tx_result = transactor
+            .transact(Transaction::new().with(Operation::on_new().set("person/name", 42)));
         assert!(tx_result.is_err());
     }
 
     #[test]
     fn reference_temp_id_in_transaction() {
-        let mut db = create_db();
+        let (mut transactor, db) = create_db();
 
         // Create the schema
-        let schema_result = db.transact(
+        let schema_result = transactor.transact(
             Transaction::new()
                 .with(
                     Attribute::new("artist/name", ValueType::Str, Cardinality::One)
@@ -144,7 +147,7 @@ mod tests {
         assert!(schema_result.is_ok());
 
         // Insert data
-        let tx_result = db.transact(
+        let tx_result = transactor.transact(
             Transaction::new()
                 .with(Operation::on_temp_id("john").set("artist/name", "John Lenon"))
                 .with(Operation::on_temp_id("paul").set("artist/name", "Paul McCartney"))
@@ -189,10 +192,10 @@ mod tests {
 
     #[test]
     fn support_range_queries() {
-        let mut db = create_db();
+        let (mut transactor, db) = create_db();
 
         // Create the schema
-        let schema_result = db.transact(
+        let schema_result = transactor.transact(
             Transaction::new()
                 .with(Attribute::new("name", ValueType::Str, Cardinality::One).build())
                 .with(Attribute::new("age", ValueType::I64, Cardinality::One).build()),
@@ -200,7 +203,7 @@ mod tests {
         assert!(schema_result.is_ok());
 
         // Insert data
-        let tx_result = db.transact(
+        let tx_result = transactor.transact(
             Transaction::new()
                 .with(Operation::on_new().set("name", "John").set("age", 33))
                 .with(Operation::on_new().set("name", "Paul").set("age", 31))
@@ -239,10 +242,10 @@ mod tests {
 
     #[test]
     fn return_latest_value_with_cardinality_one() {
-        let mut db = create_db();
+        let (mut transactor, db) = create_db();
 
         // Create the schema
-        let schema_result = db.transact(
+        let schema_result = transactor.transact(
             Transaction::new()
                 .with(Attribute::new("name", ValueType::Str, Cardinality::One).build())
                 .with(Attribute::new("likes", ValueType::Str, Cardinality::One).build()),
@@ -250,7 +253,7 @@ mod tests {
         assert!(schema_result.is_ok());
 
         // Insert initial data
-        let tx_result1 = db.transact(
+        let tx_result1 = transactor.transact(
             Transaction::new().with(
                 Operation::on_temp_id("joe")
                     .set("name", "Joe")
@@ -261,7 +264,7 @@ mod tests {
         let joe_id = tx_result1.unwrap().temp_ids["joe"];
 
         // Update what Joe likes
-        let tx_result2 = db.transact(
+        let tx_result2 = transactor.transact(
             Transaction::new().with(
                 Operation::on_id(joe_id)
                     .set("name", "Joe")
@@ -292,10 +295,10 @@ mod tests {
 
     #[test]
     fn return_all_values_with_cardinality_many() {
-        let mut db = create_db();
+        let (mut transactor, db) = create_db();
 
         // Create the schema
-        let schema_result = db.transact(
+        let schema_result = transactor.transact(
             Transaction::new()
                 .with(Attribute::new("name", ValueType::Str, Cardinality::One).build())
                 .with(Attribute::new("likes", ValueType::Str, Cardinality::Many).build()),
@@ -303,7 +306,7 @@ mod tests {
         assert!(schema_result.is_ok());
 
         // Insert initial data
-        let tx_result1 = db.transact(
+        let tx_result1 = transactor.transact(
             Transaction::new().with(
                 Operation::on_temp_id("joe")
                     .set("name", "Joe")
@@ -314,7 +317,7 @@ mod tests {
         let joe_id = tx_result1.unwrap().temp_ids["joe"];
 
         // Update what Joe likes
-        let tx_result2 = db.transact(
+        let tx_result2 = transactor.transact(
             Transaction::new().with(
                 Operation::on_id(joe_id)
                     .set("name", "Joe")
@@ -343,7 +346,6 @@ mod tests {
         assert!(likes.contains("Pizza"));
         assert!(likes.contains("Ice cream"));
     }
-    */
 
     // TODO retract
 }

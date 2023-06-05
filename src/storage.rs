@@ -217,7 +217,7 @@ impl InMemoryStorage {
                                 op: Op::Added,
                             })
                         }
-                    },
+                    }
                     Cardinality::Many => {
                         for value in self.latest_values(vt) {
                             datoms.push(Datom {
@@ -228,7 +228,7 @@ impl InMemoryStorage {
                                 op: Op::Added,
                             })
                         }
-                    },
+                    }
                 }
             }
         }

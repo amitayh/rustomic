@@ -1,9 +1,12 @@
 use std::collections::HashMap;
+use std::sync::Arc;
+use std::sync::RwLock;
 
 use crate::clock::Clock;
 use crate::datom::Datom;
 use crate::datom::Value;
 use crate::schema::*;
+use crate::storage;
 use crate::storage::Storage;
 
 pub enum Entity {
@@ -80,19 +83,20 @@ pub struct TransctionResult {
 
 #[derive(Debug)]
 pub enum TransactionError {
+    Error, // TODO: remove generic error
     DuplicateTempId(String),
     TempIdNotFound(String),
     StorageError(crate::storage::StorageError),
 }
 
-pub struct Transactor<'a, S: Storage, C: Clock> {
+pub struct Transactor<S: Storage, C: Clock> {
     next_entity_id: u64,
-    storage: &'a mut  S,
+    storage: Arc<RwLock<S>>,
     clock: C,
 }
 
-impl<'a, S: Storage, C: Clock> Transactor<'a, S, C> {
-    pub fn new(storage: &'a mut S, clock: C) -> Self {
+impl<S: Storage, C: Clock> Transactor<S, C> {
+    pub fn new(storage: Arc<RwLock<S>>, clock: C) -> Self {
         Transactor {
             next_entity_id: 100,
             storage,
@@ -106,7 +110,8 @@ impl<'a, S: Storage, C: Clock> Transactor<'a, S, C> {
     ) -> Result<TransctionResult, TransactionError> {
         let temp_ids = self.generate_temp_ids(&transaction)?;
         let datoms = self.transaction_datoms(&transaction, &temp_ids)?;
-        self.storage
+        let mut storage = self.storage.write().map_err(|_| TransactionError::Error)?;
+        storage
             .save(&datoms)
             .map_err(|err| TransactionError::StorageError(err))?;
 
@@ -166,16 +171,15 @@ impl<'a, S: Storage, C: Clock> Transactor<'a, S, C> {
     ) -> Result<Vec<Datom>, TransactionError> {
         let mut datoms = Vec::new();
         let entity = self.resolve_entity(&operation.entity, temp_ids)?;
+        let storage = self.storage.read().map_err(|_| TransactionError::Error)?;
         for AttributeValue { attribute, value } in &operation.attributes {
-            let attribute_id = self
-                .storage
+            let attribute_id = storage
                 .resolve_ident(attribute)
                 .map_err(|err| TransactionError::StorageError(err))?;
 
             let mut v = value.clone();
             if let Some(id) = value.as_str().and_then(|str| temp_ids.get(str)) {
-                let attribute = self
-                    .storage
+                let attribute = storage
                     .find_attribute(attribute_id)
                     .map_err(|err| TransactionError::StorageError(err))?;
 

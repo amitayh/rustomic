@@ -8,10 +8,10 @@ pub mod tx;
 
 #[cfg(test)]
 mod tests {
-    use std::collections::HashSet;
+    use std::sync::Arc;
+    use std::sync::RwLock;
 
     use crate::clock::MockClock;
-    use crate::datom::Value;
     use crate::storage::InMemoryStorage;
 
     use super::db::*;
@@ -19,10 +19,10 @@ mod tests {
     use super::schema::*;
     use super::tx::*;
 
-    fn create_db<'a>() -> (Transactor<'a, InMemoryStorage, MockClock>, Db<'a, InMemoryStorage>) {
-        let mut storage = InMemoryStorage::new();
-        let transactor = Transactor::new(&mut storage, MockClock::new());
-        let db = Db::new(&storage);
+    fn create_db() -> (Transactor<InMemoryStorage, MockClock>, Db<InMemoryStorage>) {
+        let storage = Arc::new(RwLock::new(InMemoryStorage::new()));
+        let transactor = Transactor::new(storage.clone(), MockClock::new());
+        let db = Db::new(storage);
         (transactor, db)
     }
 

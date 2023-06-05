@@ -1,15 +1,16 @@
 use std::collections::HashMap;
+use std::sync::{Arc, RwLock};
 
 use crate::datom::Value;
 use crate::query::*;
 use crate::storage::Storage;
 
-pub struct Db<'a, S: Storage> {
-    storage: &'a S,
+pub struct Db<S: Storage> {
+    storage: Arc<RwLock<S>>,
 }
 
-impl<'a, S: Storage> Db<'a, S> {
-    pub fn new(storage: &'a S) -> Self {
+impl<S: Storage> Db<S> {
+    pub fn new(storage: Arc<RwLock<S>>) -> Self {
         Db { storage }
     }
 
@@ -33,8 +34,8 @@ impl<'a, S: Storage> Db<'a, S> {
         let mut assignments = 0;
         if let [clause, rest @ ..] = clauses {
             let assigned_clause = clause.assign(&assignment);
-            let datoms = self
-                .storage
+            let storage = self.storage.read().map_err(|_| QueryError::Error)?;
+            let datoms = storage
                 .find_datoms(&assigned_clause)
                 .map_err(|err| QueryError::StorageError(err))?;
 

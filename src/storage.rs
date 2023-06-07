@@ -90,7 +90,7 @@ impl Storage for InMemoryStorage {
 
         let mut builder = AttributeBuilder::new();
         for (attribute0, vt) in avt {
-            for (value, _) in self.latest_values(Iter::Many(vt.iter())) {
+            for (value, _) in self.latest_values(vt.iter()) {
                 match attribute0 {
                     &DB_ATTR_IDENT_ID => {
                         if let Some(ident) = value.as_str() {
@@ -388,10 +388,13 @@ impl InMemoryStorage {
         entity.ok_or_else(|| StorageError::IdentNotFound(String::from(ident)))
     }
 
-    fn latest_values<'a>(
+    fn latest_values<'a, In>(
         &self,
-        v_iter: Iter<'a, Value, BTreeMap<TransactionId, Op>>,
-    ) -> impl Iterator<Item = (&'a Value, u64)> {
+        v_iter: In
+    ) -> impl Iterator<Item = (&'a Value, u64)>
+    where
+        In: Iterator<Item = (&'a Value, &'a BTreeMap<TransactionId, Op>)>
+    {
         let mut latest = HashMap::new();
         for (value, t) in v_iter {
             for (tx, op) in t {

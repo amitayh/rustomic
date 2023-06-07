@@ -68,7 +68,7 @@ impl InMemoryStorage {
 }
 
 impl Storage for InMemoryStorage {
-    //type Iter = std::vec::Vec::It;
+    //type Iter = std::slice::Iter<'a, Datom>;
     fn save(&mut self, datoms: &Vec<Datom>) -> Result<(), StorageError> {
         // TODO: add reverse index for attribute of type `Ref`
         for datom in datoms {
@@ -83,53 +83,48 @@ impl Storage for InMemoryStorage {
     }
 
     fn find_attribute(&self, attribute: AttributeId) -> Result<Attribute, StorageError> {
-        self.eavt
+        let avt = self
+            .eavt
             .get(&attribute)
-            .and_then(|avt| {
-                let mut builder = AttributeBuilder::new();
-                for (attr, vt) in avt {
-                    let value = self.latest_value(vt);
-                    match attr {
-                        &DB_ATTR_IDENT_ID => {
-                            let ident = value.and_then(|value| value.as_str());
-                            if let Some(ident) = ident {
-                                builder.with_ident(ident);
-                            }
+            .ok_or_else(|| StorageError::AttributeNotFound(attribute))?;
+
+        let mut builder = AttributeBuilder::new();
+        for (attribute0, vt) in avt {
+            for (value, _) in self.latest_values(Iter::Many(vt.iter())) {
+                match attribute0 {
+                    &DB_ATTR_IDENT_ID => {
+                        if let Some(ident) = value.as_str() {
+                            builder.with_ident(ident);
                         }
-                        &DB_ATTR_TYPE_ID => {
-                            let value_type = value
-                                .and_then(|value| value.as_u64())
-                                .and_then(|value| ValueType::from(*value));
-                            if let Some(value_type) = value_type {
-                                builder.with_type(value_type);
-                            }
-                        }
-                        &DB_ATTR_CARDINALITY_ID => {
-                            let cardinality = value
-                                .and_then(|value| value.as_u64())
-                                .and_then(|value| Cardinality::from(*value));
-                            if let Some(cardinality) = cardinality {
-                                builder.with_cardinality(cardinality);
-                            }
-                        }
-                        &DB_ATTR_DOC_ID => {
-                            let doc = value.and_then(|value| value.as_str());
-                            if let Some(doc) = doc {
-                                builder.with_doc(doc);
-                            }
-                        }
-                        &DB_ATTR_UNIQUE_ID => {
-                            let unique = value.and_then(|value| value.as_u64());
-                            if let Some(&1) = unique {
-                                builder.with_unique();
-                            }
-                        }
-                        _ => {}
                     }
+                    &DB_ATTR_TYPE_ID => {
+                        let value_type = value.as_u64().and_then(|value| ValueType::from(*value));
+                        if let Some(value_type) = value_type {
+                            builder.with_type(value_type);
+                        }
+                    }
+                    &DB_ATTR_CARDINALITY_ID => {
+                        let cardinality =
+                            value.as_u64().and_then(|value| Cardinality::from(*value));
+                        if let Some(cardinality) = cardinality {
+                            builder.with_cardinality(cardinality);
+                        }
+                    }
+                    &DB_ATTR_DOC_ID => {
+                        if let Some(doc) = value.as_str() {
+                            builder.with_doc(doc);
+                        }
+                    }
+                    &DB_ATTR_UNIQUE_ID => {
+                        if let Some(&1) = value.as_u64() {
+                            builder.with_unique();
+                        }
+                    }
+                    _ => {}
                 }
-                builder.build()
-            })
-            .ok_or_else(|| StorageError::Error) // TODO: use better error type
+            }
+        }
+        builder.build().ok_or(StorageError::Error)
     }
 
     fn find_datoms(&self, clause: &Clause) -> Result<Vec<Datom>, StorageError> {
@@ -206,31 +201,52 @@ impl InMemoryStorage {
         let mut datoms = Vec::new();
         for (entity, avt) in self.e_iter(&self.eavt, &clause.entity) {
             for (attribute, vt) in self.a_iter(avt, &clause.attribute)? {
-                let lala = self.find_attribute(*attribute)?;
-                match lala.cardinality {
-                    Cardinality::One => {
-                        if let Some(value) = self.latest_value(vt) {
-                            datoms.push(Datom {
-                                entity: *entity,
-                                attribute: *attribute,
-                                value: value.clone(),
-                                tx: 0,
-                                op: Op::Added,
-                            })
-                        }
-                    }
-                    Cardinality::Many => {
-                        for value in self.latest_values(vt) {
-                            datoms.push(Datom {
-                                entity: *entity,
-                                attribute: *attribute,
-                                value: value.clone(),
-                                tx: 0,
-                                op: Op::Added,
-                            })
-                        }
-                    }
+                let v_iter = self.v_iter(vt, &clause.value);
+                for (value, tx) in self.latest_values(v_iter) {
+                    datoms.push(Datom {
+                        entity: *entity,
+                        attribute: *attribute,
+                        value: value.clone(),
+                        tx,
+                        op: Op::Added,
+                    })
                 }
+                //for (value, t) in self.v_iter(vt, &clause.value) {
+                //    for (tx, op) in t {
+                //        datoms.push(Datom {
+                //            entity: *entity,
+                //            attribute: *attribute,
+                //            value: value.clone(),
+                //            tx: *tx,
+                //            op: op.clone(),
+                //        })
+                //    }
+                //}
+                // let lala = self.find_attribute(*attribute)?;
+                // match lala.cardinality {
+                //     Cardinality::One => {
+                //         if let Some(value) = self.latest_value(vt) {
+                //             datoms.push(Datom {
+                //                 entity: *entity,
+                //                 attribute: *attribute,
+                //                 value: value.clone(),
+                //                 tx: 0,
+                //                 op: Op::Added,
+                //             })
+                //         }
+                //     }
+                //     Cardinality::Many => {
+                //         for value in self.latest_values(vt) {
+                //             datoms.push(Datom {
+                //                 entity: *entity,
+                //                 attribute: *attribute,
+                //                 value: value.clone(),
+                //                 tx: 0,
+                //                 op: Op::Added,
+                //             })
+                //         }
+                //     }
+                // }
             }
         }
         Ok(datoms)
@@ -259,29 +275,47 @@ impl InMemoryStorage {
 
         for (attribute, evt) in self.a_iter(&self.aevt, &clause.attribute)? {
             for (entity, vt) in self.e_iter(evt, &clause.entity) {
-                // let lala = self.find_attribute(*attribute)?;
-                for (value, t) in self.v_iter(vt, &clause.value) {
-                    if let Some((tx, op)) = t.last_key_value() {
-                        datoms.push(Datom {
-                            entity: *entity,
-                            attribute: *attribute,
-                            value: value.clone(),
-                            tx: *tx,
-                            op: op.clone(),
-                        })
-                    }
+                let v_iter = self.v_iter(vt, &clause.value);
+                for (value, tx) in self.latest_values(v_iter) {
+                    datoms.push(Datom {
+                        entity: *entity,
+                        attribute: *attribute,
+                        value: value.clone(),
+                        tx,
+                        op: Op::Added,
+                    })
                 }
+                //for (value, t) in self.v_iter(vt, &clause.value) {
+                //    for (tx, op) in t {
+                //        datoms.push(Datom {
+                //            entity: *entity,
+                //            attribute: *attribute,
+                //            value: value.clone(),
+                //            tx: *tx,
+                //            op: op.clone(),
+                //        })
+                //    }
+                //    // if let Some((tx, op)) = t.last_key_value() {
+                //    //     datoms.push(Datom {
+                //    //         entity: *entity,
+                //    //         attribute: *attribute,
+                //    //         value: value.clone(),
+                //    //         tx: *tx,
+                //    //         op: op.clone(),
+                //    //     })
+                //    // }
+                //}
             }
         }
         Ok(datoms)
     }
 
-    fn find_datoms_avet(&self, clause: &Clause) -> Result<Vec<Datom>, StorageError> {
+    fn find_datoms_avet<'a>(&'a self, clause: &'a Clause) -> Result<Vec<Datom>, StorageError> {
         let mut datoms = Vec::new();
         for (attribute, vet) in self.a_iter(&self.avet, &clause.attribute)? {
             for (value, et) in self.v_iter(vet, &clause.value) {
                 for (entity, t) in self.e_iter(et, &clause.entity) {
-                    if let Some((tx, op)) = t.last_key_value() {
+                    for (tx, op) in t {
                         datoms.push(Datom {
                             entity: *entity,
                             attribute: *attribute,
@@ -290,6 +324,15 @@ impl InMemoryStorage {
                             op: op.clone(),
                         })
                     }
+                    // if let Some((tx, op)) = t.last_key_value() {
+                    //     datoms.push(Datom {
+                    //         entity: *entity,
+                    //         attribute: *attribute,
+                    //         value: value.clone(),
+                    //         tx: *tx,
+                    //         op: op.clone(),
+                    //     })
+                    // }
                 }
             }
         }
@@ -345,32 +388,12 @@ impl InMemoryStorage {
         entity.ok_or_else(|| StorageError::IdentNotFound(String::from(ident)))
     }
 
-    // TODO: what are the semantics of retraction?
-    fn latest_value<'a>(
-        &self,
-        vt: &'a BTreeMap<Value, BTreeMap<TransactionId, Op>>,
-    ) -> Option<&'a Value> {
-        let mut latest = None;
-        for (value, t) in vt {
-            for (tx, op) in t {
-                match (latest, op) {
-                    (Some((prev_tx, _)), Op::Added) if tx > prev_tx => latest = Some((tx, value)),
-                    (Some((prev_tx, _)), Op::Retracted) if tx > prev_tx => latest = None,
-                    (None, Op::Added) => latest = Some((tx, value)),
-                    _ => {}
-                }
-            }
-        }
-        latest.map(|(_, value)| value)
-    }
-
-    // TODO consolidate these 2 methods
     fn latest_values<'a>(
         &self,
-        vt: &'a BTreeMap<Value, BTreeMap<TransactionId, Op>>,
-    ) -> impl Iterator<Item = &'a Value> {
+        v_iter: Iter<'a, Value, BTreeMap<TransactionId, Op>>,
+    ) -> impl Iterator<Item = (&'a Value, u64)> {
         let mut latest = HashMap::new();
-        for (value, t) in vt {
+        for (value, t) in v_iter {
             for (tx, op) in t {
                 match (latest.get_mut(value), op) {
                     (Some(prev_tx), Op::Added) if tx > prev_tx => *prev_tx = *tx,
@@ -384,8 +407,30 @@ impl InMemoryStorage {
                 }
             }
         }
-        latest.into_keys()
+        latest.into_iter()
     }
+
+    //fn latest_values<'a>(
+    //    &self,
+    //    vt: &'a BTreeMap<Value, BTreeMap<TransactionId, Op>>,
+    //) -> impl Iterator<Item = (&'a Value, u64)> {
+    //    let mut latest = HashMap::new();
+    //    for (value, t) in vt {
+    //        for (tx, op) in t {
+    //            match (latest.get_mut(value), op) {
+    //                (Some(prev_tx), Op::Added) if tx > prev_tx => *prev_tx = *tx,
+    //                (Some(prev_tx), Op::Retracted) if tx > prev_tx => {
+    //                    latest.remove(value);
+    //                }
+    //                (None, Op::Added) => {
+    //                    latest.insert(value, *tx);
+    //                }
+    //                _ => {}
+    //            }
+    //        }
+    //    }
+    //    latest.into_iter()
+    //}
 }
 
 enum Iter<'a, K, V> {
@@ -415,6 +460,7 @@ impl<'a, K, V> Iterator for Iter<'a, K, V> {
 #[derive(Debug)]
 pub enum StorageError {
     Error,
+    AttributeNotFound(u64),
     IdentNotFound(String),
     InvalidAttributeType,
 }

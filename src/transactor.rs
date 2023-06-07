@@ -97,13 +97,13 @@ impl<S: Storage, C: Clock> Transactor<S, C> {
                 .resolve_ident(attribute)
                 .map_err(|err| TransactionError::StorageError(err))?;
 
+            // TODO: retract previous value for `Cardinality::One`
+            let attribute = storage
+                .find_attribute(attribute_id)
+                .map_err(|err| TransactionError::StorageError(err))?;
+
             let mut v = value.clone();
             if let Some(id) = value.as_str().and_then(|str| temp_ids.get(str)) {
-                // TODO: retract previous value for `Cardinality::One`
-                let attribute = storage
-                    .find_attribute(attribute_id)
-                    .map_err(|err| TransactionError::StorageError(err))?;
-
                 if attribute.value_type == ValueType::Ref {
                     v = Value::U64(*id);
                 }

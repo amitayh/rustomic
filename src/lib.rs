@@ -42,6 +42,7 @@ mod tests {
                     .build(),
             ),
         );
+        println!("@@@ {:?}", schema_result);
         assert!(schema_result.is_ok());
 
         // Insert data

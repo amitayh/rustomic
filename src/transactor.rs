@@ -1,6 +1,8 @@
 use std::collections::HashMap;
 use std::sync::Arc;
 use std::sync::RwLock;
+use std::sync::RwLockReadGuard;
+use std::sync::RwLockWriteGuard;
 
 use crate::clock::Clock;
 use crate::datom::Datom;
@@ -32,10 +34,10 @@ impl<S: Storage, C: Clock> Transactor<S, C> {
         &mut self,
         transaction: Transaction,
     ) -> Result<TransctionResult, TransactionError> {
+        // TODO: add reverse index for attribute of type `Ref`
         let temp_ids = self.generate_temp_ids(&transaction)?;
         let datoms = self.transaction_datoms(&transaction, &temp_ids)?;
-        let mut storage = self.storage.write().map_err(|_| TransactionError::Error)?;
-        storage
+        self.write_storage()?
             .save(&datoms)
             .map_err(|err| TransactionError::StorageError(err))?;
 
@@ -43,6 +45,14 @@ impl<S: Storage, C: Clock> Transactor<S, C> {
             tx_data: datoms,
             temp_ids,
         })
+    }
+
+    fn read_storage(&self) -> Result<RwLockReadGuard<S>, TransactionError> {
+        self.storage.read().map_err(|_| TransactionError::Error)
+    }
+
+    fn write_storage(&self) -> Result<RwLockWriteGuard<S>, TransactionError> {
+        self.storage.write().map_err(|_| TransactionError::Error)
     }
 
     fn generate_temp_ids(
@@ -95,18 +105,15 @@ impl<S: Storage, C: Clock> Transactor<S, C> {
     ) -> Result<Vec<Datom>, TransactionError> {
         let mut datoms = Vec::new();
         let entity = self.resolve_entity(&operation.entity, temp_ids)?;
-        let storage = self.storage.read().map_err(|_| TransactionError::Error)?;
+        let storage = self.read_storage()?;
         for AttributeValue { attribute, value } in &operation.attributes {
             let attribute_id = storage
                 .resolve_ident(attribute)
                 .map_err(|err| TransactionError::StorageError(err))?;
 
-            // TODO: retract previous value for `Cardinality::One`
-            let attribute = storage
-                .find_attribute(attribute_id)
-                .map_err(|err| TransactionError::StorageError(err))?;
-
-            if attribute.cardinality == Cardinality::One {
+            let (cardinality, value_type) = self.attribute_metadata(attribute_id)?;
+            if cardinality == Cardinality::One {
+                // Retract previous values
                 let clause = Clause::new()
                     .with_entity(EntityPattern::Id(entity))
                     .with_attribute(AttributePattern::Id(attribute_id));
@@ -126,10 +133,14 @@ impl<S: Storage, C: Clock> Transactor<S, C> {
 
             let mut v = value.clone();
             if let Some(id) = value.as_str().and_then(|str| temp_ids.get(str)) {
-                if attribute.value_type == ValueType::Ref {
+                if value_type == ValueType::Ref {
                     v = Value::U64(*id);
                 }
             };
+
+            if !v.matches_type(value_type) {
+                return Err(TransactionError::InvalidAttributeType);
+            }
 
             datoms.push(Datom::new(entity, attribute_id, v, tx));
         }
@@ -148,6 +159,40 @@ impl<S: Storage, C: Clock> Transactor<S, C> {
                 .get(temp_id)
                 .copied()
                 .ok_or_else(|| TransactionError::TempIdNotFound(temp_id.clone())),
+        }
+    }
+
+    fn attribute_metadata(
+        &self,
+        attribute: u64,
+    ) -> Result<(Cardinality, ValueType), TransactionError> {
+        let clause = Clause::new().with_entity(EntityPattern::Id(attribute));
+        let datoms = self
+            .read_storage()?
+            .find_datoms(&clause)
+            .map_err(|err| TransactionError::StorageError(err))?;
+        let mut cardinality = None;
+        let mut value_type = None;
+        for datom in datoms {
+            match datom.attribute {
+                DB_ATTR_TYPE_ID => {
+                    value_type = datom
+                        .value
+                        .as_u64()
+                        .and_then(|value| ValueType::from(*value));
+                }
+                DB_ATTR_CARDINALITY_ID => {
+                    cardinality = datom
+                        .value
+                        .as_u64()
+                        .and_then(|value| Cardinality::from(*value));
+                }
+                _ => {}
+            }
+        }
+        match (cardinality, value_type) {
+            (Some(cardinality), Some(value_type)) => Ok((cardinality, value_type)),
+            _ => Err(TransactionError::Error),
         }
     }
 }

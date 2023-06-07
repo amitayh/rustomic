@@ -146,64 +146,6 @@ impl<'a> Attribute<'a> {
     }
 }
 
-pub struct AttributeBuilder<'a> {
-    ident: Option<&'a str>,
-    value_type: Option<ValueType>,
-    cardinality: Option<Cardinality>,
-    doc: Option<&'a str>,
-    unique: bool,
-}
-
-impl<'a> AttributeBuilder<'a> {
-    pub fn new() -> Self {
-        AttributeBuilder {
-            ident: None,
-            value_type: None,
-            cardinality: None,
-            doc: None,
-            unique: false,
-        }
-    }
-
-    pub fn with_ident(&mut self, ident: &'a str) -> &mut Self {
-        self.ident = Some(ident);
-        self
-    }
-
-    pub fn with_type(&mut self, value_type: ValueType) -> &mut Self {
-        self.value_type = Some(value_type);
-        self
-    }
-
-    pub fn with_cardinality(&mut self, cardinality: Cardinality) -> &mut Self {
-        self.cardinality = Some(cardinality);
-        self
-    }
-
-    pub fn with_doc(&mut self, doc: &'a str) -> &mut Self {
-        self.doc = Some(doc);
-        self
-    }
-
-    pub fn with_unique(&mut self) -> &mut Self {
-        self.unique = true;
-        self
-    }
-
-    pub fn build(&self) -> Option<Attribute<'a>> {
-        match (self.ident, self.value_type, self.cardinality) {
-            (Some(ident), Some(value_type), Some(cardinality)) => Some(Attribute {
-                ident,
-                value_type,
-                cardinality,
-                doc: self.doc,
-                unique: self.unique,
-            }),
-            _ => None,
-        }
-    }
-}
-
 #[rustfmt::skip]
 pub fn default_datoms() -> Vec<Datom> {
     let tx = 0u64;

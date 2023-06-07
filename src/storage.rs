@@ -22,8 +22,6 @@ pub trait Storage {
 
     fn resolve_ident(&self, ident: &str) -> Result<EntityId, StorageError>;
 
-    fn find_attribute(&self, attribute: AttributeId) -> Result<Attribute, StorageError>;
-
     fn find_datoms(&self, clause: &Clause) -> Result<Vec<Datom>, StorageError>;
     //fn find_datoms(&self, clause: &Clause) -> Result<Self::Iter, StorageError>;
 }
@@ -63,69 +61,26 @@ impl InMemoryStorage {
             ident_to_entity: HashMap::new(),
         };
         let init_datoms = default_datoms();
-        storage.save_internal(&init_datoms);
+        storage.save(&init_datoms).unwrap();
         storage
     }
 }
 
 impl Storage for InMemoryStorage {
     //type Iter = std::slice::Iter<'a, Datom>;
+
     fn save(&mut self, datoms: &Vec<Datom>) -> Result<(), StorageError> {
-        // TODO: add reverse index for attribute of type `Ref`
         for datom in datoms {
-            self.validate(datom)?
+            self.update_eavt(datom);
+            self.update_aevt(datom);
+            self.update_avet(datom);
+            self.update_ident_to_entity_id(datom);
         }
-        self.save_internal(datoms);
         Ok(())
     }
 
     fn resolve_ident(&self, ident: &str) -> Result<EntityId, StorageError> {
         self.resolve_ident_internal(ident).copied()
-    }
-
-    fn find_attribute(&self, attribute: AttributeId) -> Result<Attribute, StorageError> {
-        let avt = self
-            .eavt
-            .get(&attribute)
-            .ok_or_else(|| StorageError::AttributeNotFound(attribute))?;
-
-        let mut builder = AttributeBuilder::new();
-        for (attribute0, vt) in avt {
-            for (value, _) in self.latest_values(vt.iter()) {
-                match attribute0 {
-                    &DB_ATTR_IDENT_ID => {
-                        if let Some(ident) = value.as_str() {
-                            builder.with_ident(ident);
-                        }
-                    }
-                    &DB_ATTR_TYPE_ID => {
-                        let value_type = value.as_u64().and_then(|value| ValueType::from(*value));
-                        if let Some(value_type) = value_type {
-                            builder.with_type(value_type);
-                        }
-                    }
-                    &DB_ATTR_CARDINALITY_ID => {
-                        let cardinality =
-                            value.as_u64().and_then(|value| Cardinality::from(*value));
-                        if let Some(cardinality) = cardinality {
-                            builder.with_cardinality(cardinality);
-                        }
-                    }
-                    &DB_ATTR_DOC_ID => {
-                        if let Some(doc) = value.as_str() {
-                            builder.with_doc(doc);
-                        }
-                    }
-                    &DB_ATTR_UNIQUE_ID => {
-                        if let Some(&1) = value.as_u64() {
-                            builder.with_unique();
-                        }
-                    }
-                    _ => {}
-                }
-            }
-        }
-        builder.build().ok_or(StorageError::Error)
     }
 
     fn find_datoms(&self, clause: &Clause) -> Result<Vec<Datom>, StorageError> {
@@ -146,24 +101,6 @@ impl Storage for InMemoryStorage {
 }
 
 impl InMemoryStorage {
-    fn validate(&self, datom: &Datom) -> Result<(), StorageError> {
-        let attribute = self.find_attribute(datom.attribute)?;
-        if !datom.value.matches_type(attribute.value_type) {
-            Err(StorageError::InvalidAttributeType)
-        } else {
-            Ok(())
-        }
-    }
-
-    fn save_internal(&mut self, datoms: &Vec<Datom>) {
-        for datom in datoms {
-            self.update_eavt(datom);
-            self.update_aevt(datom);
-            self.update_avet(datom);
-            self.update_ident_to_entity_id(datom);
-        }
-    }
-
     fn update_eavt(&mut self, datom: &Datom) {
         let avt = self.eavt.entry(datom.entity).or_default();
         let vt = avt.entry(datom.attribute).or_default();
@@ -212,42 +149,6 @@ impl InMemoryStorage {
                         op: Op::Added,
                     })
                 }
-                //for (value, t) in self.v_iter(vt, &clause.value) {
-                //    for (tx, op) in t {
-                //        datoms.push(Datom {
-                //            entity: *entity,
-                //            attribute: *attribute,
-                //            value: value.clone(),
-                //            tx: *tx,
-                //            op: op.clone(),
-                //        })
-                //    }
-                //}
-                // let lala = self.find_attribute(*attribute)?;
-                // match lala.cardinality {
-                //     Cardinality::One => {
-                //         if let Some(value) = self.latest_value(vt) {
-                //             datoms.push(Datom {
-                //                 entity: *entity,
-                //                 attribute: *attribute,
-                //                 value: value.clone(),
-                //                 tx: 0,
-                //                 op: Op::Added,
-                //             })
-                //         }
-                //     }
-                //     Cardinality::Many => {
-                //         for value in self.latest_values(vt) {
-                //             datoms.push(Datom {
-                //                 entity: *entity,
-                //                 attribute: *attribute,
-                //                 value: value.clone(),
-                //                 tx: 0,
-                //                 op: Op::Added,
-                //             })
-                //         }
-                //     }
-                // }
             }
         }
         Ok(datoms)
@@ -286,26 +187,6 @@ impl InMemoryStorage {
                         op: Op::Added,
                     })
                 }
-                //for (value, t) in self.v_iter(vt, &clause.value) {
-                //    for (tx, op) in t {
-                //        datoms.push(Datom {
-                //            entity: *entity,
-                //            attribute: *attribute,
-                //            value: value.clone(),
-                //            tx: *tx,
-                //            op: op.clone(),
-                //        })
-                //    }
-                //    // if let Some((tx, op)) = t.last_key_value() {
-                //    //     datoms.push(Datom {
-                //    //         entity: *entity,
-                //    //         attribute: *attribute,
-                //    //         value: value.clone(),
-                //    //         tx: *tx,
-                //    //         op: op.clone(),
-                //    //     })
-                //    // }
-                //}
             }
         }
         Ok(datoms)
@@ -325,15 +206,6 @@ impl InMemoryStorage {
                             op: op.clone(),
                         })
                     }
-                    // if let Some((tx, op)) = t.last_key_value() {
-                    //     datoms.push(Datom {
-                    //         entity: *entity,
-                    //         attribute: *attribute,
-                    //         value: value.clone(),
-                    //         tx: *tx,
-                    //         op: op.clone(),
-                    //     })
-                    // }
                 }
             }
         }
@@ -410,28 +282,6 @@ impl InMemoryStorage {
         }
         latest
     }
-
-    //fn latest_values<'a>(
-    //    &self,
-    //    vt: &'a BTreeMap<Value, TxOp>,
-    //) -> impl Iterator<Item = (&'a Value, u64)> {
-    //    let mut latest = HashMap::new();
-    //    for (value, t) in vt {
-    //        for (tx, op) in t {
-    //            match (latest.get_mut(value), op) {
-    //                (Some(prev_tx), Op::Added) if tx > prev_tx => *prev_tx = *tx,
-    //                (Some(prev_tx), Op::Retracted) if tx > prev_tx => {
-    //                    latest.remove(value);
-    //                }
-    //                (None, Op::Added) => {
-    //                    latest.insert(value, *tx);
-    //                }
-    //                _ => {}
-    //            }
-    //        }
-    //    }
-    //    latest.into_iter()
-    //}
 }
 
 enum Iter<'a, K, V> {
@@ -460,8 +310,5 @@ impl<'a, K, V> Iterator for Iter<'a, K, V> {
 
 #[derive(Debug)]
 pub enum StorageError {
-    Error,
-    AttributeNotFound(u64),
     IdentNotFound(String),
-    InvalidAttributeType,
 }

@@ -78,6 +78,7 @@ pub struct TransctionResult {
 #[derive(Debug)]
 pub enum TransactionError {
     Error, // TODO: remove generic error
+    InvalidAttributeType,
     DuplicateTempId(String),
     TempIdNotFound(String),
     StorageError(crate::storage::StorageError),

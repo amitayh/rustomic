@@ -4,7 +4,11 @@ use std::sync::RwLock;
 
 use crate::clock::Clock;
 use crate::datom::Datom;
+use crate::datom::Op;
 use crate::datom::Value;
+use crate::query::AttributePattern;
+use crate::query::Clause;
+use crate::query::EntityPattern;
 use crate::schema::*;
 use crate::storage::Storage;
 use crate::tx::*;
@@ -101,6 +105,24 @@ impl<S: Storage, C: Clock> Transactor<S, C> {
             let attribute = storage
                 .find_attribute(attribute_id)
                 .map_err(|err| TransactionError::StorageError(err))?;
+
+            if attribute.cardinality == Cardinality::One {
+                let clause = Clause::new()
+                    .with_entity(EntityPattern::Id(entity))
+                    .with_attribute(AttributePattern::Id(attribute_id));
+                let datoms2 = storage
+                    .find_datoms(&clause)
+                    .map_err(|err| TransactionError::StorageError(err))?;
+                for datom in datoms2 {
+                    datoms.push(Datom {
+                        entity,
+                        attribute: attribute_id,
+                        value: datom.value.clone(),
+                        tx,
+                        op: Op::Retracted,
+                    });
+                }
+            }
 
             let mut v = value.clone();
             if let Some(id) = value.as_str().and_then(|str| temp_ids.get(str)) {

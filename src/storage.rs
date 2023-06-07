@@ -11,7 +11,8 @@ use crate::schema::*;
 type EntityId = u64;
 type AttributeId = u64;
 type TransactionId = u64;
-type Index<A, B, C> = BTreeMap<A, BTreeMap<B, BTreeMap<C, BTreeMap<TransactionId, Op>>>>;
+type TxOp = BTreeMap<TransactionId, Op>;
+type Index<A, B, C> = BTreeMap<A, BTreeMap<B, BTreeMap<C, TxOp>>>;
 
 // TODO: separate read / write?
 pub trait Storage {
@@ -388,13 +389,10 @@ impl InMemoryStorage {
         entity.ok_or_else(|| StorageError::IdentNotFound(String::from(ident)))
     }
 
-    fn latest_values<'a, In>(
+    fn latest_values<'a, In: Iterator<Item = (&'a Value, &'a TxOp)>>(
         &self,
-        v_iter: In
-    ) -> impl Iterator<Item = (&'a Value, u64)>
-    where
-        In: Iterator<Item = (&'a Value, &'a BTreeMap<TransactionId, Op>)>
-    {
+        v_iter: In,
+    ) -> HashMap<&'a Value, u64> {
         let mut latest = HashMap::new();
         for (value, t) in v_iter {
             for (tx, op) in t {
@@ -410,12 +408,12 @@ impl InMemoryStorage {
                 }
             }
         }
-        latest.into_iter()
+        latest
     }
 
     //fn latest_values<'a>(
     //    &self,
-    //    vt: &'a BTreeMap<Value, BTreeMap<TransactionId, Op>>,
+    //    vt: &'a BTreeMap<Value, TxOp>,
     //) -> impl Iterator<Item = (&'a Value, u64)> {
     //    let mut latest = HashMap::new();
     //    for (value, t) in vt {

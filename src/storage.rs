@@ -22,7 +22,7 @@ pub trait Storage {
 
     fn resolve_ident(&self, ident: &str) -> Result<EntityId, StorageError>;
 
-    fn find_datoms(&self, clause: &Clause) -> Result<Vec<Datom>, StorageError>;
+    fn find_datoms(&self, clause: &Clause, tx_range: u64) -> Result<Vec<Datom>, StorageError>;
     //fn find_datoms(&self, clause: &Clause) -> Result<Self::Iter, StorageError>;
 }
 
@@ -83,19 +83,19 @@ impl Storage for InMemoryStorage {
         self.resolve_ident_internal(ident).copied()
     }
 
-    fn find_datoms(&self, clause: &Clause) -> Result<Vec<Datom>, StorageError> {
+    fn find_datoms(&self, clause: &Clause, tx_range: u64) -> Result<Vec<Datom>, StorageError> {
         match clause {
             Clause {
                 entity: EntityPattern::Id(_),
                 attribute: AttributePattern::Id(_) | AttributePattern::Ident(_),
                 value: _,
-            } => self.find_datoms_eavt(clause),
+            } => self.find_datoms_eavt(clause, tx_range),
             Clause {
                 entity: _,
                 attribute: AttributePattern::Id(_) | AttributePattern::Ident(_),
                 value: ValuePattern::Constant(_) | ValuePattern::Range(_, _),
-            } => self.find_datoms_avet(clause),
-            _ => self.find_datoms_aevt(clause),
+            } => self.find_datoms_avet(clause, tx_range),
+            _ => self.find_datoms_aevt(clause, tx_range),
         }
     }
 }
@@ -135,12 +135,12 @@ impl InMemoryStorage {
         }
     }
 
-    fn find_datoms_eavt(&self, clause: &Clause) -> Result<Vec<Datom>, StorageError> {
+    fn find_datoms_eavt(&self, clause: &Clause, tx_range: u64) -> Result<Vec<Datom>, StorageError> {
         let mut datoms = Vec::new();
         for (entity, avt) in self.e_iter(&self.eavt, &clause.entity) {
             for (attribute, vt) in self.a_iter(avt, &clause.attribute)? {
                 let v_iter = self.v_iter(vt, &clause.value);
-                for (value, tx) in self.latest_values(v_iter) {
+                for (value, tx) in self.latest_values(v_iter, tx_range) {
                     datoms.push(Datom {
                         entity: *entity,
                         attribute: *attribute,
@@ -154,7 +154,7 @@ impl InMemoryStorage {
         Ok(datoms)
     }
 
-    fn find_datoms_aevt(&self, clause: &Clause) -> Result<Vec<Datom>, StorageError> {
+    fn find_datoms_aevt(&self, clause: &Clause, tx_range: u64) -> Result<Vec<Datom>, StorageError> {
         let mut datoms = Vec::new();
 
         /*
@@ -178,7 +178,7 @@ impl InMemoryStorage {
         for (attribute, evt) in self.a_iter(&self.aevt, &clause.attribute)? {
             for (entity, vt) in self.e_iter(evt, &clause.entity) {
                 let v_iter = self.v_iter(vt, &clause.value);
-                for (value, tx) in self.latest_values(v_iter) {
+                for (value, tx) in self.latest_values(v_iter, tx_range) {
                     datoms.push(Datom {
                         entity: *entity,
                         attribute: *attribute,
@@ -192,7 +192,12 @@ impl InMemoryStorage {
         Ok(datoms)
     }
 
-    fn find_datoms_avet<'a>(&'a self, clause: &'a Clause) -> Result<Vec<Datom>, StorageError> {
+    fn find_datoms_avet<'a>(
+        &'a self,
+        clause: &'a Clause,
+        // TODO use this
+        _tx_range: u64,
+    ) -> Result<Vec<Datom>, StorageError> {
         let mut datoms = Vec::new();
         for (attribute, vet) in self.a_iter(&self.avet, &clause.attribute)? {
             for (value, et) in self.v_iter(vet, &clause.value) {
@@ -264,10 +269,11 @@ impl InMemoryStorage {
     fn latest_values<'a, In: Iterator<Item = (&'a Value, &'a TxOp)>>(
         &self,
         v_iter: In,
+        tx_range: u64,
     ) -> HashMap<&'a Value, u64> {
         let mut latest = HashMap::new();
         for (value, t) in v_iter {
-            for (tx, op) in t {
+            for (tx, op) in t.range(..=tx_range) {
                 match (latest.get_mut(value), op) {
                     (Some(prev_tx), Op::Added) if tx > prev_tx => *prev_tx = *tx,
                     (Some(prev_tx), Op::Retracted) if tx > prev_tx => {

@@ -71,6 +71,7 @@ impl Transaction {
 
 #[derive(Debug)]
 pub struct TransctionResult {
+    pub tx_id: u64,
     pub tx_data: Vec<Datom>,
     pub temp_ids: HashMap<String, u64>,
 }

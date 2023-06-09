@@ -105,21 +105,21 @@ impl InMemoryStorage {
         let avt = self.eavt.entry(datom.entity).or_default();
         let vt = avt.entry(datom.attribute).or_default();
         let t = vt.entry(datom.value.clone()).or_default();
-        t.insert(datom.tx, datom.op.clone());
+        t.insert(datom.tx, datom.op);
     }
 
     fn update_aevt(&mut self, datom: &Datom) {
         let evt = self.aevt.entry(datom.attribute).or_default();
         let vt = evt.entry(datom.entity).or_default();
         let t = vt.entry(datom.value.clone()).or_default();
-        t.insert(datom.tx, datom.op.clone());
+        t.insert(datom.tx, datom.op);
     }
 
     fn update_avet(&mut self, datom: &Datom) {
         let vet = self.avet.entry(datom.attribute).or_default();
         let et = vet.entry(datom.value.clone()).or_default();
         let t = et.entry(datom.entity).or_default();
-        t.insert(datom.tx, datom.op.clone());
+        t.insert(datom.tx, datom.op);
     }
 
     fn update_ident_to_entity_id(&mut self, datom: &Datom) {
@@ -167,7 +167,7 @@ impl InMemoryStorage {
                             attribute: *attribute,
                             value: value.clone(),
                             tx: *tx,
-                            op: op.clone(),
+                            op: *op,
                         }
                     }).into_iter()
                 })
@@ -195,20 +195,20 @@ impl InMemoryStorage {
     fn find_datoms_avet<'a>(
         &'a self,
         clause: &'a Clause,
-        // TODO use this
-        _tx_range: u64,
+        tx_range: u64,
     ) -> Result<Vec<Datom>, StorageError> {
+        // TODO latest values?
         let mut datoms = Vec::new();
         for (attribute, vet) in self.a_iter(&self.avet, &clause.attribute)? {
             for (value, et) in self.v_iter(vet, &clause.value) {
                 for (entity, t) in self.e_iter(et, &clause.entity) {
-                    for (tx, op) in t {
+                    for (tx, op) in t.range(..=tx_range) {
                         datoms.push(Datom {
                             entity: *entity,
                             attribute: *attribute,
                             value: value.clone(),
                             tx: *tx,
-                            op: op.clone(),
+                            op: *op,
                         })
                     }
                 }

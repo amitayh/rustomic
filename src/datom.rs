@@ -83,7 +83,7 @@ impl Into<Value> for String {
     }
 }
 
-#[derive(Hash, Eq, PartialEq, Debug, Clone)]
+#[derive(Hash, Eq, PartialEq, Debug, Clone, Copy)]
 pub enum Op {
     Added,
     Retracted,

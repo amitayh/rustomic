@@ -5,14 +5,10 @@ use std::sync::RwLockReadGuard;
 use std::sync::RwLockWriteGuard;
 
 use crate::clock::Clock;
-use crate::datom::Datom;
-use crate::datom::Op;
-use crate::datom::Value;
-use crate::query::AttributePattern;
-use crate::query::Clause;
-use crate::query::EntityPattern;
+use crate::datom::*;
+use crate::query::*;
 use crate::schema::*;
-use crate::storage::Storage;
+use crate::storage::*;
 use crate::tx::*;
 
 pub struct Transactor<S: Storage, C: Clock> {
@@ -97,7 +93,7 @@ impl<S: Storage, C: Clock> Transactor<S, C> {
 
     fn create_tx_datom(&mut self) -> Datom {
         let tx = self.next_entity_id();
-        Datom::new(tx, DB_TX_TIME_ID, self.clock.now(), tx)
+        Datom::add(tx, DB_TX_TIME_ID, self.clock.now(), tx)
     }
 
     fn operation_datoms(
@@ -125,13 +121,7 @@ impl<S: Storage, C: Clock> Transactor<S, C> {
                     .find_datoms(&clause, last_tx)
                     .map_err(|err| TransactionError::StorageError(err))?;
                 for datom in datoms2 {
-                    datoms.push(Datom {
-                        entity,
-                        attribute: attribute_id,
-                        value: datom.value.clone(),
-                        tx,
-                        op: Op::Retracted,
-                    });
+                    datoms.push(Datom::retract(entity, attribute_id, datom.value, tx));
                 }
             }
 
@@ -146,7 +136,7 @@ impl<S: Storage, C: Clock> Transactor<S, C> {
                 return Err(TransactionError::InvalidAttributeType);
             }
 
-            datoms.push(Datom::new(entity, attribute_id, v, tx));
+            datoms.push(Datom::add(entity, attribute_id, v, tx));
         }
         Ok(datoms)
     }

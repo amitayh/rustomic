@@ -27,8 +27,8 @@ fn read_datoms_by_entity() {
     let attribute1 = 103;
     let attribute2 = 104;
     let datoms = vec![
-        Datom::new(entity, attribute1, 1u64, tx),
-        Datom::new(entity, attribute2, 2u64, tx),
+        Datom::add(entity, attribute1, 1u64, tx),
+        Datom::add(entity, attribute2, 2u64, tx),
     ];
     let save_result = storage.save(&datoms);
     assert!(save_result.is_ok());
@@ -44,9 +44,11 @@ fn retract_values() {
     let mut storage = InMemoryStorage::new();
 
     let entity = 100;
-    let attribute = 103;
+    let attribute = 101;
     let datoms = vec![
-        Datom::new(entity, attribute, 1u64, 1000),
+        // Add value 1 in tx 1000
+        Datom::add(entity, attribute, 1u64, 1000),
+        // Retract value 1 in tx 1001
         Datom::retract(entity, attribute, 1u64, 1001),
     ];
     let save_result = storage.save(&datoms);
@@ -56,4 +58,28 @@ fn retract_values() {
     let read_result = storage.find_datoms(&clause, 1001);
     assert!(read_result.is_ok());
     assert!(read_result.unwrap().is_empty());
+}
+
+#[test]
+fn replace_values() {
+    let mut storage = InMemoryStorage::new();
+
+    let entity = 100;
+    let attribute = 101;
+    let datoms = vec![
+        // Add value 1 in tx 1000
+        Datom::add(entity, attribute, 1u64, 1000),
+        // Replace value 1 with 2 in tx 1001
+        Datom::retract(entity, attribute, 1u64, 1001),
+        Datom::add(entity, attribute, 2u64, 1001),
+    ];
+    let save_result = storage.save(&datoms);
+    assert!(save_result.is_ok());
+
+    let clause = Clause::new().with_entity(EntityPattern::Id(entity));
+    let read_result = storage.find_datoms(&clause, 1001);
+    assert!(read_result.is_ok());
+
+    let expected_result = vec![Datom::add(entity, attribute, 2u64, 1001)];
+    assert_eq!(expected_result, read_result.unwrap());
 }

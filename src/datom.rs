@@ -99,7 +99,7 @@ pub struct Datom {
 }
 
 impl Datom {
-    pub fn new<V: Into<Value>>(entity: u64, attribute: u64, value: V, tx: u64) -> Datom {
+    pub fn add<V: Into<Value>>(entity: u64, attribute: u64, value: V, tx: u64) -> Datom {
         Datom {
             entity,
             attribute,

@@ -9,11 +9,6 @@ use crate::storage::StorageError;
 
 trait Pattern {
     fn variable_name(&self) -> Option<&str>;
-
-    fn assigned_value<'a>(&'a self, assignment: &'a Assignment) -> Option<&Value> {
-        self.variable_name()
-            .and_then(|variable| assignment.assigned.get(variable))
-    }
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -166,7 +161,8 @@ impl<'a> Clause<'a> {
     ///     .with_attribute(AttributePattern::variable("bar"))
     ///     .with_value(ValuePattern::variable("baz"));
     ///
-    /// let mut assignment = Assignment::new(clause.free_variables().into_iter().collect());
+    /// let query = Query::new().wher(clause.clone());
+    /// let mut assignment = Assignment::from_query(&query);
     /// assignment.assign("foo", 1u64);
     /// assignment.assign("bar", 2u64);
     /// assignment.assign("baz", 3u64);
@@ -179,13 +175,13 @@ impl<'a> Clause<'a> {
     /// ```
     pub fn assign(&self, assignment: &Assignment) -> Self {
         let mut clause = self.clone();
-        if let Some(Value::U64(entity)) = self.entity.assigned_value(assignment) {
+        if let Some(Value::U64(entity)) = assignment.assigned_value(&self.entity) {
             clause.entity = EntityPattern::Id(*entity);
         }
-        if let Some(Value::U64(attribute)) = self.attribute.assigned_value(assignment) {
+        if let Some(Value::U64(attribute)) = assignment.assigned_value(&self.attribute) {
             clause.attribute = AttributePattern::Id(*attribute);
         }
-        if let Some(value) = self.value.assigned_value(assignment) {
+        if let Some(value) = assignment.assigned_value(&self.value) {
             clause.value = ValuePattern::Constant(value.clone());
         }
         clause
@@ -234,6 +230,17 @@ impl<'a> Assignment<'a> {
         }
     }
 
+    /// ```
+    /// use rustomic::query::*;
+    ///
+    /// let query = Query::new().wher(
+    ///     Clause::new()
+    ///         .with_entity(EntityPattern::variable("foo"))
+    ///         .with_attribute(AttributePattern::variable("bar"))
+    ///         .with_value(ValuePattern::variable("baz")),
+    /// );
+    /// let assignment = Assignment::from_query(&query);
+    /// ```
     pub fn from_query(query: &'a Query) -> Self {
         Assignment::new(
             query
@@ -244,10 +251,49 @@ impl<'a> Assignment<'a> {
         )
     }
 
+    /// ```
+    /// use std::collections::HashSet;
+    /// use rustomic::query::*;
+    ///
+    /// let mut variables = HashSet::new();
+    /// variables.insert("?foo");
+    /// let mut assignment = Assignment::new(variables);
+    /// assert!(!assignment.is_complete());
+    ///
+    /// assignment.assign("?foo", 42u64);
+    /// assert!(assignment.is_complete());
+    /// ```
     pub fn is_complete(&self) -> bool {
         self.unassigned.is_empty()
     }
 
+    /// ```
+    /// use std::collections::HashSet;
+    /// use rustomic::query::*;
+    /// use rustomic::datom::*;
+    ///
+    /// let mut variables = HashSet::new();
+    /// variables.insert("?entity");
+    /// variables.insert("?attribute");
+    /// variables.insert("?value");
+    /// let assignment = Assignment::new(variables);
+    ///
+    /// let clause = Clause::new()
+    ///     .with_entity(EntityPattern::Variable("?entity"))
+    ///     .with_attribute(AttributePattern::Variable("?attribute"))
+    ///     .with_value(ValuePattern::Variable("?value"));
+    ///
+    /// let entity = 1u64;
+    /// let attribute = 2u64;
+    /// let value = 3u64;
+    /// let tx = 4u64;
+    /// let datom = Datom::add(entity, attribute, value, tx);
+    /// let updated = assignment.update_with(&clause, datom);
+    ///
+    /// assert_eq!(Value::U64(entity), updated.assigned["?entity"]);
+    /// assert_eq!(Value::U64(attribute), updated.assigned["?attribute"]);
+    /// assert_eq!(Value::U64(value), updated.assigned["?value"]);
+    /// ```
     pub fn update_with(&self, clause: &Clause, datom: Datom) -> Self {
         let mut assignment = self.clone();
         if let Some(entity_variable) = clause.entity.variable_name() {
@@ -260,6 +306,10 @@ impl<'a> Assignment<'a> {
             assignment.assign(value_variable, datom.value.clone());
         }
         assignment
+    }
+
+    fn assigned_value<P: Pattern>(&self, pattern: &P) -> Option<&Value> {
+        pattern.variable_name().and_then(|variable| self.assigned.get(variable))
     }
 
     pub fn assign<V: Into<Value>>(&mut self, variable: &str, value: V) {

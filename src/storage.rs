@@ -189,13 +189,7 @@ impl InMemoryStorage {
             for (attribute, vt) in self.a_iter(avt, &clause.attribute) {
                 let v_iter = self.v_iter(vt, &clause.value);
                 for (value, tx) in self.latest_values(v_iter, tx_range) {
-                    datoms.push(Datom {
-                        entity: *entity,
-                        attribute: *attribute,
-                        value: value.clone(),
-                        tx,
-                        op: Op::Added,
-                    })
+                    datoms.push(Datom::add(*entity, *attribute, value.clone(), tx));
                 }
             }
         }
@@ -210,12 +204,8 @@ impl InMemoryStorage {
                         let v_iter = self.v_iter(vt, &clause.value);
                         self.latest_values(v_iter, tx_range)
                             .into_iter()
-                            .map(move |(value, tx)| Datom {
-                                entity: *entity,
-                                attribute: *attribute,
-                                value: value.clone(),
-                                tx,
-                                op: Op::Added,
+                            .map(move |(value, tx)| {
+                                Datom::add(*entity, *attribute, value.clone(), tx)
                             })
                     })
             })
@@ -227,13 +217,7 @@ impl InMemoryStorage {
             for (entity, vt) in self.e_iter(evt, &clause.entity) {
                 let v_iter = self.v_iter(vt, &clause.value);
                 for (value, tx) in self.latest_values(v_iter, tx_range) {
-                    datoms.push(Datom {
-                        entity: *entity,
-                        attribute: *attribute,
-                        value: value.clone(),
-                        tx,
-                        op: Op::Added,
-                    })
+                    datoms.push(Datom::add(*entity, *attribute, value.clone(), tx))
                 }
             }
         }

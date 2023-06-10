@@ -26,26 +26,71 @@ pub trait Storage {
     //fn find_datoms(&self, clause: &Clause) -> Result<Self::Iter, StorageError>;
 }
 
+// +-------+---------------------------------+--------------------------------+
+// | Index | Sort order                      | Contains                       |
+// +-------+---------------------------------+--------------------------------+
+// | EAVT  | entity / attribute / value / tx | All datoms                     |
+// | AEVT  | attribute / entity / value / tx | All datoms                     |
+// | AVET  | attribute / value / entity / tx | Datoms with indexed attributes |
+// +-------+---------------------------------+--------------------------------+
+//
 // https://docs.datomic.com/pro/query/indexes.html
 pub struct InMemoryStorage {
     // The EAVT index provides efficient access to everything about a given entity. Conceptually
     // this is very similar to row access style in a SQL database, except that entities can possess
     // arbitrary attributes rather than being limited to a predefined set of columns.
+    //
+    // The example below shows all of the facts about entity 42 grouped together:
+    //
+    //   +----+----------------+------------------------+------+--------+
+    //   | E  | A              | V                      | Tx   | Op    |
+    //   +----+----------------+------------------------+------+--------+
+    //   | 41 | release/name   | "Abbey Road"           | 1100 | Added |
+    // * | 42 | release/name   | "Magical Mystery Tour" | 1007 | Added |
+    // * | 42 | release/year   | 1967                   | 1007 | Added |
+    // * | 42 | release/artist | "The Beatles"          | 1007 | Added |
+    //   | 43 | release/name   | "Let It Be"            | 1234 | Added |
+    //   +----+----------------+------------------------+------+--------+
+    //
+    // EAVT is also useful in master or detail lookups, since the references to detail entities are
+    // just ordinary versus alongside the scalar attributes of the master entity. Better still,
+    // Datomic assigns entity ids so that when master and detail records are created in the same
+    // transaction, they are colocated in EAVT.
     eavt: Index<EntityId, AttributeId, Value>,
 
     // The AEVT index provides efficient access to all values for a given attribute, comparable to
-    // the traditional column access style. In the table below, notice how all :release/name
-    // attributes are grouped together.
+    // the traditional column access style. In the table below, notice how all release/name
+    // attributes are grouped together. This allows Datomic to efficiently query for all values of
+    // the release/name attribute, because they reside next to one another in this index.
+    //
+    //   +----------------+----+------------------------+------+--------+
+    //   | A              | E  | V                      | Tx   | Op    |
+    //   +----------------+----+------------------------+------+--------+
+    //   | release/artist | 42 | "The Beatles"          | 1007 | Added |
+    // * | release/name   | 41 | "Abbey Road"           | 1100 | Added |
+    // * | release/name   | 42 | "Magical Mystery Tour" | 1007 | Added |
+    // * | release/name   | 43 | "Let It Be"            | 1234 | Added |
+    //   | release/year   | 42 | 1967                   | 1007 | Added |
+    //   +----------------+----+------------------------+------+--------+
     aevt: Index<AttributeId, EntityId, Value>,
 
     // The AVET index provides efficient access to particular combinations of attribute and value.
-    // The example below shows a portion of the AVET index allowing lookup by :release/names. The
-    // AVET index is more expensive to maintain than other indexes, and as such it is the only
-    // index that is not enabled by default. To maintain AVET for an attribute, specify :db/index
-    // true (or some value for :db/unique) when installing or altering the attribute. The AVET
-    // index also supports the indexRange API, which returns all attribute values in a particular
-    // range.
-    // TODO: this should only contain datoms with index
+    // The example below shows a portion of the AVET index allowing lookup by release/names.
+    //
+    // The AVET index is more expensive to maintain than other indexes, and as such it is the only
+    // index that is not enabled by default. To maintain AVET for an attribute, specify db/index
+    // true (or some value for db/unique) when installing or altering the attribute.
+    //
+    //   +----------------+------------------------+----+------+--------+
+    //   | A              | V                      | E  | Tx   | Op    |
+    //   +----------------+------------------------+----+------+--------+
+    //   | release/name   | "Abbey Road"           | 41 | 1100 | Added |
+    // * | release/name   | "Let It Be"            | 43 | 1234 | Added |
+    // * | release/name   | "Let It Be"            | 55 | 2367 | Added |
+    //   | release/name   | "Magical Mystery Tour" | 42 | 1007 | Added |
+    //   | release/year   | 1967                   | 42 | 1007 | Added |
+    //   | release/year   | 1984                   | 55 | 2367 | Added |
+    //   +----------------+------------------------+----+------+--------+
     avet: Index<AttributeId, Value, EntityId>,
 
     // Lookup entity ID by ident
@@ -80,7 +125,10 @@ impl Storage for InMemoryStorage {
     }
 
     fn resolve_ident(&self, ident: &str) -> Result<EntityId, StorageError> {
-        self.resolve_ident_internal(ident).copied()
+        self.ident_to_entity
+            .get(ident)
+            .copied()
+            .ok_or_else(|| StorageError::IdentNotFound(String::from(ident)))
     }
 
     fn find_datoms(&self, clause: &Clause, tx_range: u64) -> Result<Vec<Datom>, StorageError> {
@@ -138,7 +186,7 @@ impl InMemoryStorage {
     fn find_datoms_eavt(&self, clause: &Clause, tx_range: u64) -> Result<Vec<Datom>, StorageError> {
         let mut datoms = Vec::new();
         for (entity, avt) in self.e_iter(&self.eavt, &clause.entity) {
-            for (attribute, vt) in self.a_iter(avt, &clause.attribute)? {
+            for (attribute, vt) in self.a_iter(avt, &clause.attribute) {
                 let v_iter = self.v_iter(vt, &clause.value);
                 for (value, tx) in self.latest_values(v_iter, tx_range) {
                     datoms.push(Datom {
@@ -154,28 +202,28 @@ impl InMemoryStorage {
         Ok(datoms)
     }
 
+    fn _lala<'a>(&'a self, clause: &'a Clause, tx_range: u64) -> impl Iterator<Item = Datom> + 'a {
+        self.a_iter(&self.aevt, &clause.attribute)
+            .flat_map(move |(attribute, evt)| {
+                self.e_iter(evt, &clause.entity)
+                    .flat_map(move |(entity, vt)| {
+                        let v_iter = self.v_iter(vt, &clause.value);
+                        self.latest_values(v_iter, tx_range)
+                            .into_iter()
+                            .map(move |(value, tx)| Datom {
+                                entity: *entity,
+                                attribute: *attribute,
+                                value: value.clone(),
+                                tx,
+                                op: Op::Added,
+                            })
+                    })
+            })
+    }
+
     fn find_datoms_aevt(&self, clause: &Clause, tx_range: u64) -> Result<Vec<Datom>, StorageError> {
         let mut datoms = Vec::new();
-
-        /*
-        let foo = self.a_iter(&self.aevt, &clause.attribute)?.flat_map(|(attribute, evt)| {
-            self.e_iter(evt, &clause.entity).flat_map(|(entity, vt)| {
-                self.v_iter(vt, &clause.value).flat_map(|(value, t)| {
-                    t.last_key_value().map(|(tx, op)| {
-                        Datom {
-                            entity: *entity,
-                            attribute: *attribute,
-                            value: value.clone(),
-                            tx: *tx,
-                            op: *op,
-                        }
-                    }).into_iter()
-                })
-            })
-        });
-        */
-
-        for (attribute, evt) in self.a_iter(&self.aevt, &clause.attribute)? {
+        for (attribute, evt) in self.a_iter(&self.aevt, &clause.attribute) {
             for (entity, vt) in self.e_iter(evt, &clause.entity) {
                 let v_iter = self.v_iter(vt, &clause.value);
                 for (value, tx) in self.latest_values(v_iter, tx_range) {
@@ -199,7 +247,7 @@ impl InMemoryStorage {
     ) -> Result<Vec<Datom>, StorageError> {
         // TODO latest values?
         let mut datoms = Vec::new();
-        for (attribute, vet) in self.a_iter(&self.avet, &clause.attribute)? {
+        for (attribute, vet) in self.a_iter(&self.avet, &clause.attribute) {
             for (value, et) in self.v_iter(vet, &clause.value) {
                 for (entity, t) in self.e_iter(et, &clause.entity) {
                     for (tx, op) in t.range(..=tx_range) {
@@ -232,14 +280,15 @@ impl InMemoryStorage {
         &'a self,
         map: &'a BTreeMap<AttributeId, V>,
         attribute: &'a AttributePattern,
-    ) -> Result<Iter<'a, AttributeId, V>, StorageError> {
+    ) -> Iter<'a, AttributeId, V> {
         match attribute {
-            AttributePattern::Id(id) => Ok(self.kv_iter(map, id)),
-            AttributePattern::Ident(ident) => {
-                let id = self.resolve_ident_internal(ident)?;
-                Ok(self.kv_iter(map, id))
-            }
-            _ => Ok(Iter::Many(map.iter())),
+            AttributePattern::Id(id) => self.kv_iter(map, id),
+            AttributePattern::Ident(ident) => Iter::One(
+                self.ident_to_entity
+                    .get(*ident)
+                    .and_then(|attribute| map.get_key_value(attribute)),
+            ),
+            _ => Iter::Many(map.iter()),
         }
     }
 
@@ -259,11 +308,6 @@ impl InMemoryStorage {
         map.get(key)
             .map(|value| Iter::One(Some((key, value))))
             .unwrap_or(Iter::Zero)
-    }
-
-    fn resolve_ident_internal<'a>(&'a self, ident: &str) -> Result<&'a EntityId, StorageError> {
-        let entity = self.ident_to_entity.get(ident);
-        entity.ok_or_else(|| StorageError::IdentNotFound(String::from(ident)))
     }
 
     fn latest_values<'a, In: Iterator<Item = (&'a Value, &'a TxOp)>>(

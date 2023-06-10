@@ -60,7 +60,7 @@ mod tests {
                 Clause::new()
                     .with_entity(EntityPattern::variable("?name"))
                     .with_attribute(AttributePattern::ident("person/name"))
-                    .with_value(ValuePattern::constant("Eve")),
+                    .with_value(ValuePattern::constant(&Value::str("Eve"))),
             ),
         );
 
@@ -99,7 +99,7 @@ mod tests {
                 Clause::new()
                     .with_entity(EntityPattern::variable("?joe"))
                     .with_attribute(AttributePattern::ident("person/name"))
-                    .with_value(ValuePattern::constant("Joe")),
+                    .with_value(ValuePattern::constant(&Value::str("Joe"))),
             ),
         );
 
@@ -176,7 +176,7 @@ mod tests {
                     Clause::new()
                         .with_entity(EntityPattern::variable("?artist"))
                         .with_attribute(AttributePattern::ident("artist/name"))
-                        .with_value(ValuePattern::constant("John Lenon")),
+                        .with_value(ValuePattern::constant(&Value::str("John Lenon"))),
                 )
                 .wher(
                     Clause::new()

@@ -63,7 +63,7 @@ impl<'a> Pattern for AttributePattern<'a> {
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum ValuePattern<'a> {
     Variable(&'a str),
-    Constant(Value),
+    Constant(&'a Value),
     Range(Bound<&'a Value>, Bound<&'a Value>),
     Blank,
 }
@@ -73,8 +73,8 @@ impl<'a> ValuePattern<'a> {
         ValuePattern::Variable(name)
     }
 
-    pub fn constant<V: Into<Value>>(value: V) -> Self {
-        ValuePattern::Constant(value.into())
+    pub fn constant(value: &'a Value) -> Self {
+        ValuePattern::Constant(value)
     }
 
     pub fn range<R: RangeBounds<Value>>(range: &'a R) -> Self {
@@ -171,9 +171,9 @@ impl<'a> Clause<'a> {
     ///
     /// assert_eq!(EntityPattern::Id(1), assigned.entity);
     /// assert_eq!(AttributePattern::Id(2), assigned.attribute);
-    /// assert_eq!(ValuePattern::Constant(Value::U64(3)), assigned.value);
+    /// assert_eq!(ValuePattern::Constant(&Value::U64(3)), assigned.value);
     /// ```
-    pub fn assign(&self, assignment: &Assignment) -> Self {
+    pub fn assign(&self, assignment: &'a Assignment) -> Self {
         let mut clause = self.clone();
         if let Some(Value::U64(entity)) = assignment.assigned_value(&self.entity) {
             clause.entity = EntityPattern::Id(*entity);
@@ -182,7 +182,7 @@ impl<'a> Clause<'a> {
             clause.attribute = AttributePattern::Id(*attribute);
         }
         if let Some(value) = assignment.assigned_value(&self.value) {
-            clause.value = ValuePattern::Constant(value.clone());
+            clause.value = ValuePattern::Constant(value);
         }
         clause
     }
@@ -309,7 +309,9 @@ impl<'a> Assignment<'a> {
     }
 
     fn assigned_value<P: Pattern>(&self, pattern: &P) -> Option<&Value> {
-        pattern.variable_name().and_then(|variable| self.assigned.get(variable))
+        pattern
+            .variable_name()
+            .and_then(|variable| self.assigned.get(variable))
     }
 
     pub fn assign<V: Into<Value>>(&mut self, variable: &str, value: V) {

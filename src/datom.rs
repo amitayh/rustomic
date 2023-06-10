@@ -7,6 +7,10 @@ pub enum Value {
 }
 
 impl Value {
+    pub fn str(str: &str) -> Value {
+        Value::Str(String::from(str))
+    }
+
     /// ```
     /// use rustomic::datom::Value;
     ///

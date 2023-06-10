@@ -4,27 +4,14 @@ use std::collections::BTreeMap;
 use std::collections::HashMap;
 
 use crate::datom::*;
-use crate::query::*;
+use crate::storage::*;
+use crate::query::clause::Clause;
+use crate::query::pattern::*;
+use crate::schema::default::*;
 use crate::schema::*;
 
-// TODO: create structs?
-type EntityId = u64;
-type AttributeId = u64;
-type TransactionId = u64;
 type TxOp = BTreeMap<TransactionId, Op>;
 type Index<A, B, C> = BTreeMap<A, BTreeMap<B, BTreeMap<C, TxOp>>>;
-
-// TODO: separate read / write?
-pub trait Storage {
-    //type Iter: Iterator<Item = Datom>;
-
-    fn save(&mut self, datoms: &Vec<Datom>) -> Result<(), StorageError>;
-
-    fn resolve_ident(&self, ident: &str) -> Result<EntityId, StorageError>;
-
-    fn find_datoms(&self, clause: &Clause, tx_range: u64) -> Result<Vec<Datom>, StorageError>;
-    //fn find_datoms(&self, clause: &Clause) -> Result<Self::Iter, StorageError>;
-}
 
 // +-------+---------------------------------+--------------------------------+
 // | Index | Sort order                      | Contains                       |
@@ -340,9 +327,4 @@ impl<'a, K, V> Iterator for Iter<'a, K, V> {
             Iter::Many(iter) => iter.next(),
         }
     }
-}
-
-#[derive(Debug)]
-pub enum StorageError {
-    IdentNotFound(String),
 }

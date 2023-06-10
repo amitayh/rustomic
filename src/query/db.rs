@@ -2,6 +2,8 @@ use std::collections::HashMap;
 use std::sync::{Arc, RwLock, RwLockReadGuard};
 
 use crate::datom::Value;
+use crate::query::assignment::*;
+use crate::query::clause::*;
 use crate::query::*;
 use crate::storage::Storage;
 

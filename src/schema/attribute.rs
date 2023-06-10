@@ -1,24 +1,6 @@
-use crate::datom::Datom;
 use crate::datom::Value;
+use crate::schema::*;
 use crate::tx;
-
-pub const DB_ATTR_IDENT_IDENT: &str = "db/attr/ident";
-pub const DB_ATTR_IDENT_ID: u64 = 1;
-
-pub const DB_ATTR_CARDINALITY_IDENT: &str = "db/attr/cardinality";
-pub const DB_ATTR_CARDINALITY_ID: u64 = 2;
-
-pub const DB_ATTR_TYPE_IDENT: &str = "db/attr/type";
-pub const DB_ATTR_TYPE_ID: u64 = 3;
-
-pub const DB_ATTR_DOC_IDENT: &str = "db/attr/doc";
-pub const DB_ATTR_DOC_ID: u64 = 4;
-
-pub const DB_ATTR_UNIQUE_IDENT: &str = "db/attr/unique";
-pub const DB_ATTR_UNIQUE_ID: u64 = 5;
-
-pub const DB_TX_TIME_IDENT: &str = "db/tx/time";
-pub const DB_TX_TIME_ID: u64 = 6;
 
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
 pub enum ValueType {
@@ -31,7 +13,7 @@ pub enum ValueType {
 
 impl ValueType {
     /// ```
-    /// use rustomic::schema::ValueType;
+    /// use rustomic::schema::attribute::ValueType;
     ///
     /// let value_types = vec![
     ///     ValueType::I64,
@@ -60,7 +42,7 @@ impl ValueType {
 impl Value {
     /// ```
     /// use rustomic::datom::Value;
-    /// use rustomic::schema::ValueType;
+    /// use rustomic::schema::attribute::ValueType;
     ///
     /// assert!(Value::I64(42).matches_type(ValueType::I64));
     /// assert!(Value::U64(42).matches_type(ValueType::U64));
@@ -86,7 +68,7 @@ pub enum Cardinality {
 
 impl Cardinality {
     /// ```
-    /// use rustomic::schema::Cardinality;
+    /// use rustomic::schema::attribute::Cardinality;
     ///
     /// assert_eq!(Some(Cardinality::One), Cardinality::from(0));
     /// assert_eq!(Some(Cardinality::Many), Cardinality::from(1));
@@ -144,44 +126,4 @@ impl<'a> Attribute<'a> {
         }
         operation
     }
-}
-
-#[rustfmt::skip]
-pub fn default_datoms() -> Vec<Datom> {
-    let tx = 0u64;
-    vec![
-        // first transaction
-        Datom::add(tx, DB_TX_TIME_ID, 0u64, tx),
-        // "db/attr/ident" attribute
-        Datom::add(DB_ATTR_IDENT_ID, DB_ATTR_IDENT_ID, DB_ATTR_IDENT_IDENT, tx),
-        Datom::add(DB_ATTR_IDENT_ID, DB_ATTR_DOC_ID, "Human readable name of attribute", tx),
-        Datom::add(DB_ATTR_IDENT_ID, DB_ATTR_TYPE_ID, ValueType::Str as u64, tx),
-        Datom::add(DB_ATTR_IDENT_ID, DB_ATTR_CARDINALITY_ID, Cardinality::One as u64, tx),
-        Datom::add(DB_ATTR_IDENT_ID, DB_ATTR_UNIQUE_ID, 1u64, tx),
-        // "db/attr/doc" attribute
-        Datom::add(DB_ATTR_DOC_ID, DB_ATTR_IDENT_ID, DB_ATTR_DOC_IDENT, tx),
-        Datom::add(DB_ATTR_DOC_ID, DB_ATTR_DOC_ID, "Documentation of attribute", tx),
-        Datom::add(DB_ATTR_DOC_ID, DB_ATTR_TYPE_ID, ValueType::Str as u64, tx),
-        Datom::add(DB_ATTR_DOC_ID, DB_ATTR_CARDINALITY_ID, Cardinality::One as u64, tx),
-        // "db/attr/type" attribute
-        Datom::add(DB_ATTR_TYPE_ID, DB_ATTR_IDENT_ID, DB_ATTR_TYPE_IDENT, tx),
-        Datom::add(DB_ATTR_TYPE_ID, DB_ATTR_DOC_ID, "Data type of attribute", tx),
-        Datom::add(DB_ATTR_TYPE_ID, DB_ATTR_TYPE_ID, ValueType::U64 as u64, tx),
-        Datom::add(DB_ATTR_TYPE_ID, DB_ATTR_CARDINALITY_ID, Cardinality::One as u64, tx),
-        // "db/attr/cardinality" attribute
-        Datom::add(DB_ATTR_CARDINALITY_ID, DB_ATTR_IDENT_ID, DB_ATTR_CARDINALITY_IDENT, tx),
-        Datom::add(DB_ATTR_CARDINALITY_ID, DB_ATTR_DOC_ID, "Cardinality of attribyte", tx),
-        Datom::add(DB_ATTR_CARDINALITY_ID, DB_ATTR_TYPE_ID, ValueType::U64 as u64, tx),
-        Datom::add(DB_ATTR_CARDINALITY_ID, DB_ATTR_CARDINALITY_ID, Cardinality::One as u64, tx),
-        // "db/attr/unique" attribute
-        Datom::add(DB_ATTR_UNIQUE_ID, DB_ATTR_IDENT_ID, DB_ATTR_UNIQUE_IDENT, tx),
-        Datom::add(DB_ATTR_UNIQUE_ID, DB_ATTR_DOC_ID, "Indicates this attribute is unique", tx),
-        Datom::add(DB_ATTR_UNIQUE_ID, DB_ATTR_TYPE_ID, ValueType::U64 as u64, tx),
-        Datom::add(DB_ATTR_UNIQUE_ID, DB_ATTR_CARDINALITY_ID, Cardinality::One as u64, tx),
-        // "db/tx/time" attribute
-        Datom::add(DB_TX_TIME_ID, DB_ATTR_IDENT_ID, DB_TX_TIME_IDENT, tx),
-        Datom::add(DB_TX_TIME_ID, DB_ATTR_DOC_ID, "Transaction's wall clock time", tx),
-        Datom::add(DB_TX_TIME_ID, DB_ATTR_TYPE_ID, ValueType::U64 as u64, tx),
-        Datom::add(DB_TX_TIME_ID, DB_ATTR_CARDINALITY_ID, Cardinality::One as u64, tx),
-    ]
 }

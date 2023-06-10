@@ -17,9 +17,8 @@ impl Value {
     /// let str_value = Value::Str(String::from("foo"));
     /// assert_eq!(None, str_value.as_u64());
     ///
-    /// let value = 42;
-    /// let u64_value = Value::U64(value);
-    /// assert_eq!(Some(&value), u64_value.as_u64());
+    /// let u64_value = Value::U64(42);
+    /// assert_eq!(Some(&42), u64_value.as_u64());
     /// ```
     pub fn as_u64(&self) -> Option<&u64> {
         match self {

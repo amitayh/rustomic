@@ -1,3 +1,5 @@
+pub mod transactor;
+
 use std::collections::HashMap;
 
 use crate::datom::Datom;

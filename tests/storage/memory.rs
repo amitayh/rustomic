@@ -1,8 +1,10 @@
 extern crate rustomic;
 
 use rustomic::datom::*;
-use rustomic::query::*;
+use rustomic::query::clause::*;
+use rustomic::query::pattern::*;
 use rustomic::storage::*;
+use rustomic::storage::memory::*;
 
 #[test]
 fn read_datoms_by_entity_which_does_not_exist() {

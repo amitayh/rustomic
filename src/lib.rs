@@ -1,10 +1,8 @@
 pub mod clock;
 pub mod datom;
-pub mod db;
 pub mod query;
 pub mod schema;
 pub mod storage;
-pub mod transactor;
 pub mod tx;
 
 #[cfg(test)]
@@ -14,13 +12,15 @@ mod tests {
     use std::sync::RwLock;
 
     use crate::clock::MockClock;
-    use crate::storage::InMemoryStorage;
+    use crate::storage::memory::InMemoryStorage;
 
     use super::datom::*;
-    use super::db::*;
+    use super::query::db::*;
+    use super::query::clause::Clause;
+    use super::query::pattern::*;
     use super::query::*;
-    use super::schema::*;
-    use super::transactor::*;
+    use super::schema::attribute::*;
+    use super::tx::transactor::*;
     use super::tx::*;
 
     fn create_db() -> (

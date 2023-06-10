@@ -108,4 +108,14 @@ impl Datom {
             op: Op::Added,
         }
     }
+
+    pub fn retract<V: Into<Value>>(entity: u64, attribute: u64, value: V, tx: u64) -> Datom {
+        Datom {
+            entity,
+            attribute,
+            value: value.into(),
+            tx,
+            op: Op::Retracted,
+        }
+    }
 }

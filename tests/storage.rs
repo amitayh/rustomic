@@ -38,3 +38,22 @@ fn read_datoms_by_entity() {
     assert!(read_result.is_ok());
     assert_eq!(datoms, read_result.unwrap());
 }
+
+#[test]
+fn retract_values() {
+    let mut storage = InMemoryStorage::new();
+
+    let entity = 100;
+    let attribute = 103;
+    let datoms = vec![
+        Datom::new(entity, attribute, 1u64, 1000),
+        Datom::retract(entity, attribute, 1u64, 1001),
+    ];
+    let save_result = storage.save(&datoms);
+    assert!(save_result.is_ok());
+
+    let clause = Clause::new().with_entity(EntityPattern::Id(entity));
+    let read_result = storage.find_datoms(&clause, 1001);
+    assert!(read_result.is_ok());
+    assert!(read_result.unwrap().is_empty());
+}

@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"enum":["QueryError"],"mod":["assignment","clause","db","pattern"],"struct":["Query","QueryResult"]};

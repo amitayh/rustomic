@@ -121,3 +121,4 @@ fn replace_values_avet() {
     let expected_result = vec![Datom::add(entity, attribute, 2u64, 1001)];
     assert_eq!(expected_result, read_result2.unwrap());
 }
+

@@ -117,8 +117,7 @@ fn replace_values_avet() {
 
     let read_result2 = storage.find_datoms(&clause2, 1001);
     assert!(read_result2.is_ok());
-    
+
     let expected_result = vec![Datom::add(entity, attribute, 2u64, 1001)];
     assert_eq!(expected_result, read_result2.unwrap());
 }
-

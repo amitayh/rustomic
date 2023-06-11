@@ -3,8 +3,8 @@ extern crate rustomic;
 use rustomic::datom::*;
 use rustomic::query::clause::*;
 use rustomic::query::pattern::*;
-use rustomic::storage::*;
 use rustomic::storage::memory::*;
+use rustomic::storage::*;
 
 #[test]
 fn read_datoms_by_entity_which_does_not_exist() {
@@ -84,4 +84,40 @@ fn replace_values() {
 
     let expected_result = vec![Datom::add(entity, attribute, 2u64, 1001)];
     assert_eq!(expected_result, read_result.unwrap());
+}
+
+#[test]
+fn replace_values_avet() {
+    let mut storage = InMemoryStorage::new();
+
+    let entity = 100;
+    let attribute = 101;
+    let datoms = vec![
+        // Add value 1 in tx 1000
+        Datom::add(entity, attribute, 1u64, 1000),
+        // Replace value 1 with 2 in tx 1001
+        Datom::retract(entity, attribute, 1u64, 1001),
+        Datom::add(entity, attribute, 2u64, 1001),
+    ];
+    let save_result = storage.save(&datoms);
+    assert!(save_result.is_ok());
+
+    // Force storage to use AVET index
+    let clause1 = Clause::new()
+        .with_attribute(AttributePattern::Id(attribute))
+        .with_value(ValuePattern::constant(&Value::U64(1)));
+
+    let read_result1 = storage.find_datoms(&clause1, 1001);
+    assert!(read_result1.is_ok());
+    assert!(read_result1.unwrap().is_empty());
+
+    let clause2 = Clause::new()
+        .with_attribute(AttributePattern::Id(attribute))
+        .with_value(ValuePattern::constant(&Value::U64(2)));
+
+    let read_result2 = storage.find_datoms(&clause2, 1001);
+    assert!(read_result2.is_ok());
+    
+    let expected_result = vec![Datom::add(entity, attribute, 2u64, 1001)];
+    assert_eq!(expected_result, read_result2.unwrap());
 }

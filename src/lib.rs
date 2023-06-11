@@ -15,8 +15,8 @@ mod tests {
     use crate::storage::memory::InMemoryStorage;
 
     use super::datom::*;
-    use super::query::db::*;
     use super::query::clause::Clause;
+    use super::query::db::*;
     use super::query::pattern::*;
     use super::query::*;
     use super::schema::attribute::*;

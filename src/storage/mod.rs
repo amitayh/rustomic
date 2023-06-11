@@ -20,7 +20,6 @@ pub trait Storage {
     //fn find_datoms(&self, clause: &Clause) -> Result<Self::Iter, StorageError>;
 }
 
-
 #[derive(Debug)]
 pub enum StorageError {
     IdentNotFound(String),

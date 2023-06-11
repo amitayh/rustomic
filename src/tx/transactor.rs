@@ -8,8 +8,8 @@ use crate::clock::Clock;
 use crate::datom::*;
 use crate::query::clause::Clause;
 use crate::query::pattern::*;
-use crate::schema::*;
 use crate::schema::attribute::*;
+use crate::schema::*;
 use crate::storage::*;
 use crate::tx::*;
 

@@ -4,11 +4,11 @@ use std::collections::BTreeMap;
 use std::collections::HashMap;
 
 use crate::datom::*;
-use crate::storage::*;
 use crate::query::clause::Clause;
 use crate::query::pattern::*;
 use crate::schema::default::*;
 use crate::schema::*;
+use crate::storage::*;
 
 type TxOp = BTreeMap<TransactionId, Op>;
 type Index<A, B, C> = BTreeMap<A, BTreeMap<B, BTreeMap<C, TxOp>>>;
@@ -216,19 +216,19 @@ impl InMemoryStorage {
         clause: &'a Clause,
         tx_range: u64,
     ) -> Result<Vec<Datom>, StorageError> {
-        // TODO latest values?
         let mut datoms = Vec::new();
         for (attribute, vet) in self.a_iter(&self.avet, &clause.attribute) {
             for (value, et) in self.v_iter(vet, &clause.value) {
                 for (entity, t) in self.e_iter(et, &clause.entity) {
+                    let mut latest_value_tx = None;
                     for (tx, op) in t.range(..=tx_range) {
-                        datoms.push(Datom {
-                            entity: *entity,
-                            attribute: *attribute,
-                            value: value.clone(),
-                            tx: *tx,
-                            op: *op,
-                        })
+                        latest_value_tx = match op {
+                            Op::Added => Some(tx),
+                            Op::Retracted => None,
+                        };
+                    }
+                    if let Some(tx) = latest_value_tx {
+                        datoms.push(Datom::add(*entity, *attribute, value.clone(), *tx));
                     }
                 }
             }

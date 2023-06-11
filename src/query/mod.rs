@@ -1,7 +1,7 @@
 pub mod assignment;
 pub mod clause;
-pub mod pattern;
 pub mod db;
+pub mod pattern;
 
 use std::collections::HashMap;
 

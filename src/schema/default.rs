@@ -1,6 +1,6 @@
 use crate::datom::*;
-use crate::schema::*;
 use crate::schema::attribute::*;
+use crate::schema::*;
 
 #[rustfmt::skip]
 pub fn default_datoms() -> Vec<Datom> {

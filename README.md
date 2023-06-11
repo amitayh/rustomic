@@ -1,5 +1,7 @@
 # Rustomic ![build status](https://github.com/amitayh/rustomic/actions/workflows/rust.yml/badge.svg)
 
+[[Docs](https://amitayh.github.io/rustomic/rustomic/index.html)]
+
 A simplified [Datomic](https://www.datomic.com/) clone built in Rust.
 
 *This project is for educational purposes and should not be used.*

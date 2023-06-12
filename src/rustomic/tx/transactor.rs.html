@@ -233,7 +233,7 @@
         <span class="kw">let </span>datoms = <span class="self">self</span>.transaction_datoms(<span class="kw-2">&amp;</span>transaction, <span class="kw-2">&amp;</span>temp_ids, last_tx)<span class="question-mark">?</span>;
         <span class="self">self</span>.write_storage()<span class="question-mark">?
             </span>.save(<span class="kw-2">&amp;</span>datoms)
-            .map_err(|err| TransactionError::StorageError(err))<span class="question-mark">?</span>;
+            .map_err(TransactionError::StorageError)<span class="question-mark">?</span>;
 
         <span class="prelude-val">Ok</span>(TransctionResult {
             tx_id: datoms[<span class="number">0</span>].tx,
@@ -306,7 +306,7 @@
         <span class="kw">for </span>AttributeValue { attribute, value } <span class="kw">in </span><span class="kw-2">&amp;</span>operation.attributes {
             <span class="kw">let </span>attribute_id = storage
                 .resolve_ident(attribute)
-                .map_err(|err| TransactionError::StorageError(err))<span class="question-mark">?</span>;
+                .map_err(TransactionError::StorageError)<span class="question-mark">?</span>;
 
             <span class="kw">let </span>(cardinality, value_type) = <span class="self">self</span>.attribute_metadata(attribute_id, last_tx)<span class="question-mark">?</span>;
             <span class="kw">if </span>cardinality == Cardinality::One {
@@ -316,7 +316,7 @@
                     .with_attribute(AttributePattern::Id(attribute_id));
                 <span class="kw">let </span>datoms2 = storage
                     .find_datoms(<span class="kw-2">&amp;</span>clause, last_tx)
-                    .map_err(|err| TransactionError::StorageError(err))<span class="question-mark">?</span>;
+                    .map_err(TransactionError::StorageError)<span class="question-mark">?</span>;
                 <span class="kw">for </span>datom <span class="kw">in </span>datoms2 {
                     datoms.push(Datom::retract(entity, attribute_id, datom.value, tx));
                 }
@@ -362,7 +362,7 @@
         <span class="kw">let </span>datoms = <span class="self">self
             </span>.read_storage()<span class="question-mark">?
             </span>.find_datoms(<span class="kw-2">&amp;</span>clause, last_tx)
-            .map_err(|err| TransactionError::StorageError(err))<span class="question-mark">?</span>;
+            .map_err(TransactionError::StorageError)<span class="question-mark">?</span>;
         <span class="kw">let </span><span class="kw-2">mut </span>cardinality = <span class="prelude-val">None</span>;
         <span class="kw">let </span><span class="kw-2">mut </span>value_type = <span class="prelude-val">None</span>;
         <span class="kw">for </span>datom <span class="kw">in </span>datoms {

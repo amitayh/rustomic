@@ -97,7 +97,7 @@
             <span class="kw">let </span>assigned_clause = clause.assign(<span class="kw-2">&amp;</span>assignment);
             <span class="kw">let </span>datoms = storage
                 .find_datoms(<span class="kw-2">&amp;</span>assigned_clause, <span class="self">self</span>.tx)
-                .map_err(|err| QueryError::StorageError(err))<span class="question-mark">?</span>;
+                .map_err(QueryError::StorageError)<span class="question-mark">?</span>;
 
             <span class="comment">// TODO can this be parallelized?
             </span><span class="kw">for </span>datom <span class="kw">in </span>datoms {

@@ -215,7 +215,7 @@
             assignment.assign(attribute_variable, datom.attribute);
         }
         <span class="kw">if let </span><span class="prelude-val">Some</span>(value_variable) = clause.value.variable_name() {
-            assignment.assign(value_variable, datom.value.clone());
+            assignment.assign(value_variable, datom.value);
         }
         assignment
     }

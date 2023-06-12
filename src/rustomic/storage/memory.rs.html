@@ -328,6 +328,12 @@
 <a href="#328" id="328">328</a>
 <a href="#329" id="329">329</a>
 <a href="#330" id="330">330</a>
+<a href="#331" id="331">331</a>
+<a href="#332" id="332">332</a>
+<a href="#333" id="333">333</a>
+<a href="#334" id="334">334</a>
+<a href="#335" id="335">335</a>
+<a href="#336" id="336">336</a>
 </pre></div><pre class="rust"><code><span class="kw">use </span>std::collections::btree_map;
 <span class="kw">use </span>std::collections::btree_map::Range;
 <span class="kw">use </span>std::collections::BTreeMap;
@@ -428,10 +434,16 @@
     }
 }
 
+<span class="kw">impl </span>Default <span class="kw">for </span>InMemoryStorage {
+    <span class="kw">fn </span>default() -&gt; <span class="self">Self </span>{
+        <span class="self">Self</span>::new()
+    }
+}
+
 <span class="kw">impl </span>Storage <span class="kw">for </span>InMemoryStorage {
     <span class="comment">//type Iter = std::slice::Iter&lt;&#39;a, Datom&gt;;
 
-    </span><span class="kw">fn </span>save(<span class="kw-2">&amp;mut </span><span class="self">self</span>, datoms: <span class="kw-2">&amp;</span>Vec&lt;Datom&gt;) -&gt; <span class="prelude-ty">Result</span>&lt;(), StorageError&gt; {
+    </span><span class="kw">fn </span>save(<span class="kw-2">&amp;mut </span><span class="self">self</span>, datoms: <span class="kw-2">&amp;</span>[Datom]) -&gt; <span class="prelude-ty">Result</span>&lt;(), StorageError&gt; {
         <span class="kw">for </span>datom <span class="kw">in </span>datoms {
             <span class="self">self</span>.update_eavt(datom);
             <span class="self">self</span>.update_aevt(datom);

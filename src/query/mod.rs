@@ -25,6 +25,12 @@ impl<'a> Query<'a> {
     }
 }
 
+impl<'a> Default for Query<'a> {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 #[derive(Debug)]
 pub struct QueryResult {
     pub results: Vec<HashMap<String, Value>>,

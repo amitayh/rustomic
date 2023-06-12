@@ -38,7 +38,7 @@ impl<S: Storage, C: Clock> Transactor<S, C> {
         let datoms = self.transaction_datoms(&transaction, &temp_ids, last_tx)?;
         self.write_storage()?
             .save(&datoms)
-            .map_err(|err| TransactionError::StorageError(err))?;
+            .map_err(TransactionError::StorageError)?;
 
         Ok(TransctionResult {
             tx_id: datoms[0].tx,
@@ -111,7 +111,7 @@ impl<S: Storage, C: Clock> Transactor<S, C> {
         for AttributeValue { attribute, value } in &operation.attributes {
             let attribute_id = storage
                 .resolve_ident(attribute)
-                .map_err(|err| TransactionError::StorageError(err))?;
+                .map_err(TransactionError::StorageError)?;
 
             let (cardinality, value_type) = self.attribute_metadata(attribute_id, last_tx)?;
             if cardinality == Cardinality::One {
@@ -121,7 +121,7 @@ impl<S: Storage, C: Clock> Transactor<S, C> {
                     .with_attribute(AttributePattern::Id(attribute_id));
                 let datoms2 = storage
                     .find_datoms(&clause, last_tx)
-                    .map_err(|err| TransactionError::StorageError(err))?;
+                    .map_err(TransactionError::StorageError)?;
                 for datom in datoms2 {
                     datoms.push(Datom::retract(entity, attribute_id, datom.value, tx));
                 }
@@ -167,7 +167,7 @@ impl<S: Storage, C: Clock> Transactor<S, C> {
         let datoms = self
             .read_storage()?
             .find_datoms(&clause, last_tx)
-            .map_err(|err| TransactionError::StorageError(err))?;
+            .map_err(TransactionError::StorageError)?;
         let mut cardinality = None;
         let mut value_type = None;
         for datom in datoms {

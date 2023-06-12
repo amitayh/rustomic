@@ -71,6 +71,12 @@ impl Transaction {
     }
 }
 
+impl Default for Transaction {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 #[derive(Debug)]
 pub struct TransctionResult {
     pub tx_id: u64,

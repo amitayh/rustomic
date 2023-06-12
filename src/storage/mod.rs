@@ -12,7 +12,7 @@ type TransactionId = u64;
 pub trait Storage {
     //type Iter: Iterator<Item = Datom>;
 
-    fn save(&mut self, datoms: &Vec<Datom>) -> Result<(), StorageError>;
+    fn save(&mut self, datoms: &[Datom]) -> Result<(), StorageError>;
 
     fn resolve_ident(&self, ident: &str) -> Result<EntityId, StorageError>;
 

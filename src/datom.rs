@@ -44,27 +44,27 @@ impl Value {
     }
 }
 
-impl Into<Value> for i32 {
-    fn into(self) -> Value {
-        Value::I64(self.into())
+impl From<i32> for Value {
+    fn from(val: i32) -> Self {
+        Value::I64(val.into())
     }
 }
 
-impl Into<Value> for u32 {
-    fn into(self) -> Value {
-        Value::U64(self.into())
+impl From<u32> for Value {
+    fn from(val: u32) -> Self {
+        Value::U64(val.into())
     }
 }
 
-impl Into<Value> for i64 {
-    fn into(self) -> Value {
-        Value::I64(self)
+impl From<i64> for Value {
+    fn from(val: i64) -> Self {
+        Value::I64(val)
     }
 }
 
-impl Into<Value> for u64 {
-    fn into(self) -> Value {
-        Value::U64(self)
+impl From<u64> for Value {
+    fn from(val: u64) -> Self {
+        Value::U64(val)
     }
 }
 
@@ -74,15 +74,15 @@ impl Into<Value> for u64 {
 //     }
 // }
 
-impl Into<Value> for &str {
-    fn into(self) -> Value {
-        Value::Str(String::from(self))
+impl From<&str> for Value {
+    fn from(val: &str) -> Self {
+        Value::Str(String::from(val))
     }
 }
 
-impl Into<Value> for String {
-    fn into(self) -> Value {
-        Value::Str(self)
+impl From<String> for Value {
+    fn from(val: String) -> Self {
+        Value::Str(val)
     }
 }
 

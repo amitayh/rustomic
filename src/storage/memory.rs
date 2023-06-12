@@ -98,10 +98,16 @@ impl InMemoryStorage {
     }
 }
 
+impl Default for InMemoryStorage {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl Storage for InMemoryStorage {
     //type Iter = std::slice::Iter<'a, Datom>;
 
-    fn save(&mut self, datoms: &Vec<Datom>) -> Result<(), StorageError> {
+    fn save(&mut self, datoms: &[Datom]) -> Result<(), StorageError> {
         for datom in datoms {
             self.update_eavt(datom);
             self.update_aevt(datom);

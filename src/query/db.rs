@@ -40,7 +40,7 @@ impl<S: Storage> Db<S> {
             let assigned_clause = clause.assign(&assignment);
             let datoms = storage
                 .find_datoms(&assigned_clause, self.tx)
-                .map_err(|err| QueryError::StorageError(err))?;
+                .map_err(QueryError::StorageError)?;
 
             // TODO can this be parallelized?
             for datom in datoms {

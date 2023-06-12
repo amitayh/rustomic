@@ -98,7 +98,7 @@ impl<'a> Assignment<'a> {
             assignment.assign(attribute_variable, datom.attribute);
         }
         if let Some(value_variable) = clause.value.variable_name() {
-            assignment.assign(value_variable, datom.value.clone());
+            assignment.assign(value_variable, datom.value);
         }
         assignment
     }

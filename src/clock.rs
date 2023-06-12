@@ -17,3 +17,9 @@ impl MockClock {
         MockClock { now: 0 }
     }
 }
+
+impl Default for MockClock {
+    fn default() -> Self {
+        Self::new()
+    }
+}

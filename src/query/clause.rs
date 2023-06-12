@@ -100,3 +100,9 @@ impl<'a> Clause<'a> {
         clause
     }
 }
+
+impl<'a> Default for Clause<'a> {
+    fn default() -> Self {
+        Self::new()
+    }
+}

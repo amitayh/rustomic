@@ -2,7 +2,7 @@ use crate::datom::*;
 use crate::query::assignment::*;
 use crate::query::pattern::*;
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Default)]
 pub struct Clause<'a> {
     pub entity: EntityPattern<'a>,
     pub attribute: AttributePattern<'a>,
@@ -98,11 +98,5 @@ impl<'a> Clause<'a> {
             clause.value = ValuePattern::Constant(value);
         }
         clause
-    }
-}
-
-impl<'a> Default for Clause<'a> {
-    fn default() -> Self {
-        Self::new()
     }
 }

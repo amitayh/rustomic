@@ -54,6 +54,7 @@ impl Operation {
     }
 }
 
+#[derive(Default)]
 pub struct Transaction {
     pub operations: Vec<Operation>,
 }
@@ -68,12 +69,6 @@ impl Transaction {
     pub fn with(mut self, operation: Operation) -> Self {
         self.operations.push(operation);
         self
-    }
-}
-
-impl Default for Transaction {
-    fn default() -> Self {
-        Self::new()
     }
 }
 

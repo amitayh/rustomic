@@ -22,6 +22,7 @@ type Index<A, B, C> = BTreeMap<A, BTreeMap<B, BTreeMap<C, TxOp>>>;
 // +-------+---------------------------------+--------------------------------+
 //
 // https://docs.datomic.com/pro/query/indexes.html
+#[derive(Default)]
 pub struct InMemoryStorage {
     // The EAVT index provides efficient access to everything about a given entity. Conceptually
     // this is very similar to row access style in a SQL database, except that entities can possess
@@ -95,12 +96,6 @@ impl InMemoryStorage {
         let init_datoms = default_datoms();
         storage.save(&init_datoms).unwrap();
         storage
-    }
-}
-
-impl Default for InMemoryStorage {
-    fn default() -> Self {
-        Self::new()
     }
 }
 
@@ -189,21 +184,6 @@ impl InMemoryStorage {
         Ok(datoms)
     }
 
-    fn _lala<'a>(&'a self, clause: &'a Clause, tx_range: u64) -> impl Iterator<Item = Datom> + 'a {
-        self.a_iter(&self.aevt, &clause.attribute)
-            .flat_map(move |(attribute, evt)| {
-                self.e_iter(evt, &clause.entity)
-                    .flat_map(move |(entity, vt)| {
-                        let v_iter = self.v_iter(vt, &clause.value);
-                        self.latest_values(v_iter, tx_range)
-                            .into_iter()
-                            .map(move |(value, tx)| {
-                                Datom::add(*entity, *attribute, value.clone(), tx)
-                            })
-                    })
-            })
-    }
-
     fn find_datoms_aevt(&self, clause: &Clause, tx_range: u64) -> Result<Vec<Datom>, StorageError> {
         let mut datoms = Vec::new();
         for (attribute, evt) in self.a_iter(&self.aevt, &clause.attribute) {
@@ -254,7 +234,7 @@ impl InMemoryStorage {
     }
 
     fn a_iter<'a, V>(
-        &'a self,
+        &self,
         map: &'a BTreeMap<AttributeId, V>,
         attribute: &'a AttributePattern,
     ) -> Iter<'a, AttributeId, V> {

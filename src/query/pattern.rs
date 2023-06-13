@@ -7,10 +7,11 @@ pub trait Pattern {
     fn variable_name(&self) -> Option<&str>;
 }
 
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq, Default)]
 pub enum EntityPattern<'a> {
     Variable(&'a str),
     Id(u64),
+    #[default]
     Blank,
 }
 
@@ -29,11 +30,12 @@ impl<'a> Pattern for EntityPattern<'a> {
     }
 }
 
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq, Default)]
 pub enum AttributePattern<'a> {
     Variable(&'a str),
     Ident(&'a str),
     Id(u64),
+    #[default]
     Blank,
 }
 
@@ -56,11 +58,12 @@ impl<'a> Pattern for AttributePattern<'a> {
     }
 }
 
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq, Default)]
 pub enum ValuePattern<'a> {
     Variable(&'a str),
     Constant(&'a Value),
     Range(Bound<&'a Value>, Bound<&'a Value>),
+    #[default]
     Blank,
 }
 

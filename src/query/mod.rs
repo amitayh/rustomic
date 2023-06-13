@@ -4,12 +4,12 @@ pub mod db;
 pub mod pattern;
 
 use std::collections::HashMap;
-
 use crate::datom::Value;
 use crate::query::clause::*;
 use crate::storage::StorageError;
+use thiserror::Error;
 
-#[derive(Debug)]
+#[derive(Debug, Default)]
 pub struct Query<'a> {
     pub wher: Vec<Clause<'a>>,
 }
@@ -25,19 +25,15 @@ impl<'a> Query<'a> {
     }
 }
 
-impl<'a> Default for Query<'a> {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
 #[derive(Debug)]
 pub struct QueryResult {
     pub results: Vec<HashMap<String, Value>>,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Error)]
 pub enum QueryError {
+    #[error("error")]
     Error,
-    StorageError(StorageError),
+    #[error("storage error")]
+    StorageError(#[from] StorageError),
 }

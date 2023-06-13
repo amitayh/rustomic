@@ -1,7 +1,9 @@
+pub mod disk;
 pub mod memory;
 
 use crate::datom::*;
 use crate::query::clause::Clause;
+use thiserror::Error;
 
 // TODO: create structs?
 type EntityId = u64;
@@ -20,7 +22,8 @@ pub trait Storage {
     //fn find_datoms(&self, clause: &Clause) -> Result<Self::Iter, StorageError>;
 }
 
-#[derive(Debug)]
+#[derive(Debug, Error)]
 pub enum StorageError {
+    #[error("ident `{0}` not found")]
     IdentNotFound(String),
 }

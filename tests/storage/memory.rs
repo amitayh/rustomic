@@ -103,21 +103,34 @@ fn replace_values_avet() {
     assert!(save_result.is_ok());
 
     // Force storage to use AVET index
+
+    // 1 was retracted, should return empty result
     let clause1 = Clause::new()
         .with_attribute(AttributePattern::Id(attribute))
         .with_value(ValuePattern::constant(&Value::U64(1)));
-
     let read_result1 = storage.find_datoms(&clause1, 1001);
     assert!(read_result1.is_ok());
     assert!(read_result1.unwrap().is_empty());
 
+    // 2 exists, should return in result
     let clause2 = Clause::new()
         .with_attribute(AttributePattern::Id(attribute))
         .with_value(ValuePattern::constant(&Value::U64(2)));
-
     let read_result2 = storage.find_datoms(&clause2, 1001);
     assert!(read_result2.is_ok());
+    assert_eq!(
+        vec![Datom::add(entity, attribute, 2u64, 1001)],
+        read_result2.unwrap()
+    );
 
-    let expected_result = vec![Datom::add(entity, attribute, 2u64, 1001)];
-    assert_eq!(expected_result, read_result2.unwrap());
+    // Searching for range `1..`, only 2 should return
+    let clause3 = Clause::new()
+        .with_attribute(AttributePattern::Id(attribute))
+        .with_value(ValuePattern::range(&(Value::U64(1)..)));
+    let read_result3 = storage.find_datoms(&clause3, 1001);
+    assert!(read_result3.is_ok());
+    assert_eq!(
+        vec![Datom::add(entity, attribute, 2u64, 1001)],
+        read_result3.unwrap()
+    );
 }

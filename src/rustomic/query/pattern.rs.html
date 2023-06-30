@@ -88,6 +88,9 @@
 <a href="#88" id="88">88</a>
 <a href="#89" id="89">89</a>
 <a href="#90" id="90">90</a>
+<a href="#91" id="91">91</a>
+<a href="#92" id="92">92</a>
+<a href="#93" id="93">93</a>
 </pre></div><pre class="rust"><code><span class="kw">use </span>std::ops::Bound;
 <span class="kw">use </span>std::ops::RangeBounds;
 
@@ -97,11 +100,12 @@
     <span class="kw">fn </span>variable_name(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Option</span>&lt;<span class="kw-2">&amp;</span>str&gt;;
 }
 
-<span class="attr">#[derive(Clone, Debug, PartialEq, Eq)]
+<span class="attr">#[derive(Clone, Debug, PartialEq, Eq, Default)]
 </span><span class="kw">pub enum </span>EntityPattern&lt;<span class="lifetime">&#39;a</span>&gt; {
     Variable(<span class="kw-2">&amp;</span><span class="lifetime">&#39;a </span>str),
     Id(u64),
-    Blank,
+    <span class="attr">#[default]
+    </span>Blank,
 }
 
 <span class="kw">impl</span>&lt;<span class="lifetime">&#39;a</span>&gt; EntityPattern&lt;<span class="lifetime">&#39;a</span>&gt; {
@@ -119,12 +123,13 @@
     }
 }
 
-<span class="attr">#[derive(Clone, Debug, PartialEq, Eq)]
+<span class="attr">#[derive(Clone, Debug, PartialEq, Eq, Default)]
 </span><span class="kw">pub enum </span>AttributePattern&lt;<span class="lifetime">&#39;a</span>&gt; {
     Variable(<span class="kw-2">&amp;</span><span class="lifetime">&#39;a </span>str),
     Ident(<span class="kw-2">&amp;</span><span class="lifetime">&#39;a </span>str),
     Id(u64),
-    Blank,
+    <span class="attr">#[default]
+    </span>Blank,
 }
 
 <span class="kw">impl</span>&lt;<span class="lifetime">&#39;a</span>&gt; AttributePattern&lt;<span class="lifetime">&#39;a</span>&gt; {
@@ -146,12 +151,13 @@
     }
 }
 
-<span class="attr">#[derive(Clone, Debug, PartialEq, Eq)]
+<span class="attr">#[derive(Clone, Debug, PartialEq, Eq, Default)]
 </span><span class="kw">pub enum </span>ValuePattern&lt;<span class="lifetime">&#39;a</span>&gt; {
     Variable(<span class="kw-2">&amp;</span><span class="lifetime">&#39;a </span>str),
     Constant(<span class="kw-2">&amp;</span><span class="lifetime">&#39;a </span>Value),
     Range(Bound&lt;<span class="kw-2">&amp;</span><span class="lifetime">&#39;a </span>Value&gt;, Bound&lt;<span class="kw-2">&amp;</span><span class="lifetime">&#39;a </span>Value&gt;),
-    Blank,
+    <span class="attr">#[default]
+    </span>Blank,
 }
 
 <span class="kw">impl</span>&lt;<span class="lifetime">&#39;a</span>&gt; ValuePattern&lt;<span class="lifetime">&#39;a</span>&gt; {

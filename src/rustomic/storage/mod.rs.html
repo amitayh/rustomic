@@ -24,10 +24,15 @@
 <a href="#24" id="24">24</a>
 <a href="#25" id="25">25</a>
 <a href="#26" id="26">26</a>
-</pre></div><pre class="rust"><code><span class="kw">pub mod </span>memory;
+<a href="#27" id="27">27</a>
+<a href="#28" id="28">28</a>
+<a href="#29" id="29">29</a>
+</pre></div><pre class="rust"><code><span class="kw">pub mod </span>disk;
+<span class="kw">pub mod </span>memory;
 
 <span class="kw">use </span><span class="kw">crate</span>::datom::<span class="kw-2">*</span>;
 <span class="kw">use </span><span class="kw">crate</span>::query::clause::Clause;
+<span class="kw">use </span>thiserror::Error;
 
 <span class="comment">// TODO: create structs?
 </span><span class="kw">type </span>EntityId = u64;
@@ -46,8 +51,9 @@
     <span class="comment">//fn find_datoms(&amp;self, clause: &amp;Clause) -&gt; Result&lt;Self::Iter, StorageError&gt;;
 </span>}
 
-<span class="attr">#[derive(Debug)]
+<span class="attr">#[derive(Debug, Error)]
 </span><span class="kw">pub enum </span>StorageError {
-    IdentNotFound(String),
+    <span class="attr">#[error(<span class="string">&quot;ident `{0}` not found&quot;</span>)]
+    </span>IdentNotFound(String),
 }
 </code></pre></div></section></main></body></html>

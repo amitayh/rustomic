@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"enum":["StorageError"],"mod":["memory"],"trait":["Storage"]};
+window.SIDEBAR_ITEMS = {"enum":["StorageError"],"mod":["disk","memory"],"trait":["Storage"]};

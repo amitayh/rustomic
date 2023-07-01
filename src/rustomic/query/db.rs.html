@@ -53,8 +53,6 @@
 <a href="#53" id="53">53</a>
 <a href="#54" id="54">54</a>
 <a href="#55" id="55">55</a>
-<a href="#56" id="56">56</a>
-<a href="#57" id="57">57</a>
 </pre></div><pre class="rust"><code><span class="kw">use </span>std::collections::HashMap;
 <span class="kw">use </span>std::sync::{Arc, RwLock, RwLockReadGuard};
 
@@ -95,9 +93,7 @@
         }
         <span class="kw">if let </span>[clause, rest @ ..] = clauses {
             <span class="kw">let </span>assigned_clause = clause.assign(<span class="kw-2">&amp;</span>assignment);
-            <span class="kw">let </span>datoms = storage
-                .find_datoms(<span class="kw-2">&amp;</span>assigned_clause, <span class="self">self</span>.tx)
-                .map_err(QueryError::StorageError)<span class="question-mark">?</span>;
+            <span class="kw">let </span>datoms = storage.find_datoms(<span class="kw-2">&amp;</span>assigned_clause, <span class="self">self</span>.tx)<span class="question-mark">?</span>;
 
             <span class="comment">// TODO can this be parallelized?
             </span><span class="kw">for </span>datom <span class="kw">in </span>datoms {

@@ -3,10 +3,10 @@ pub mod clause;
 pub mod db;
 pub mod pattern;
 
-use std::collections::HashMap;
 use crate::datom::Value;
 use crate::query::clause::*;
 use crate::storage::StorageError;
+use std::collections::HashMap;
 use thiserror::Error;
 
 #[derive(Debug, Default)]

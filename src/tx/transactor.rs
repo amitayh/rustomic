@@ -36,9 +36,7 @@ impl<S: Storage, C: Clock> Transactor<S, C> {
         let last_tx = self.next_entity_id;
         let temp_ids = self.generate_temp_ids(&transaction)?;
         let datoms = self.transaction_datoms(&transaction, &temp_ids, last_tx)?;
-        self.write_storage()?
-            .save(&datoms)
-            .map_err(TransactionError::StorageError)?;
+        self.write_storage()?.save(&datoms)?;
 
         Ok(TransctionResult {
             tx_id: datoms[0].tx,
@@ -109,9 +107,7 @@ impl<S: Storage, C: Clock> Transactor<S, C> {
         let entity = self.resolve_entity(&operation.entity, temp_ids)?;
         let storage = self.read_storage()?;
         for AttributeValue { attribute, value } in &operation.attributes {
-            let attribute_id = storage
-                .resolve_ident(attribute)
-                .map_err(TransactionError::StorageError)?;
+            let attribute_id = storage.resolve_ident(attribute)?;
 
             let (cardinality, value_type) = self.attribute_metadata(attribute_id, last_tx)?;
             if cardinality == Cardinality::One {
@@ -119,9 +115,7 @@ impl<S: Storage, C: Clock> Transactor<S, C> {
                 let clause = Clause::new()
                     .with_entity(EntityPattern::Id(entity))
                     .with_attribute(AttributePattern::Id(attribute_id));
-                let datoms2 = storage
-                    .find_datoms(&clause, last_tx)
-                    .map_err(TransactionError::StorageError)?;
+                let datoms2 = storage.find_datoms(&clause, last_tx)?;
                 for datom in datoms2 {
                     datoms.push(Datom::retract(entity, attribute_id, datom.value, tx));
                 }
@@ -164,10 +158,7 @@ impl<S: Storage, C: Clock> Transactor<S, C> {
         last_tx: u64,
     ) -> Result<(Cardinality, ValueType), TransactionError> {
         let clause = Clause::new().with_entity(EntityPattern::Id(attribute));
-        let datoms = self
-            .read_storage()?
-            .find_datoms(&clause, last_tx)
-            .map_err(TransactionError::StorageError)?;
+        let datoms = self.read_storage()?.find_datoms(&clause, last_tx)?;
         let mut cardinality = None;
         let mut value_type = None;
         for datom in datoms {

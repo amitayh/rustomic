@@ -38,9 +38,7 @@ impl<S: Storage> Db<S> {
         }
         if let [clause, rest @ ..] = clauses {
             let assigned_clause = clause.assign(&assignment);
-            let datoms = storage
-                .find_datoms(&assigned_clause, self.tx)
-                .map_err(QueryError::StorageError)?;
+            let datoms = storage.find_datoms(&assigned_clause, self.tx)?;
 
             // TODO can this be parallelized?
             for datom in datoms {

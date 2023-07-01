@@ -4,6 +4,7 @@ use std::collections::HashMap;
 
 use crate::datom::Datom;
 use crate::datom::Value;
+use thiserror::Error;
 
 pub enum Entity {
     New,            // Create a new entity and assign ID automatically.
@@ -79,11 +80,16 @@ pub struct TransctionResult {
     pub temp_ids: HashMap<String, u64>,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Error)]
 pub enum TransactionError {
+    #[error("error")]
     Error, // TODO: remove generic error
+    #[error("invalid attribute type")]
     InvalidAttributeType,
+    #[error("duplicate temp ID `{0}`")]
     DuplicateTempId(String),
+    #[error("temp ID `{0}` not found")]
     TempIdNotFound(String),
-    StorageError(crate::storage::StorageError),
+    #[error("storage error")]
+    StorageError(#[from] crate::storage::StorageError),
 }

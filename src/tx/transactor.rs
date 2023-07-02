@@ -32,7 +32,6 @@ impl<S: Storage, C: Clock> Transactor<S, C> {
         &mut self,
         transaction: Transaction,
     ) -> Result<TransctionResult, TransactionError> {
-        // TODO: add reverse index for attribute of type `Ref`
         let last_tx = self.next_entity_id;
         let temp_ids = self.generate_temp_ids(&transaction)?;
         let datoms = self.transaction_datoms(&transaction, &temp_ids, last_tx)?;

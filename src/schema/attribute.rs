@@ -6,7 +6,7 @@ use crate::tx;
 pub enum ValueType {
     I64 = 1,
     U64 = 2,
-    // F64 = 3,
+    Decimal = 3,
     Str = 4,
     Ref = 5,
 }
@@ -18,7 +18,7 @@ impl ValueType {
     /// let value_types = vec![
     ///     ValueType::I64,
     ///     ValueType::U64,
-    ///     // ValueType::F64,
+    ///     ValueType::Decimal,
     ///     ValueType::Str,
     ///     ValueType::Ref,
     /// ];
@@ -31,7 +31,7 @@ impl ValueType {
         match value {
             1 => Some(ValueType::I64),
             2 => Some(ValueType::U64),
-            // 3 => Some(ValueType::F64),
+            3 => Some(ValueType::Decimal),
             4 => Some(ValueType::Str),
             5 => Some(ValueType::Ref),
             _ => None,
@@ -43,10 +43,12 @@ impl Value {
     /// ```
     /// use rustomic::datom::Value;
     /// use rustomic::schema::attribute::ValueType;
+    /// use rust_decimal::prelude::*;
     ///
     /// assert!(Value::I64(42).matches_type(ValueType::I64));
     /// assert!(Value::U64(42).matches_type(ValueType::U64));
     /// assert!(Value::U64(42).matches_type(ValueType::Ref));
+    /// assert!(Value::Decimal(42.into()).matches_type(ValueType::Decimal));
     /// assert!(Value::Str(String::from("foo")).matches_type(ValueType::Str));
     /// assert!(!Value::U64(42).matches_type(ValueType::Str));
     /// ```
@@ -54,7 +56,7 @@ impl Value {
         match self {
             Value::I64(_) => value_type == ValueType::I64,
             Value::U64(_) => value_type == ValueType::U64 || value_type == ValueType::Ref,
-            // Value::F64(_) => value_type == ValueType::F64,
+            Value::Decimal(_) => value_type == ValueType::Decimal,
             Value::Str(_) => value_type == ValueType::Str,
         }
     }

@@ -1,8 +1,10 @@
+use rust_decimal::prelude::*;
+
 #[derive(Hash, Eq, PartialEq, Debug, Clone, PartialOrd, Ord)]
 pub enum Value {
     I64(i64),
     U64(u64),
-    // F64(f64),
+    Decimal(Decimal),
     Str(String),
 }
 

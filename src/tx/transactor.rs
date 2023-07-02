@@ -60,10 +60,9 @@ impl<S: Storage, C: Clock> Transactor<S, C> {
         let mut temp_ids = HashMap::new();
         for operation in &transaction.operations {
             if let Entity::TempId(id) = &operation.entity {
-                if temp_ids.contains_key(id) {
+                if temp_ids.insert(id.clone(), self.next_entity_id()).is_some() {
                     return Err(TransactionError::DuplicateTempId(id.clone()));
                 }
-                temp_ids.insert(id.clone(), self.next_entity_id());
             };
         }
         Ok(temp_ids)

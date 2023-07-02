@@ -123,9 +123,32 @@ mod tests {
         );
         assert!(schema_result.is_ok());
 
-        // This transaction should fail: "person/name" is of type `ValueType::Str`
+        // This transaction should fail: "person/name" is of type `ValueType::Str`.
         let tx_result = transactor
             .transact(Transaction::new().with(Operation::on_new().set("person/name", 42)));
+        assert!(tx_result.is_err());
+    }
+
+    #[test]
+    fn reject_transaction_with_duplicate_temp_ids() {
+        let (mut transactor, _) = create_db();
+
+        // Create the schema
+        let schema_result = transactor.transact(
+            Transaction::new().with(
+                Attribute::new("person/name", ValueType::Str, Cardinality::One)
+                    .with_doc("A person's name")
+                    .build(),
+            ),
+        );
+        assert!(schema_result.is_ok());
+
+        // This transaction should fail: temp ID "duplicate" should only be used once.
+        let tx_result = transactor.transact(
+            Transaction::new()
+                .with(Operation::on_temp_id("duplicate").set("person/name", "Alice"))
+                .with(Operation::on_temp_id("duplicate").set("person/name", "Bob")),
+        );
         assert!(tx_result.is_err());
     }
 

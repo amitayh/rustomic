@@ -70,11 +70,11 @@ impl From<u64> for Value {
     }
 }
 
-// impl Into<Value> for f64 {
-//     fn into(self) -> Value {
-//         Value::F64(self)
-//     }
-// }
+impl Into<Value> for Decimal {
+    fn into(self) -> Value {
+        Value::Decimal(self)
+    }
+}
 
 impl From<&str> for Value {
     fn from(val: &str) -> Self {

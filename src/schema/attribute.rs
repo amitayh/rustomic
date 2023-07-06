@@ -121,16 +121,16 @@ impl<'a> Attribute<'a> {
     }
 }
 
-impl<'a> Into<tx::Operation> for Attribute<'a> {
-    fn into(self) -> tx::Operation {
+impl<'a> From<Attribute<'a>> for tx::Operation {
+    fn from(val: Attribute<'a>) -> Self {
         let mut operation = tx::Operation::on_new()
-            .set(DB_ATTR_IDENT_IDENT, self.ident)
-            .set(DB_ATTR_CARDINALITY_IDENT, self.cardinality as u64)
-            .set(DB_ATTR_TYPE_IDENT, self.value_type as u64);
-        if let Some(doc) = self.doc {
+            .set(DB_ATTR_IDENT_IDENT, val.ident)
+            .set(DB_ATTR_CARDINALITY_IDENT, val.cardinality as u64)
+            .set(DB_ATTR_TYPE_IDENT, val.value_type as u64);
+        if let Some(doc) = val.doc {
             operation.set_mut(DB_ATTR_DOC_IDENT, doc);
         }
-        if self.unique {
+        if val.unique {
             operation.set_mut(DB_ATTR_UNIQUE_IDENT, 1u64);
         }
         operation

@@ -70,9 +70,9 @@ impl From<u64> for Value {
     }
 }
 
-impl Into<Value> for Decimal {
-    fn into(self) -> Value {
-        Value::Decimal(self)
+impl From<Decimal> for Value {
+    fn from(val: Decimal) -> Self {
+        Value::Decimal(val)
     }
 }
 

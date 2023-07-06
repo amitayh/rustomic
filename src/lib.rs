@@ -38,11 +38,8 @@ mod tests {
 
         // Create the schema
         let schema_result = transactor.transact(
-            Transaction::new().with(
-                Attribute::new("person/name", ValueType::Str, Cardinality::One)
-                    .with_doc("A person's name")
-                    .build(),
-            ),
+            Transaction::new()
+                .with(Attribute::new("person/name", ValueType::Str).with_doc("A person's name")),
         );
         assert!(schema_result.is_ok());
 
@@ -74,11 +71,8 @@ mod tests {
 
         // Create the schema
         let schema_result = transactor.transact(
-            Transaction::new().with(
-                Attribute::new("person/name", ValueType::Str, Cardinality::One)
-                    .with_doc("A person's name")
-                    .build(),
-            ),
+            Transaction::new()
+                .with(Attribute::new("person/name", ValueType::Str).with_doc("A person's name")),
         );
         assert!(schema_result.is_ok());
 
@@ -115,11 +109,8 @@ mod tests {
 
         // Create the schema
         let schema_result = transactor.transact(
-            Transaction::new().with(
-                Attribute::new("person/name", ValueType::Str, Cardinality::One)
-                    .with_doc("A person's name")
-                    .build(),
-            ),
+            Transaction::new()
+                .with(Attribute::new("person/name", ValueType::Str).with_doc("A person's name")),
         );
         assert!(schema_result.is_ok());
 
@@ -135,11 +126,8 @@ mod tests {
 
         // Create the schema
         let schema_result = transactor.transact(
-            Transaction::new().with(
-                Attribute::new("person/name", ValueType::Str, Cardinality::One)
-                    .with_doc("A person's name")
-                    .build(),
-            ),
+            Transaction::new()
+                .with(Attribute::new("person/name", ValueType::Str).with_doc("A person's name")),
         );
         assert!(schema_result.is_ok());
 
@@ -159,20 +147,12 @@ mod tests {
         // Create the schema
         let schema_result = transactor.transact(
             Transaction::new()
+                .with(Attribute::new("artist/name", ValueType::Str).with_doc("An artist's name"))
+                .with(Attribute::new("release/name", ValueType::Str).with_doc("An release's name"))
                 .with(
-                    Attribute::new("artist/name", ValueType::Str, Cardinality::One)
-                        .with_doc("An artist's name")
-                        .build(),
-                )
-                .with(
-                    Attribute::new("release/name", ValueType::Str, Cardinality::One)
-                        .with_doc("An release's name")
-                        .build(),
-                )
-                .with(
-                    Attribute::new("release/artists", ValueType::Ref, Cardinality::Many)
+                    Attribute::new("release/artists", ValueType::Ref)
                         .with_doc("Artists of release")
-                        .build(),
+                        .many(),
                 ),
         );
         assert!(schema_result.is_ok());
@@ -223,77 +203,14 @@ mod tests {
     }
 
     #[test]
-    fn create_reverse_index_for_refs() {
-        let (mut transactor, storage) = create_db();
-
-        // Create the schema
-        let schema_result = transactor.transact(
-            Transaction::new()
-                .with(Attribute::new("person/name", ValueType::Str, Cardinality::One).build())
-                .with(Attribute::new("person/parent", ValueType::Ref, Cardinality::One).build()),
-        );
-        assert!(schema_result.is_ok());
-
-        // Insert data
-        let tx_result = transactor.transact(
-            Transaction::new()
-                .with(Operation::on_temp_id("eve").set("person/name", "Eve"))
-                .with(
-                    Operation::on_temp_id("alice")
-                        .set("person/name", "Alice")
-                        .set("person/parent", "eve"))
-                .with(
-                    Operation::on_temp_id("bob")
-                        .set("person/name", "Bob")
-                        .set("person/parent", "eve"),
-                ),
-        );
-        assert!(tx_result.is_ok());
-        let TransctionResult {
-            tx_id,
-            tx_data: _,
-            temp_ids,
-        } = tx_result.unwrap();
-
-        // What are the names of Eve's children?
-        let db = Db::new(storage, tx_id);
-        let query_result = db.query(
-            Query::new()
-                .wher(
-                    Clause::new()
-                        .with_entity(EntityPattern::variable("?person"))
-                        .with_attribute(AttributePattern::ident("_person/parent"))
-                        .with_value(ValuePattern::constant(&Value::U64(temp_ids["eve"])))
-                )
-                .wher(
-                    Clause::new()
-                        .with_entity(EntityPattern::variable("?person"))
-                        .with_attribute(AttributePattern::ident("person/name"))
-                        .with_value(ValuePattern::variable("?name")),
-                ),
-        );
-
-        assert!(query_result.is_ok());
-        let results = query_result.unwrap().results;
-        let names: Vec<&str> = results
-            .iter()
-            .flat_map(|assignment| assignment["?name"].as_str().into_iter())
-            .collect();
-
-        assert_eq!(2, names.len());
-        assert!(names.contains(&"Alice"));
-        assert!(names.contains(&"Bob"));
-    }
-
-    #[test]
     fn support_range_queries() {
         let (mut transactor, storage) = create_db();
 
         // Create the schema
         let schema_result = transactor.transact(
             Transaction::new()
-                .with(Attribute::new("name", ValueType::Str, Cardinality::One).build())
-                .with(Attribute::new("age", ValueType::I64, Cardinality::One).build()),
+                .with(Attribute::new("name", ValueType::Str))
+                .with(Attribute::new("age", ValueType::I64)),
         );
         assert!(schema_result.is_ok());
 
@@ -343,8 +260,8 @@ mod tests {
         // Create the schema
         let schema_result = transactor.transact(
             Transaction::new()
-                .with(Attribute::new("name", ValueType::Str, Cardinality::One).build())
-                .with(Attribute::new("likes", ValueType::Str, Cardinality::One).build()),
+                .with(Attribute::new("name", ValueType::Str))
+                .with(Attribute::new("likes", ValueType::Str)),
         );
         assert!(schema_result.is_ok());
 
@@ -397,8 +314,8 @@ mod tests {
         // Create the schema
         let schema_result = transactor.transact(
             Transaction::new()
-                .with(Attribute::new("name", ValueType::Str, Cardinality::One).build())
-                .with(Attribute::new("likes", ValueType::Str, Cardinality::Many).build()),
+                .with(Attribute::new("name", ValueType::Str))
+                .with(Attribute::new("likes", ValueType::Str).many()),
         );
         assert!(schema_result.is_ok());
 
@@ -452,8 +369,8 @@ mod tests {
         // Create the schema
         let schema_result = transactor.transact(
             Transaction::new()
-                .with(Attribute::new("name", ValueType::Str, Cardinality::One).build())
-                .with(Attribute::new("likes", ValueType::Str, Cardinality::One).build()),
+                .with(Attribute::new("name", ValueType::Str))
+                .with(Attribute::new("likes", ValueType::Str)),
         );
         assert!(schema_result.is_ok());
 

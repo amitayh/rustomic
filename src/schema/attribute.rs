@@ -95,11 +95,11 @@ pub struct Attribute<'a> {
 }
 
 impl<'a> Attribute<'a> {
-    pub fn new(ident: &'a str, value_type: ValueType, cardinality: Cardinality) -> Self {
+    pub fn new(ident: &'a str, value_type: ValueType) -> Self {
         Attribute {
             ident,
             value_type,
-            cardinality,
+            cardinality: Cardinality::One,
             doc: None,
             unique: false,
         }
@@ -110,12 +110,19 @@ impl<'a> Attribute<'a> {
         self
     }
 
+    pub fn many(mut self) -> Self {
+        self.cardinality = Cardinality::Many;
+        self
+    }
+
     pub fn unique(mut self) -> Self {
         self.unique = true;
         self
     }
+}
 
-    pub fn build(self) -> tx::Operation {
+impl<'a> Into<tx::Operation> for Attribute<'a> {
+    fn into(self) -> tx::Operation {
         let mut operation = tx::Operation::on_new()
             .set(DB_ATTR_IDENT_IDENT, self.ident)
             .set(DB_ATTR_CARDINALITY_IDENT, self.cardinality as u64)

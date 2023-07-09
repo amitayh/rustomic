@@ -420,6 +420,9 @@
 <a href="#420" id="420">420</a>
 <a href="#421" id="421">421</a>
 <a href="#422" id="422">422</a>
+<a href="#423" id="423">423</a>
+<a href="#424" id="424">424</a>
+<a href="#425" id="425">425</a>
 </pre></div><pre class="rust"><code><span class="kw">pub mod </span>clock;
 <span class="kw">pub mod </span>datom;
 <span class="kw">pub mod </span>query;
@@ -460,11 +463,8 @@
 
         <span class="comment">// Create the schema
         </span><span class="kw">let </span>schema_result = transactor.transact(
-            Transaction::new().with(
-                Attribute::new(<span class="string">&quot;person/name&quot;</span>, ValueType::Str, Cardinality::One)
-                    .with_doc(<span class="string">&quot;A person&#39;s name&quot;</span>)
-                    .build(),
-            ),
+            Transaction::new()
+                .with(Attribute::new(<span class="string">&quot;person/name&quot;</span>, ValueType::Str).with_doc(<span class="string">&quot;A person&#39;s name&quot;</span>)),
         );
         <span class="macro">assert!</span>(schema_result.is_ok());
 
@@ -496,11 +496,8 @@
 
         <span class="comment">// Create the schema
         </span><span class="kw">let </span>schema_result = transactor.transact(
-            Transaction::new().with(
-                Attribute::new(<span class="string">&quot;person/name&quot;</span>, ValueType::Str, Cardinality::One)
-                    .with_doc(<span class="string">&quot;A person&#39;s name&quot;</span>)
-                    .build(),
-            ),
+            Transaction::new()
+                .with(Attribute::new(<span class="string">&quot;person/name&quot;</span>, ValueType::Str).with_doc(<span class="string">&quot;A person&#39;s name&quot;</span>)),
         );
         <span class="macro">assert!</span>(schema_result.is_ok());
 
@@ -537,17 +534,34 @@
 
         <span class="comment">// Create the schema
         </span><span class="kw">let </span>schema_result = transactor.transact(
-            Transaction::new().with(
-                Attribute::new(<span class="string">&quot;person/name&quot;</span>, ValueType::Str, Cardinality::One)
-                    .with_doc(<span class="string">&quot;A person&#39;s name&quot;</span>)
-                    .build(),
-            ),
+            Transaction::new()
+                .with(Attribute::new(<span class="string">&quot;person/name&quot;</span>, ValueType::Str).with_doc(<span class="string">&quot;A person&#39;s name&quot;</span>)),
         );
         <span class="macro">assert!</span>(schema_result.is_ok());
 
-        <span class="comment">// This transaction should fail: &quot;person/name&quot; is of type `ValueType::Str`
+        <span class="comment">// This transaction should fail: &quot;person/name&quot; is of type `ValueType::Str`.
         </span><span class="kw">let </span>tx_result = transactor
             .transact(Transaction::new().with(Operation::on_new().set(<span class="string">&quot;person/name&quot;</span>, <span class="number">42</span>)));
+        <span class="macro">assert!</span>(tx_result.is_err());
+    }
+
+    <span class="attr">#[test]
+    </span><span class="kw">fn </span>reject_transaction_with_duplicate_temp_ids() {
+        <span class="kw">let </span>(<span class="kw-2">mut </span>transactor, <span class="kw">_</span>) = create_db();
+
+        <span class="comment">// Create the schema
+        </span><span class="kw">let </span>schema_result = transactor.transact(
+            Transaction::new()
+                .with(Attribute::new(<span class="string">&quot;person/name&quot;</span>, ValueType::Str).with_doc(<span class="string">&quot;A person&#39;s name&quot;</span>)),
+        );
+        <span class="macro">assert!</span>(schema_result.is_ok());
+
+        <span class="comment">// This transaction should fail: temp ID &quot;duplicate&quot; should only be used once.
+        </span><span class="kw">let </span>tx_result = transactor.transact(
+            Transaction::new()
+                .with(Operation::on_temp_id(<span class="string">&quot;duplicate&quot;</span>).set(<span class="string">&quot;person/name&quot;</span>, <span class="string">&quot;Alice&quot;</span>))
+                .with(Operation::on_temp_id(<span class="string">&quot;duplicate&quot;</span>).set(<span class="string">&quot;person/name&quot;</span>, <span class="string">&quot;Bob&quot;</span>)),
+        );
         <span class="macro">assert!</span>(tx_result.is_err());
     }
 
@@ -558,20 +572,12 @@
         <span class="comment">// Create the schema
         </span><span class="kw">let </span>schema_result = transactor.transact(
             Transaction::new()
+                .with(Attribute::new(<span class="string">&quot;artist/name&quot;</span>, ValueType::Str).with_doc(<span class="string">&quot;An artist&#39;s name&quot;</span>))
+                .with(Attribute::new(<span class="string">&quot;release/name&quot;</span>, ValueType::Str).with_doc(<span class="string">&quot;An release&#39;s name&quot;</span>))
                 .with(
-                    Attribute::new(<span class="string">&quot;artist/name&quot;</span>, ValueType::Str, Cardinality::One)
-                        .with_doc(<span class="string">&quot;An artist&#39;s name&quot;</span>)
-                        .build(),
-                )
-                .with(
-                    Attribute::new(<span class="string">&quot;release/name&quot;</span>, ValueType::Str, Cardinality::One)
-                        .with_doc(<span class="string">&quot;An release&#39;s name&quot;</span>)
-                        .build(),
-                )
-                .with(
-                    Attribute::new(<span class="string">&quot;release/artists&quot;</span>, ValueType::Ref, Cardinality::Many)
+                    Attribute::new(<span class="string">&quot;release/artists&quot;</span>, ValueType::Ref)
                         .with_doc(<span class="string">&quot;Artists of release&quot;</span>)
-                        .build(),
+                        .many(),
                 ),
         );
         <span class="macro">assert!</span>(schema_result.is_ok());
@@ -628,8 +634,8 @@
         <span class="comment">// Create the schema
         </span><span class="kw">let </span>schema_result = transactor.transact(
             Transaction::new()
-                .with(Attribute::new(<span class="string">&quot;name&quot;</span>, ValueType::Str, Cardinality::One).build())
-                .with(Attribute::new(<span class="string">&quot;age&quot;</span>, ValueType::I64, Cardinality::One).build()),
+                .with(Attribute::new(<span class="string">&quot;name&quot;</span>, ValueType::Str))
+                .with(Attribute::new(<span class="string">&quot;age&quot;</span>, ValueType::I64)),
         );
         <span class="macro">assert!</span>(schema_result.is_ok());
 
@@ -679,8 +685,8 @@
         <span class="comment">// Create the schema
         </span><span class="kw">let </span>schema_result = transactor.transact(
             Transaction::new()
-                .with(Attribute::new(<span class="string">&quot;name&quot;</span>, ValueType::Str, Cardinality::One).build())
-                .with(Attribute::new(<span class="string">&quot;likes&quot;</span>, ValueType::Str, Cardinality::One).build()),
+                .with(Attribute::new(<span class="string">&quot;name&quot;</span>, ValueType::Str))
+                .with(Attribute::new(<span class="string">&quot;likes&quot;</span>, ValueType::Str)),
         );
         <span class="macro">assert!</span>(schema_result.is_ok());
 
@@ -733,8 +739,8 @@
         <span class="comment">// Create the schema
         </span><span class="kw">let </span>schema_result = transactor.transact(
             Transaction::new()
-                .with(Attribute::new(<span class="string">&quot;name&quot;</span>, ValueType::Str, Cardinality::One).build())
-                .with(Attribute::new(<span class="string">&quot;likes&quot;</span>, ValueType::Str, Cardinality::Many).build()),
+                .with(Attribute::new(<span class="string">&quot;name&quot;</span>, ValueType::Str))
+                .with(Attribute::new(<span class="string">&quot;likes&quot;</span>, ValueType::Str).many()),
         );
         <span class="macro">assert!</span>(schema_result.is_ok());
 
@@ -788,8 +794,8 @@
         <span class="comment">// Create the schema
         </span><span class="kw">let </span>schema_result = transactor.transact(
             Transaction::new()
-                .with(Attribute::new(<span class="string">&quot;name&quot;</span>, ValueType::Str, Cardinality::One).build())
-                .with(Attribute::new(<span class="string">&quot;likes&quot;</span>, ValueType::Str, Cardinality::One).build()),
+                .with(Attribute::new(<span class="string">&quot;name&quot;</span>, ValueType::Str))
+                .with(Attribute::new(<span class="string">&quot;likes&quot;</span>, ValueType::Str)),
         );
         <span class="macro">assert!</span>(schema_result.is_ok());
 

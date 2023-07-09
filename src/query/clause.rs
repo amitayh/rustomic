@@ -11,11 +11,7 @@ pub struct Clause<'a> {
 
 impl<'a> Clause<'a> {
     pub fn new() -> Self {
-        Clause {
-            entity: EntityPattern::Blank,
-            attribute: AttributePattern::Blank,
-            value: ValuePattern::Blank,
-        }
+        Clause::default()
     }
 
     pub fn with_entity(mut self, entity: EntityPattern<'a>) -> Self {

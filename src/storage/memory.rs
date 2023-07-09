@@ -136,7 +136,7 @@ impl Storage for InMemoryStorage {
     }
 }
 
-impl InMemoryStorage {
+impl<'a> InMemoryStorage {
     fn update_eavt(&mut self, datom: &Datom) {
         let avt = self.eavt.entry(datom.entity).or_default();
         let vt = avt.entry(datom.attribute).or_default();
@@ -197,7 +197,7 @@ impl InMemoryStorage {
         Ok(datoms)
     }
 
-    fn find_datoms_avet<'a>(
+    fn find_datoms_avet(
         &'a self,
         clause: &'a Clause,
         tx_range: u64,
@@ -222,7 +222,7 @@ impl InMemoryStorage {
         Ok(datoms)
     }
 
-    fn e_iter<'a, V>(
+    fn e_iter<V>(
         &self,
         map: &'a BTreeMap<EntityId, V>,
         entity: &'a EntityPattern,
@@ -233,7 +233,7 @@ impl InMemoryStorage {
         }
     }
 
-    fn a_iter<'a, V>(
+    fn a_iter<V>(
         &self,
         map: &'a BTreeMap<AttributeId, V>,
         attribute: &'a AttributePattern,
@@ -249,25 +249,25 @@ impl InMemoryStorage {
         }
     }
 
-    fn v_iter<'a, V>(
+    fn v_iter<V>(
         &self,
         map: &'a BTreeMap<Value, V>,
         value: &'a ValuePattern,
     ) -> Iter<'a, Value, V> {
-        match value {
+        match *value {
             ValuePattern::Constant(value) => self.kv_iter(map, value),
-            ValuePattern::Range(start, end) => Iter::Range(map.range((*start, *end))),
+            ValuePattern::Range(start, end) => Iter::Range(map.range((start, end))),
             _ => Iter::Many(map.iter()),
         }
     }
 
-    fn kv_iter<'a, K: Ord, V>(&self, map: &'a BTreeMap<K, V>, key: &'a K) -> Iter<'a, K, V> {
+    fn kv_iter<K: Ord, V>(&self, map: &'a BTreeMap<K, V>, key: &'a K) -> Iter<'a, K, V> {
         map.get(key)
             .map(|value| Iter::One(Some((key, value))))
             .unwrap_or(Iter::Zero)
     }
 
-    fn latest_values<'a, In: Iterator<Item = (&'a Value, &'a TxOp)>>(
+    fn latest_values<In: Iterator<Item = (&'a Value, &'a TxOp)>>(
         &self,
         v_iter: In,
         tx_range: u64,

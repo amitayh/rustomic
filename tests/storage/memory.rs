@@ -21,6 +21,27 @@ fn read_datoms_by_entity_which_does_not_exist() {
 }
 
 #[test]
+fn ignore_datoms_of_other_entities() {
+    let mut storage = InMemoryStorage::new();
+
+    let entity1 = 100;
+    let entity2 = 101;
+    let tx = 102;
+    let attribute = 103;
+    let datoms = vec![
+        Datom::add(entity1, attribute, 1u64, tx),
+        Datom::add(entity2, attribute, 2u64, tx),
+    ];
+    let save_result = storage.save(&datoms);
+    assert!(save_result.is_ok());
+
+    let clause = Clause::new().with_entity(EntityPattern::Id(entity1));
+    let read_result = storage.find_datoms(&clause, tx);
+    assert!(read_result.is_ok());
+    assert_eq!(datoms[0..1], read_result.unwrap());
+}
+
+#[test]
 fn read_datoms_by_entity() {
     let mut storage = InMemoryStorage::new();
 

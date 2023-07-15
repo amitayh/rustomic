@@ -125,13 +125,15 @@ impl Storage for InMemoryStorage {
                 entity: EntityPattern::Id(_),
                 attribute: AttributePattern::Id(_) | AttributePattern::Ident(_),
                 value: _,
-            } => self.find_datoms_eavt(clause, tx_range),
+                tx: _,
+            } => self.find_datoms_eavt(clause),
             Clause {
                 entity: _,
                 attribute: AttributePattern::Id(_) | AttributePattern::Ident(_),
                 value: ValuePattern::Constant(_) | ValuePattern::Range(_, _),
+                tx: _,
             } => self.find_datoms_avet(clause, tx_range),
-            _ => self.find_datoms_aevt(clause, tx_range),
+            _ => self.find_datoms_aevt(clause),
         }
     }
 }
@@ -171,12 +173,12 @@ impl<'a> InMemoryStorage {
         }
     }
 
-    fn find_datoms_eavt(&self, clause: &Clause, tx_range: u64) -> Result<Vec<Datom>, StorageError> {
+    fn find_datoms_eavt(&self, clause: &Clause) -> Result<Vec<Datom>, StorageError> {
         let mut datoms = Vec::new();
         for (entity, avt) in self.e_iter(&self.eavt, &clause.entity) {
             for (attribute, vt) in self.a_iter(avt, &clause.attribute) {
                 let v_iter = self.v_iter(vt, &clause.value);
-                for (value, tx) in self.latest_values(v_iter, tx_range) {
+                for (value, tx) in self.latest_values(v_iter, &clause.tx) {
                     datoms.push(Datom::add(*entity, *attribute, value.clone(), tx));
                 }
             }
@@ -184,12 +186,12 @@ impl<'a> InMemoryStorage {
         Ok(datoms)
     }
 
-    fn find_datoms_aevt(&self, clause: &Clause, tx_range: u64) -> Result<Vec<Datom>, StorageError> {
+    fn find_datoms_aevt(&self, clause: &Clause) -> Result<Vec<Datom>, StorageError> {
         let mut datoms = Vec::new();
         for (attribute, evt) in self.a_iter(&self.aevt, &clause.attribute) {
             for (entity, vt) in self.e_iter(evt, &clause.entity) {
                 let v_iter = self.v_iter(vt, &clause.value);
-                for (value, tx) in self.latest_values(v_iter, tx_range) {
+                for (value, tx) in self.latest_values(v_iter, &clause.tx) {
                     datoms.push(Datom::add(*entity, *attribute, value.clone(), tx))
                 }
             }
@@ -267,14 +269,21 @@ impl<'a> InMemoryStorage {
             .unwrap_or(Iter::Zero)
     }
 
+    fn tx_iter(&self, map: &'a TxOp, tx: &'a TxPattern) -> Iter<'a, TransactionId, Op> {
+        match *tx {
+            TxPattern::Range(start, end) => Iter::Range(map.range((start, end))),
+            _ => Iter::Many(map.iter())
+            }
+    }
+
     fn latest_values<In: Iterator<Item = (&'a Value, &'a TxOp)>>(
         &self,
         v_iter: In,
-        tx_range: u64,
+        tx: &'a TxPattern,
     ) -> HashMap<&'a Value, u64> {
         let mut latest = HashMap::new();
         for (value, t) in v_iter {
-            for (tx, op) in t.range(..=tx_range) {
+            for (tx, op) in self.tx_iter(t, tx) {
                 match (latest.get_mut(value), op) {
                     (Some(prev_tx), Op::Added) if tx > prev_tx => *prev_tx = *tx,
                     (Some(prev_tx), Op::Retracted) if tx > prev_tx => {

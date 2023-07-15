@@ -76,9 +76,7 @@ impl<S: Storage, C: Clock> Transactor<S, C> {
         let mut datoms = Vec::new();
         let tx = self.create_tx_datom();
         for operation in &transaction.operations {
-            for datom in self.operation_datoms(tx.entity, operation, temp_ids, last_tx)? {
-                datoms.push(datom);
-            }
+            datoms.append(&mut self.operation_datoms(tx.entity, operation, temp_ids, last_tx)?);
         }
         datoms.push(tx);
         Ok(datoms)
@@ -106,17 +104,13 @@ impl<S: Storage, C: Clock> Transactor<S, C> {
         let storage = self.read_storage()?;
         for AttributeValue { attribute, value } in &operation.attributes {
             let attribute_id = storage.resolve_ident(attribute)?;
+            let (cardinality, value_type) =
+                self.attribute_metadata(&storage, attribute_id, last_tx)?;
 
-            let (cardinality, value_type) = self.attribute_metadata(attribute_id, last_tx)?;
             if cardinality == Cardinality::One {
-                // Retract previous values
-                let clause = Clause::new()
-                    .with_entity(EntityPattern::Id(entity))
-                    .with_attribute(AttributePattern::Id(attribute_id));
-                let datoms2 = storage.find_datoms(&clause, last_tx)?;
-                for datom in datoms2 {
-                    datoms.push(Datom::retract(entity, attribute_id, datom.value, tx));
-                }
+                let mut retracted =
+                    self.retract_old_values(&storage, entity, attribute_id, last_tx, tx)?;
+                datoms.append(&mut retracted);
             }
 
             let mut v = value.clone();
@@ -131,6 +125,25 @@ impl<S: Storage, C: Clock> Transactor<S, C> {
             }
 
             datoms.push(Datom::add(entity, attribute_id, v, tx));
+        }
+        Ok(datoms)
+    }
+
+    fn retract_old_values(
+        &self,
+        storage: &RwLockReadGuard<S>,
+        entity: u64,
+        attribute: u64,
+        last_tx: u64,
+        tx: u64,
+    ) -> Result<Vec<Datom>, TransactionError> {
+        let mut datoms = Vec::new();
+        // Retract previous values
+        let clause = Clause::new()
+            .with_entity(EntityPattern::Id(entity))
+            .with_attribute(AttributePattern::Id(attribute));
+        for datom in storage.find_datoms(&clause, last_tx)? {
+            datoms.push(Datom::retract(entity, attribute, datom.value, tx));
         }
         Ok(datoms)
     }
@@ -152,26 +165,21 @@ impl<S: Storage, C: Clock> Transactor<S, C> {
 
     fn attribute_metadata(
         &self,
+        storage: &RwLockReadGuard<S>,
         attribute: u64,
         last_tx: u64,
     ) -> Result<(Cardinality, ValueType), TransactionError> {
         let clause = Clause::new().with_entity(EntityPattern::Id(attribute));
-        let datoms = self.read_storage()?.find_datoms(&clause, last_tx)?;
+        let datoms = storage.find_datoms(&clause, last_tx)?;
         let mut cardinality = None;
         let mut value_type = None;
         for datom in datoms {
             match datom.attribute {
                 DB_ATTR_TYPE_ID => {
-                    value_type = datom
-                        .value
-                        .as_u64()
-                        .and_then(|value| ValueType::from(*value));
+                    value_type = datom.value.as_u64().and_then(ValueType::from);
                 }
                 DB_ATTR_CARDINALITY_ID => {
-                    cardinality = datom
-                        .value
-                        .as_u64()
-                        .and_then(|value| Cardinality::from(*value));
+                    cardinality = datom.value.as_u64().and_then(Cardinality::from);
                 }
                 _ => {}
             }

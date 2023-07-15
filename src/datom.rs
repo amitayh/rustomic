@@ -20,10 +20,10 @@ impl Value {
     /// assert_eq!(None, str_value.as_u64());
     ///
     /// let u64_value = Value::U64(42);
-    /// assert_eq!(Some(&42), u64_value.as_u64());
+    /// assert_eq!(Some(42), u64_value.as_u64());
     /// ```
-    pub fn as_u64(&self) -> Option<&u64> {
-        match self {
+    pub fn as_u64(&self) -> Option<u64> {
+        match *self {
             Value::U64(value) => Some(value),
             _ => None,
         }

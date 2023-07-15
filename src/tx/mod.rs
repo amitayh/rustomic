@@ -67,8 +67,8 @@ impl Transaction {
         }
     }
 
-    pub fn with(mut self, operation: Operation) -> Self {
-        self.operations.push(operation);
+    pub fn with<O: Into<Operation>>(mut self, o: O) -> Self {
+        self.operations.push(o.into());
         self
     }
 }

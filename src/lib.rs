@@ -100,7 +100,10 @@ mod tests {
         assert!(query_result.is_ok());
         let joe_id = temp_ids.get("joe");
         assert!(joe_id.is_some());
-        assert_eq!(joe_id, query_result.unwrap().results[0]["?joe"].as_u64());
+        assert_eq!(
+            joe_id.copied(),
+            query_result.unwrap().results[0]["?joe"].as_u64()
+        );
     }
 
     #[test]

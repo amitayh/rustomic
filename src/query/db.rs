@@ -7,6 +7,8 @@ use crate::query::clause::*;
 use crate::query::*;
 use crate::storage::Storage;
 
+use super::pattern::TxPattern;
+
 pub struct Db<S: Storage> {
     storage: Arc<RwLock<S>>,
     tx: u64,
@@ -36,8 +38,9 @@ impl<S: Storage> Db<S> {
             results.push(assignment.assigned);
             return Ok(());
         }
+        let tx_pattern = TxPattern::range(..=self.tx);
         if let [clause, rest @ ..] = clauses {
-            let assigned_clause = clause.assign(&assignment);
+            let assigned_clause = clause.assign(&assignment).with_tx(tx_pattern);
             let datoms = storage.find_datoms(&assigned_clause, self.tx)?;
 
             // TODO can this be parallelized?

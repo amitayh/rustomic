@@ -108,6 +108,32 @@ fn replace_values() {
 }
 
 #[test]
+fn restrict_transaction() {
+    let mut storage = InMemoryStorage::new();
+
+    let entity = 100;
+    let attribute = 101;
+    let datoms = vec![
+        // Add value 1 in tx 1000
+        Datom::add(entity, attribute, 1u64, 1000),
+        // Replace value 1 with 2 in tx 1001
+        Datom::retract(entity, attribute, 1u64, 1001),
+        Datom::add(entity, attribute, 2u64, 1001),
+    ];
+    let save_result = storage.save(&datoms);
+    assert!(save_result.is_ok());
+
+    let clause = Clause::new()
+        .with_entity(EntityPattern::Id(entity))
+        .with_tx(TxPattern::range(..=1000));
+    let read_result = storage.find(&clause);
+    assert!(read_result.is_ok());
+
+    let expected_result = vec![Datom::add(entity, attribute, 1u64, 1000)];
+    assert_eq!(expected_result, read_result.unwrap());
+}
+
+#[test]
 fn replace_values_avet() {
     let mut storage = InMemoryStorage::new();
 

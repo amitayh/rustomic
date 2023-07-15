@@ -91,3 +91,32 @@ impl<'a> Pattern for ValuePattern<'a> {
         }
     }
 }
+
+#[derive(Clone, Debug, PartialEq, Eq, Default)]
+pub enum TxPattern<'a> {
+    Variable(&'a str),
+    Range(Bound<u64>, Bound<u64>),
+    #[default]
+    Blank,
+}
+
+impl<'a> TxPattern<'a> {
+    pub fn variable(name: &'a str) -> Self {
+        TxPattern::Variable(name)
+    }
+
+    pub fn range<R: RangeBounds<u64>>(range: R) -> Self {
+        let start = range.start_bound().cloned();
+        let end = range.end_bound().cloned();
+        TxPattern::Range(start, end)
+    }
+}
+
+impl<'a> Pattern for TxPattern<'a> {
+    fn variable_name(&self) -> Option<&str> {
+        match *self {
+            TxPattern::Variable(variable) => Some(variable),
+            _ => None,
+        }
+    }
+}

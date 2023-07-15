@@ -7,6 +7,7 @@ pub struct Clause<'a> {
     pub entity: EntityPattern<'a>,
     pub attribute: AttributePattern<'a>,
     pub value: ValuePattern<'a>,
+    pub tx: TxPattern<'a>,
 }
 
 impl<'a> Clause<'a> {
@@ -26,6 +27,11 @@ impl<'a> Clause<'a> {
 
     pub fn with_value(mut self, value: ValuePattern<'a>) -> Self {
         self.value = value;
+        self
+    }
+
+    pub fn with_tx(mut self, tx: TxPattern<'a>) -> Self {
+        self.tx = tx;
         self
     }
 

@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"enum":["AttributePattern","EntityPattern","ValuePattern"],"trait":["Pattern"]};
+window.SIDEBAR_ITEMS = {"enum":["AttributePattern","EntityPattern","TxPattern","ValuePattern"],"trait":["Pattern"]};

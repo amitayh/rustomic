@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+use std::fmt::Debug;
 use std::sync::{Arc, RwLock, RwLockReadGuard};
 
 use crate::datom::Value;
@@ -9,12 +10,12 @@ use crate::storage::Storage;
 
 use super::pattern::TxPattern;
 
-pub struct Db<S: Storage> {
+pub struct Db<S: Storage + Debug> {
     storage: Arc<RwLock<S>>,
     tx: u64,
 }
 
-impl<S: Storage> Db<S> {
+impl<S: Storage + Debug> Db<S> {
     pub fn new(storage: Arc<RwLock<S>>, tx: u64) -> Self {
         Db { storage, tx }
     }
@@ -40,7 +41,10 @@ impl<S: Storage> Db<S> {
         }
         let tx_pattern = TxPattern::range(..=self.tx);
         if let [clause, rest @ ..] = clauses {
-            let assigned_clause = clause.assign(&assignment).with_tx(tx_pattern);
+            let mut assigned_clause = clause.assign(&assignment); // .with_tx(tx_pattern);
+            if assigned_clause.tx == TxPattern::Blank {
+                assigned_clause.with_tx2(tx_pattern);
+            }
             let datoms = storage.find_datoms(&assigned_clause, self.tx)?;
 
             // TODO can this be parallelized?

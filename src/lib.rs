@@ -20,6 +20,7 @@ mod tests {
     use super::query::pattern::*;
     use super::query::*;
     use super::schema::attribute::*;
+    use super::schema::*;
     use super::tx::transactor::*;
     use super::tx::*;
 
@@ -422,6 +423,46 @@ mod tests {
 
         assert_eq!(1, likes.len());
         assert!(likes.contains("Pizza"));
+    }
+
+    #[test]
+    //#[ignore]
+    fn search_for_tx_pattern() {
+        let (mut transactor, storage) = create_db();
+
+        // Create the schema
+        let schema_result =
+            transactor.transact(Transaction::new().with(Attribute::new("name", ValueType::Str)));
+        assert!(schema_result.is_ok());
+
+        // Insert initial data
+        let tx_result =
+            transactor.transact(Transaction::new().with(Operation::on_new().set("name", "Joe")));
+        assert!(tx_result.is_ok());
+
+        let tx_id = tx_result.unwrap().tx_id;
+        let db = Db::new(storage, tx_id);
+        let query_result = db.query(
+            Query::new()
+                .wher(
+                    Clause::new()
+                        .with_entity(EntityPattern::Blank)
+                        .with_attribute(AttributePattern::ident("name"))
+                        .with_value(ValuePattern::constant(&Value::str("Joe")))
+                        .with_tx(TxPattern::variable("?tx")),
+                )
+                .wher(
+                    Clause::new()
+                        .with_entity(EntityPattern::variable("?tx"))
+                        .with_attribute(AttributePattern::Id(DB_TX_TIME_ID))
+                        .with_value(ValuePattern::variable("?tx_time")),
+                ),
+        );
+
+        assert!(query_result.is_ok());
+        let results = query_result.unwrap().results;
+        assert_eq!(1, results.len());
+        assert_eq!(Some(tx_id), results[0]["?tx"].as_u64());
     }
 
     // TODO retract

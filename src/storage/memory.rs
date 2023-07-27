@@ -22,7 +22,7 @@ type Index<A, B, C> = BTreeMap<A, BTreeMap<B, BTreeMap<C, TxOp>>>;
 // +-------+---------------------------------+--------------------------------+
 //
 // https://docs.datomic.com/pro/query/indexes.html
-#[derive(Default)]
+#[derive(Default, Debug)]
 pub struct InMemoryStorage {
     // The EAVT index provides efficient access to everything about a given entity. Conceptually
     // this is very similar to row access style in a SQL database, except that entities can possess
@@ -272,8 +272,8 @@ impl<'a> InMemoryStorage {
     fn tx_iter(&self, map: &'a TxOp, tx: &'a TxPattern) -> Iter<'a, TransactionId, Op> {
         match *tx {
             TxPattern::Range(start, end) => Iter::Range(map.range((start, end))),
-            _ => Iter::Many(map.iter())
-            }
+            _ => Iter::Many(map.iter()),
+        }
     }
 
     fn latest_values<In: Iterator<Item = (&'a Value, &'a TxOp)>>(

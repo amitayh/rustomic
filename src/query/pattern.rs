@@ -95,6 +95,7 @@ impl<'a> Pattern for ValuePattern<'a> {
 #[derive(Clone, Debug, PartialEq, Eq, Default)]
 pub enum TxPattern<'a> {
     Variable(&'a str),
+    Constant(u64),
     Range(Bound<u64>, Bound<u64>),
     #[default]
     Blank,

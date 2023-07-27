@@ -35,6 +35,11 @@ impl<'a> Clause<'a> {
         self
     }
 
+    pub fn with_tx2(&mut self, tx: TxPattern<'a>) {
+        self.tx = tx;
+        //*self
+    }
+
     /// ```
     /// use rustomic::query::clause::*;
     /// use rustomic::query::pattern::*;
@@ -61,6 +66,9 @@ impl<'a> Clause<'a> {
         if let Some(variable) = self.value.variable_name() {
             variables.push(variable);
         }
+        if let Some(variable) = self.tx.variable_name() {
+            variables.push(variable);
+        }
         variables
     }
 
@@ -74,19 +82,22 @@ impl<'a> Clause<'a> {
     /// let clause = Clause::new()
     ///     .with_entity(EntityPattern::variable("foo"))
     ///     .with_attribute(AttributePattern::variable("bar"))
-    ///     .with_value(ValuePattern::variable("baz"));
+    ///     .with_value(ValuePattern::variable("baz"))
+    ///     .with_tx(TxPattern::variable("qux"));
     ///
     /// let query = Query::new().wher(clause.clone());
     /// let mut assignment = Assignment::from_query(&query);
     /// assignment.assign("foo", 1u64);
     /// assignment.assign("bar", 2u64);
     /// assignment.assign("baz", 3u64);
+    /// assignment.assign("qux", 4u64);
     ///
     /// let assigned = clause.assign(&assignment);
     ///
     /// assert_eq!(EntityPattern::Id(1), assigned.entity);
     /// assert_eq!(AttributePattern::Id(2), assigned.attribute);
     /// assert_eq!(ValuePattern::Constant(&Value::U64(3)), assigned.value);
+    /// assert_eq!(TxPattern::Constant(4), assigned.tx);
     /// ```
     pub fn assign(&self, assignment: &'a Assignment) -> Self {
         let mut clause = self.clone();
@@ -98,6 +109,9 @@ impl<'a> Clause<'a> {
         }
         if let Some(value) = assignment.assigned_value(&self.value) {
             clause.value = ValuePattern::Constant(value);
+        }
+        if let Some(Value::U64(tx)) = assignment.assigned_value(&self.tx) {
+            clause.tx = TxPattern::Constant(*tx);
         }
         clause
     }

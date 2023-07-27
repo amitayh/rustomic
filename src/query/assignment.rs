@@ -81,12 +81,14 @@ impl Assignment {
     /// variables.insert(String::from("?entity"));
     /// variables.insert(String::from("?attribute"));
     /// variables.insert(String::from("?value"));
+    /// variables.insert(String::from("?tx"));
     /// let assignment = Assignment::new(variables);
     ///
     /// let clause = Clause::new()
     ///     .with_entity(EntityPattern::Variable("?entity"))
     ///     .with_attribute(AttributePattern::Variable("?attribute"))
-    ///     .with_value(ValuePattern::Variable("?value"));
+    ///     .with_value(ValuePattern::Variable("?value"))
+    ///     .with_tx(TxPattern::Variable("?tx"));
     ///
     /// let entity = 1u64;
     /// let attribute = 2u64;
@@ -98,9 +100,11 @@ impl Assignment {
     /// assert_eq!(Value::U64(entity), updated.assigned["?entity"]);
     /// assert_eq!(Value::U64(attribute), updated.assigned["?attribute"]);
     /// assert_eq!(Value::U64(value), updated.assigned["?value"]);
+    /// assert_eq!(Value::U64(tx), updated.assigned["?tx"]);
     /// ```
     pub fn update_with(&self, clause: &Clause, datom: Datom) -> Self {
         let mut assignment = self.clone();
+        //dbg!(&clause);
         if let Some(entity_variable) = clause.entity.variable_name() {
             assignment.assign(entity_variable, datom.entity);
         }
@@ -109,6 +113,9 @@ impl Assignment {
         }
         if let Some(value_variable) = clause.value.variable_name() {
             assignment.assign(value_variable, datom.value);
+        }
+        if let Some(tx_variable) = clause.tx.variable_name() {
+            assignment.assign(tx_variable, datom.tx);
         }
         assignment
     }

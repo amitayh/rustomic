@@ -33,16 +33,30 @@ mod tests {
         (transactor, storage)
     }
 
+    fn create_schema() -> Transaction {
+        Transaction::new()
+            .with(Attribute::new("person/name", ValueType::Str).with_doc("A person's name"))
+            .with(Attribute::new("person/age", ValueType::I64).with_doc("A person's age"))
+            .with(
+                Attribute::new("person/likes", ValueType::Str)
+                    .with_doc("Things a person likes")
+                    .many(),
+            )
+            .with(Attribute::new("artist/name", ValueType::Str).with_doc("An artist's name"))
+            .with(Attribute::new("release/name", ValueType::Str).with_doc("A release's name"))
+            .with(
+                Attribute::new("release/artists", ValueType::Ref)
+                    .with_doc("Artists of release")
+                    .many(),
+            )
+    }
+
     #[test]
     fn return_empty_result() {
         let (mut transactor, storage) = create_db();
 
         // Create the schema
-        let schema_result = transactor.transact(
-            Transaction::new()
-                .with(Attribute::new("person/name", ValueType::Str).with_doc("A person's name")),
-        );
-        assert!(schema_result.is_ok());
+        assert!(transactor.transact(create_schema()).is_ok());
 
         // Insert data
         let tx_result = transactor.transact(
@@ -71,11 +85,7 @@ mod tests {
         let (mut transactor, storage) = create_db();
 
         // Create the schema
-        let schema_result = transactor.transact(
-            Transaction::new()
-                .with(Attribute::new("person/name", ValueType::Str).with_doc("A person's name")),
-        );
-        assert!(schema_result.is_ok());
+        assert!(transactor.transact(create_schema()).is_ok());
 
         // Insert data
         let tx_result = transactor.transact(
@@ -112,11 +122,7 @@ mod tests {
         let (mut transactor, _) = create_db();
 
         // Create the schema
-        let schema_result = transactor.transact(
-            Transaction::new()
-                .with(Attribute::new("person/name", ValueType::Str).with_doc("A person's name")),
-        );
-        assert!(schema_result.is_ok());
+        assert!(transactor.transact(create_schema()).is_ok());
 
         // This transaction should fail: "person/name" is of type `ValueType::Str`.
         let tx_result = transactor
@@ -129,11 +135,7 @@ mod tests {
         let (mut transactor, _) = create_db();
 
         // Create the schema
-        let schema_result = transactor.transact(
-            Transaction::new()
-                .with(Attribute::new("person/name", ValueType::Str).with_doc("A person's name")),
-        );
-        assert!(schema_result.is_ok());
+        assert!(transactor.transact(create_schema()).is_ok());
 
         // This transaction should fail: temp ID "duplicate" should only be used once.
         let tx_result = transactor.transact(
@@ -149,17 +151,7 @@ mod tests {
         let (mut transactor, storage) = create_db();
 
         // Create the schema
-        let schema_result = transactor.transact(
-            Transaction::new()
-                .with(Attribute::new("artist/name", ValueType::Str).with_doc("An artist's name"))
-                .with(Attribute::new("release/name", ValueType::Str).with_doc("An release's name"))
-                .with(
-                    Attribute::new("release/artists", ValueType::Ref)
-                        .with_doc("Artists of release")
-                        .many(),
-                ),
-        );
-        assert!(schema_result.is_ok());
+        assert!(transactor.transact(create_schema()).is_ok());
 
         // Insert data
         let tx_result = transactor.transact(
@@ -211,20 +203,31 @@ mod tests {
         let (mut transactor, storage) = create_db();
 
         // Create the schema
-        let schema_result = transactor.transact(
-            Transaction::new()
-                .with(Attribute::new("name", ValueType::Str))
-                .with(Attribute::new("age", ValueType::I64)),
-        );
-        assert!(schema_result.is_ok());
+        assert!(transactor.transact(create_schema()).is_ok());
 
         // Insert data
         let tx_result = transactor.transact(
             Transaction::new()
-                .with(Operation::on_new().set("name", "John").set("age", 33))
-                .with(Operation::on_new().set("name", "Paul").set("age", 31))
-                .with(Operation::on_new().set("name", "George").set("age", 30))
-                .with(Operation::on_new().set("name", "Ringo").set("age", 32)),
+                .with(
+                    Operation::on_new()
+                        .set("person/name", "John")
+                        .set("person/age", 33),
+                )
+                .with(
+                    Operation::on_new()
+                        .set("person/name", "Paul")
+                        .set("person/age", 31),
+                )
+                .with(
+                    Operation::on_new()
+                        .set("person/name", "George")
+                        .set("person/age", 30),
+                )
+                .with(
+                    Operation::on_new()
+                        .set("person/name", "Ringo")
+                        .set("person/age", 32),
+                ),
         );
         assert!(tx_result.is_ok());
 
@@ -234,13 +237,13 @@ mod tests {
                 .wher(
                     Clause::new()
                         .with_entity(EntityPattern::variable("?person"))
-                        .with_attribute(AttributePattern::ident("age"))
+                        .with_attribute(AttributePattern::ident("person/age"))
                         .with_value(ValuePattern::range(&(Value::I64(32)..))),
                 )
                 .wher(
                     Clause::new()
                         .with_entity(EntityPattern::variable("?person"))
-                        .with_attribute(AttributePattern::ident("name"))
+                        .with_attribute(AttributePattern::ident("person/name"))
                         .with_value(ValuePattern::variable("?name")),
                 ),
         );
@@ -262,19 +265,17 @@ mod tests {
         let (mut transactor, storage) = create_db();
 
         // Create the schema
-        let schema_result = transactor.transact(
-            Transaction::new()
-                .with(Attribute::new("name", ValueType::Str))
-                .with(Attribute::new("likes", ValueType::Str)),
-        );
-        assert!(schema_result.is_ok());
+        let schema = Transaction::new()
+            .with(Attribute::new("person/name", ValueType::Str).with_doc("A person's name"))
+            .with(Attribute::new("person/likes", ValueType::Str).with_doc("Things a person likes"));
+        assert!(transactor.transact(schema).is_ok());
 
         // Insert initial data
         let tx_result1 = transactor.transact(
             Transaction::new().with(
                 Operation::on_temp_id("joe")
-                    .set("name", "Joe")
-                    .set("likes", "Pizza"),
+                    .set("person/name", "Joe")
+                    .set("person/likes", "Pizza"),
             ),
         );
         assert!(tx_result1.is_ok());
@@ -282,11 +283,7 @@ mod tests {
 
         // Update what Joe likes
         let tx_result2 = transactor.transact(
-            Transaction::new().with(
-                Operation::on_id(joe_id)
-                    .set("name", "Joe")
-                    .set("likes", "Ice cream"),
-            ),
+            Transaction::new().with(Operation::on_id(joe_id).set("person/likes", "Ice cream")),
         );
         assert!(tx_result2.is_ok());
 
@@ -295,7 +292,7 @@ mod tests {
             Query::new().wher(
                 Clause::new()
                     .with_entity(EntityPattern::Id(joe_id))
-                    .with_attribute(AttributePattern::ident("likes"))
+                    .with_attribute(AttributePattern::ident("person/likes"))
                     .with_value(ValuePattern::variable("?likes")),
             ),
         );
@@ -316,19 +313,14 @@ mod tests {
         let (mut transactor, storage) = create_db();
 
         // Create the schema
-        let schema_result = transactor.transact(
-            Transaction::new()
-                .with(Attribute::new("name", ValueType::Str))
-                .with(Attribute::new("likes", ValueType::Str).many()),
-        );
-        assert!(schema_result.is_ok());
+        assert!(transactor.transact(create_schema()).is_ok());
 
         // Insert initial data
         let tx_result1 = transactor.transact(
             Transaction::new().with(
                 Operation::on_temp_id("joe")
-                    .set("name", "Joe")
-                    .set("likes", "Pizza"),
+                    .set("person/name", "Joe")
+                    .set("person/likes", "Pizza"),
             ),
         );
         assert!(tx_result1.is_ok());
@@ -338,8 +330,8 @@ mod tests {
         let tx_result2 = transactor.transact(
             Transaction::new().with(
                 Operation::on_id(joe_id)
-                    .set("name", "Joe")
-                    .set("likes", "Ice cream"),
+                    .set("person/name", "Joe")
+                    .set("person/likes", "Ice cream"),
             ),
         );
         assert!(tx_result2.is_ok());
@@ -349,7 +341,7 @@ mod tests {
             Query::new().wher(
                 Clause::new()
                     .with_entity(EntityPattern::Id(joe_id))
-                    .with_attribute(AttributePattern::ident("likes"))
+                    .with_attribute(AttributePattern::ident("person/likes"))
                     .with_value(ValuePattern::variable("?likes")),
             ),
         );
@@ -371,19 +363,14 @@ mod tests {
         let (mut transactor, storage) = create_db();
 
         // Create the schema
-        let schema_result = transactor.transact(
-            Transaction::new()
-                .with(Attribute::new("name", ValueType::Str))
-                .with(Attribute::new("likes", ValueType::Str)),
-        );
-        assert!(schema_result.is_ok());
+        assert!(transactor.transact(create_schema()).is_ok());
 
         // Insert initial data
         let tx_result1 = transactor.transact(
             Transaction::new().with(
                 Operation::on_temp_id("joe")
-                    .set("name", "Joe")
-                    .set("likes", "Pizza"),
+                    .set("person/name", "Joe")
+                    .set("person/likes", "Pizza"),
             ),
         );
         assert!(tx_result1.is_ok());
@@ -398,8 +385,8 @@ mod tests {
         let tx_result2 = transactor.transact(
             Transaction::new().with(
                 Operation::on_id(joe_id)
-                    .set("name", "Joe")
-                    .set("likes", "Ice cream"),
+                    .set("person/name", "Joe")
+                    .set("person/likes", "Ice cream"),
             ),
         );
         assert!(tx_result2.is_ok());
@@ -409,7 +396,7 @@ mod tests {
             Query::new().wher(
                 Clause::new()
                     .with_entity(EntityPattern::Id(joe_id))
-                    .with_attribute(AttributePattern::ident("likes"))
+                    .with_attribute(AttributePattern::ident("person/likes"))
                     .with_value(ValuePattern::variable("?likes")),
             ),
         );
@@ -426,18 +413,15 @@ mod tests {
     }
 
     #[test]
-    //#[ignore]
     fn search_for_tx_pattern() {
         let (mut transactor, storage) = create_db();
 
         // Create the schema
-        let schema_result =
-            transactor.transact(Transaction::new().with(Attribute::new("name", ValueType::Str)));
-        assert!(schema_result.is_ok());
+        assert!(transactor.transact(create_schema()).is_ok());
 
         // Insert initial data
-        let tx_result =
-            transactor.transact(Transaction::new().with(Operation::on_new().set("name", "Joe")));
+        let tx_result = transactor
+            .transact(Transaction::new().with(Operation::on_new().set("person/name", "Joe")));
         assert!(tx_result.is_ok());
 
         let tx_id = tx_result.unwrap().tx_id;
@@ -447,7 +431,7 @@ mod tests {
                 .wher(
                     Clause::new()
                         .with_entity(EntityPattern::Blank)
-                        .with_attribute(AttributePattern::ident("name"))
+                        .with_attribute(AttributePattern::ident("person/name"))
                         .with_value(ValuePattern::constant(&Value::str("Joe")))
                         .with_tx(TxPattern::variable("?tx")),
                 )

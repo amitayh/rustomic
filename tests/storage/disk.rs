@@ -1,12 +1,12 @@
 extern crate rustomic;
 
+use rocksdb::{Options, DB};
 use rustomic::datom::*;
 use rustomic::query::clause::*;
 use rustomic::query::pattern::*;
 use rustomic::storage::disk::*;
 use rustomic::storage::*;
 use tempdir::TempDir;
-use rocksdb::{DB, Options};
 
 #[test]
 fn read_datoms_by_entity_which_does_not_exist() {

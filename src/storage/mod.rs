@@ -1,6 +1,5 @@
 pub mod disk;
 pub mod memory;
-pub mod proto;
 
 use crate::datom::*;
 use crate::query::clause::Clause;

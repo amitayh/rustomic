@@ -8,13 +8,17 @@ use rustomic::storage::disk::*;
 use rustomic::storage::*;
 use tempdir::TempDir;
 
-#[test]
-fn read_datoms_by_entity_which_does_not_exist() {
+fn create_storage() -> DiskStorage {
     let dir = TempDir::new("rustomic").expect("Unable to create temp dir");
     let mut options = Options::default();
     options.create_if_missing(true);
     let db = DB::open(&options, dir).expect("Unable to open DB");
-    let storage = DiskStorage::new(db);
+    DiskStorage::new(db)
+}
+
+#[test]
+fn read_datoms_by_entity_which_does_not_exist() {
+    let storage = create_storage();
 
     let entity = 100;
     let tx = 101;
@@ -28,11 +32,7 @@ fn read_datoms_by_entity_which_does_not_exist() {
 
 #[test]
 fn ignore_datoms_of_other_entities() {
-    let dir = TempDir::new("rustomic").expect("Unable to create temp dir");
-    let mut options = Options::default();
-    options.create_if_missing(true);
-    let db = DB::open(&options, dir).expect("Unable to open DB");
-    let mut storage = DiskStorage::new(db);
+    let mut storage = create_storage();
 
     let entity1 = 100;
     let entity2 = 101;
@@ -51,10 +51,9 @@ fn ignore_datoms_of_other_entities() {
     assert_eq!(datoms[0..1], read_result.unwrap());
 }
 
-/*
 #[test]
 fn read_datoms_by_entity() {
-    let mut storage = DiskStorage::new();
+    let mut storage = create_storage();
 
     let entity = 100;
     let tx = 101;
@@ -73,6 +72,7 @@ fn read_datoms_by_entity() {
     assert_eq!(datoms, read_result.unwrap());
 }
 
+/*
 #[test]
 fn retract_values() {
     let mut storage = DiskStorage::new();

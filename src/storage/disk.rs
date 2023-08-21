@@ -1,6 +1,7 @@
 #![allow(dead_code)]
 
 use crate::query::pattern::EntityPattern;
+use crate::schema::attribute;
 use crate::storage::*;
 
 pub struct DiskStorage {
@@ -20,9 +21,9 @@ impl Storage for DiskStorage {
     fn save(&mut self, datoms: &[Datom]) -> Result<(), StorageError> {
         let mut batch = rocksdb::WriteBatch::default();
         for datom in datoms {
-            batch.put(datom.encode_eavt(), b"\x00");
-            batch.put(datom.encode_aevt(), b"\x00");
-            batch.put(datom.encode_avet(), b"\x00");
+            batch.put(datom.encode_eavt(), "");
+            batch.put(datom.encode_aevt(), "");
+            batch.put(datom.encode_avet(), "");
         }
         self.db.write(batch).unwrap();
         Ok(())
@@ -52,6 +53,7 @@ impl Storage for DiskStorage {
             //print_bytes(&key);
             //print_bytes(&value);
             let datom = Datom::parse(&key).unwrap();
+            dbg!(&datom);
             result.push(datom);
         }
         Ok(result)
@@ -93,40 +95,42 @@ impl Value {
         }
     }
 
-    fn write_to(&self, buf: &mut Vec<u8>) {
+    fn write_to(&self, writer: &mut serde::Writer) {
         match self {
             Value::U64(value) => {
-                buf.push(value::TAG_U64);
-                buf.extend_from_slice(&value.to_be_bytes());
+                writer.write_u8(value::TAG_U64);
+                writer.write_u64(*value);
             }
             Value::I64(value) => {
-                buf.push(value::TAG_I64);
-                buf.extend_from_slice(&value.to_be_bytes());
+                writer.write_u8(value::TAG_I64);
+                writer.write_i64(*value);
             }
             Value::Str(value) => {
-                buf.push(value::TAG_STR);
-                let len = u16::try_from(value.len()).unwrap();
-                buf.extend_from_slice(&len.to_be_bytes());
-                buf.extend_from_slice(value.as_bytes());
+                writer.write_u8(value::TAG_STR);
+                writer.write_str(value);
             }
             _ => (),
         }
     }
+}
 
-    fn parse(buffer: &[u8]) -> Option<(Value, &[u8])> {
-        if buffer.len() < 2 {
-            return None;
+mod op {
+    pub const TAG_ADDED: u8 = 0x00;
+    pub const TAG_RETRACTED: u8 = 0x01;
+}
+
+impl Op {
+    fn encode(&self) -> u8 {
+        match self {
+            Op::Added => op::TAG_ADDED,
+            Op::Retracted => op::TAG_RETRACTED,
         }
-        match buffer[0] {
-            value::TAG_U64 => {
-                let (value, buffer) = parse_u64(&buffer[1..])?;
-                Some((Value::U64(value), buffer))
-            }
-            value::TAG_I64 => {
-                let (value, buffer) = parse_i64(&buffer[1..])?;
-                Some((Value::I64(value), buffer))
-            }
-            value::TAG_STR => parse_str_value(&buffer[1..]),
+    }
+
+    fn parse(buffer: &[u8]) -> Option<(Op, &[u8])> {
+        match buffer.get(0) {
+            Some(&op::TAG_ADDED) => Some((Op::Added, &buffer[1..])),
+            Some(&op::TAG_RETRACTED) => Some((Op::Retracted, &buffer[1..])),
             _ => None,
         }
     }
@@ -162,73 +166,63 @@ impl Datom {
             8 // Tx
     }
 
-    fn encode_eavt(&self) -> Vec<u8> {
-        let mut bytes = Vec::with_capacity(self.key_size());
-        bytes.push(index::TAG_EAVT);
-        bytes.extend_from_slice(&self.entity.to_be_bytes());
-        bytes.extend_from_slice(&self.attribute.to_be_bytes());
-        self.value.write_to(&mut bytes);
-        bytes.extend_from_slice(&self.tx.to_be_bytes());
-        bytes
+    fn encode_eavt(&self) -> serde::Buffer {
+        let mut writer = serde::Writer::new(self.key_size());
+        writer.write_u8(index::TAG_EAVT);
+        writer.write_u64(self.entity);
+        writer.write_u64(self.attribute);
+        self.value.write_to(&mut writer);
+        writer.write_u64(!self.tx); // Keep tx in descending order
+        writer.write_u8(self.op.encode());
+        writer.result()
     }
 
-    fn encode_aevt(&self) -> Vec<u8> {
-        let mut bytes = Vec::with_capacity(self.key_size());
-        bytes.push(index::TAG_AEVT);
-        bytes.extend_from_slice(&self.attribute.to_be_bytes());
-        bytes.extend_from_slice(&self.entity.to_be_bytes());
-        self.value.write_to(&mut bytes);
-        bytes.extend_from_slice(&self.tx.to_be_bytes());
-        bytes
+    fn encode_aevt(&self) -> serde::Buffer {
+        let mut writer = serde::Writer::new(self.key_size());
+        writer.write_u8(index::TAG_AEVT);
+        writer.write_u64(self.attribute);
+        writer.write_u64(self.entity);
+        self.value.write_to(&mut writer);
+        writer.write_u64(!self.tx); // Keep tx in descending order
+        writer.write_u8(self.op.encode());
+        writer.result()
     }
 
-    fn encode_avet(&self) -> Vec<u8> {
-        let mut bytes = Vec::with_capacity(self.key_size());
-        bytes.push(index::TAG_AVET);
-        bytes.extend_from_slice(&self.attribute.to_be_bytes());
-        self.value.write_to(&mut bytes);
-        bytes.extend_from_slice(&self.entity.to_be_bytes());
-        bytes.extend_from_slice(&self.tx.to_be_bytes());
-        bytes
+    fn encode_avet(&self) -> serde::Buffer {
+        let mut writer = serde::Writer::new(self.key_size());
+        writer.write_u8(index::TAG_AVET);
+        writer.write_u64(self.attribute);
+        self.value.write_to(&mut writer);
+        writer.write_u64(self.entity);
+        writer.write_u64(!self.tx); // Keep tx in descending order
+        writer.write_u8(self.op.encode());
+        writer.result()
     }
 
-    fn parse(buffer: &[u8]) -> Option<Datom> {
-        if buffer.len() < 2 {
-            return None;
+    fn parse(buffer: &[u8]) -> Result<Datom, serde::ReadError> {
+        let mut reader = serde::Reader::new(buffer);
+        match reader.read_u8()? {
+            index::TAG_EAVT => parse_eavt(&mut reader),
+            index::TAG_AEVT => Err(serde::ReadError::EndOfInput),
+            index::TAG_AVET => Err(serde::ReadError::EndOfInput),
+            _ => Err(serde::ReadError::EndOfInput),
         }
-        match buffer[0] {
-            index::TAG_EAVT => parse_eavt(&buffer[1..]),
-            index::TAG_AEVT => None,
-            index::TAG_AVET => None,
-            _ => None,
-        }
     }
 }
 
-fn parse_eavt(buffer: &[u8]) -> Option<Datom> {
-    let (entity, buffer) = parse_u64(buffer)?;
-    let (attribute, buffer) = parse_u64(buffer)?;
-    let (value, buffer) = Value::parse(buffer)?;
-    let (tx, _) = parse_u64(buffer)?;
-    Some(Datom::add(entity, attribute, value, tx))
+fn parse_eavt(reader: &mut serde::Reader) -> Result<Datom, serde::ReadError> {
+    let entity = reader.read_u64()?;
+    let attribute = reader.read_u64()?;
+    let value = parse_value(reader)?;
+    let tx = !reader.read_u64()?;
+    Ok(Datom::add(entity, attribute, value, tx))
 }
 
-fn parse_u64(buffer: &[u8]) -> Option<(u64, &[u8])> {
-    if buffer.len() < 8 {
-        return None;
+fn parse_value(reader: &mut serde::Reader) -> Result<Value, serde::ReadError> {
+    match reader.read_u8()? {
+        value::TAG_U64 => Ok(Value::U64(reader.read_u64()?)),
+        value::TAG_I64 => Ok(Value::I64(reader.read_i64()?)),
+        value::TAG_STR => Ok(Value::Str(reader.read_str()?)),
+        _ => Err(serde::ReadError::EndOfInput),
     }
-    let value = u64::from_be_bytes([
-        buffer[0], buffer[1], buffer[2], buffer[3], buffer[4], buffer[5], buffer[6], buffer[7],
-    ]);
-    Some((value, &buffer[8..]))
-}
-
-fn parse_i64(buffer: &[u8]) -> Option<(i64, &[u8])> {
-    if buffer.len() < 8 {
-        return None;
-    }
-    let value = i64::from_be_bytes([
-        buffer[0], buffer[1], buffer[2], buffer[3], buffer[4], buffer[5], buffer[6], buffer[7],
-    ]);
-    Some((value, &buffer[8..]))
 }

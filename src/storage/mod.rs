@@ -1,5 +1,6 @@
 pub mod disk;
 pub mod memory;
+pub mod serde;
 
 use crate::datom::*;
 use crate::query::clause::Clause;

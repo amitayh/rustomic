@@ -72,10 +72,9 @@ fn read_datoms_by_entity() {
     assert_eq!(datoms, read_result.unwrap());
 }
 
-/*
 #[test]
 fn retract_values() {
-    let mut storage = DiskStorage::new();
+    let mut storage = create_storage();
 
     let entity = 100;
     let attribute = 101;
@@ -94,6 +93,7 @@ fn retract_values() {
     assert!(read_result.unwrap().is_empty());
 }
 
+/*
 #[test]
 fn replace_values() {
     let mut storage = DiskStorage::new();

@@ -1,6 +1,136 @@
-#![allow(dead_code)]
-
 use thiserror::Error;
+
+use crate::datom::*;
+
+mod index {
+    pub const TAG_EAVT: u8 = 0x01;
+    pub const TAG_AEVT: u8 = 0x02;
+    pub const TAG_AVET: u8 = 0x03;
+}
+
+mod value {
+    use super::*;
+
+    pub const TAG_U64: u8 = 0x01;
+    pub const TAG_I64: u8 = 0x02;
+    pub const TAG_STR: u8 = 0x03;
+
+    pub fn size(value: &Value) -> usize {
+        1 + // Value tag
+        match value {
+            Value::U64(_) | Value::I64(_) => 8,
+            Value::Str(str) => {
+                2 + // String length
+                str.len()
+            },
+            _ => 0,
+        }
+    }
+
+    pub fn serialize(value: &Value, writer: &mut Writer) {
+        match value {
+            Value::U64(value) => {
+                writer.write_u8(TAG_U64);
+                writer.write_u64(*value);
+            }
+            Value::I64(value) => {
+                writer.write_u8(TAG_I64);
+                writer.write_i64(*value);
+            }
+            Value::Str(value) => {
+                writer.write_u8(TAG_STR);
+                writer.write_str(value);
+            }
+            _ => (),
+        }
+    }
+
+    pub fn deserialize(reader: &mut Reader) -> Result<Value, ReadError> {
+        match reader.read_u8()? {
+            TAG_U64 => Ok(Value::U64(reader.read_u64()?)),
+            TAG_I64 => Ok(Value::I64(reader.read_i64()?)),
+            TAG_STR => Ok(Value::Str(reader.read_str()?)),
+            _ => Err(ReadError::InvalidInput),
+        }
+    }
+}
+
+mod op {
+    use super::*;
+
+    const TAG_ADDED: u8 = 0x00;
+    const TAG_RETRACTED: u8 = 0x01;
+
+    pub fn serialize(op: Op, writer: &mut Writer) {
+        writer.write_u8(match op {
+            Op::Added => TAG_ADDED,
+            Op::Retracted => TAG_RETRACTED,
+        })
+    }
+
+    pub fn deserialize(reader: &mut Reader) -> Result<Op, ReadError> {
+        match reader.read_u8()? {
+            TAG_ADDED => Ok(Op::Added),
+            TAG_RETRACTED => Ok(Op::Retracted),
+            _ => Err(ReadError::InvalidInput),
+        }
+    }
+}
+
+pub mod datom {
+    use super::*;
+
+    pub fn size(datom: &Datom) -> usize {
+        value::size(&datom.value) +
+        1 + // Index tag
+        8 + // Entity
+        8 + // Attribute
+        8 + // Tx
+        1 // Op
+    }
+
+    pub mod serialize {
+        use super::*;
+
+        pub fn eavt(datom: &Datom) -> Buffer {
+            let mut writer = Writer::new(datom::size(datom));
+            writer.write_u8(index::TAG_EAVT);
+            writer.write_u64(datom.entity);
+            writer.write_u64(datom.attribute);
+            value::serialize(&datom.value, &mut writer);
+            writer.write_u64(!datom.tx); // Keep tx in descending order
+            op::serialize(datom.op, &mut writer);
+            writer.result()
+        }
+    }
+
+    pub fn deserialize(buffer: &[u8]) -> Result<Datom, ReadError> {
+        let mut reader = Reader::new(buffer);
+        match reader.read_u8()? {
+            index::TAG_EAVT => parse_eavt(&mut reader),
+            index::TAG_AEVT => Err(ReadError::InvalidInput),
+            index::TAG_AVET => Err(ReadError::InvalidInput),
+            _ => Err(ReadError::InvalidInput),
+        }
+    }
+
+    fn parse_eavt(reader: &mut Reader) -> Result<Datom, ReadError> {
+        let entity = reader.read_u64()?;
+        let attribute = reader.read_u64()?;
+        let value = value::deserialize(reader)?;
+        let tx = !reader.read_u64()?;
+        let op = op::deserialize(reader)?;
+        Ok(Datom {
+            entity,
+            attribute,
+            value,
+            tx,
+            op,
+        })
+    }
+}
+
+// -------------------------------------------------------------------------------------------------
 
 pub struct Writer {
     buffer: Vec<u8>,
@@ -99,9 +229,9 @@ impl<'a> Reader<'a> {
         if self.index + num_bytes > self.buffer.len() {
             return Err(ReadError::EndOfInput);
         }
-        let prev_index = self.index;
+        let from = self.index;
         self.index += num_bytes;
-        Ok(&self.buffer[prev_index..])
+        Ok(&self.buffer[from..self.index])
     }
 }
 
@@ -109,4 +239,6 @@ impl<'a> Reader<'a> {
 pub enum ReadError {
     #[error("end of input")]
     EndOfInput,
+    #[error("invalid input")]
+    InvalidInput,
 }

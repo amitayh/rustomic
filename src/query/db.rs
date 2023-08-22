@@ -1,5 +1,4 @@
 use std::collections::HashMap;
-use std::fmt::Debug;
 use std::sync::{Arc, RwLock, RwLockReadGuard};
 
 use crate::datom::Value;
@@ -10,12 +9,12 @@ use crate::storage::Storage;
 
 use super::pattern::TxPattern;
 
-pub struct Db<S: Storage + Debug> {
+pub struct Db<S: Storage> {
     storage: Arc<RwLock<S>>,
     tx: u64,
 }
 
-impl<S: Storage + Debug> Db<S> {
+impl<S: Storage> Db<S> {
     pub fn new(storage: Arc<RwLock<S>>, tx: u64) -> Self {
         Db { storage, tx }
     }

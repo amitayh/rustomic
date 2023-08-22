@@ -1,19 +1,87 @@
 use thiserror::Error;
 
 use crate::datom::*;
+use crate::storage::*;
 
-mod index {
-    pub const TAG_EAVT: u8 = 0x01;
-    pub const TAG_AEVT: u8 = 0x02;
-    pub const TAG_AVET: u8 = 0x03;
+pub mod index {
+    use crate::query::pattern::{EntityPattern, AttributePattern, ValuePattern};
+
+    use super::*;
+
+    pub const TAG_EAVT: u8 = 0x00;
+    pub const TAG_AEVT: u8 = 0x01;
+    pub const TAG_AVET: u8 = 0x02;
+
+    pub fn key(clause: &Clause) -> Vec<u8> {
+        match clause {
+            Clause {
+                entity: EntityPattern::Id(entity),
+                attribute: AttributePattern::Id(attribute),
+                value: ValuePattern::Constant(value),
+                tx: _,
+            } => {
+                let size = 1 + 8 + 8 + value::size(value);
+                let mut writer = Writer::new(size);
+                writer.write_u8(TAG_EAVT);
+                writer.write_u64(*entity);
+                writer.write_u64(*attribute);
+                value::serialize(value, &mut writer);
+                writer.result()
+            }
+            Clause {
+                entity: EntityPattern::Id(entity),
+                attribute: AttributePattern::Id(attribute),
+                value: _,
+                tx: _,
+            } => {
+                let size = 1 + 8 + 8;
+                let mut writer = Writer::new(size);
+                writer.write_u8(TAG_EAVT);
+                writer.write_u64(*entity);
+                writer.write_u64(*attribute);
+                writer.result()
+            }
+            Clause {
+                entity: EntityPattern::Id(entity),
+                attribute: _,
+                value: _,
+                tx: _,
+            } => {
+                let size = 1 + 8;
+                let mut writer = Writer::new(size);
+                writer.write_u8(TAG_EAVT);
+                writer.write_u64(*entity);
+                writer.result()
+            }
+            Clause {
+                entity: _,
+                attribute: AttributePattern::Id(attribute),
+                value: ValuePattern::Constant(value),
+                tx: _,
+            } => {
+                let size = 1 + 8 + value::size(value);
+                let mut writer = Writer::new(size);
+                writer.write_u8(TAG_AVET);
+                writer.write_u64(*attribute);
+                value::serialize(value, &mut writer);
+                writer.result()
+            },
+            _ => {
+                let size = 1;
+                let mut writer = Writer::new(size);
+                writer.write_u8(TAG_EAVT);
+                writer.result()
+            },
+        }
+    }
 }
 
 mod value {
     use super::*;
 
-    pub const TAG_U64: u8 = 0x01;
-    pub const TAG_I64: u8 = 0x02;
-    pub const TAG_STR: u8 = 0x03;
+    pub const TAG_U64: u8 = 0x00;
+    pub const TAG_I64: u8 = 0x01;
+    pub const TAG_STR: u8 = 0x02;
 
     pub fn size(value: &Value) -> usize {
         1 + // Value tag
@@ -92,7 +160,7 @@ pub mod datom {
     pub mod serialize {
         use super::*;
 
-        pub fn eavt(datom: &Datom) -> Buffer {
+        pub fn eavt(datom: &Datom) -> Vec<u8> {
             let mut writer = Writer::new(datom::size(datom));
             writer.write_u8(index::TAG_EAVT);
             writer.write_u64(datom.entity);
@@ -102,32 +170,89 @@ pub mod datom {
             op::serialize(datom.op, &mut writer);
             writer.result()
         }
+
+        pub fn aevt(datom: &Datom) -> Vec<u8> {
+            let mut writer = Writer::new(datom::size(datom));
+            writer.write_u8(index::TAG_EAVT);
+            writer.write_u64(datom.attribute);
+            writer.write_u64(datom.entity);
+            value::serialize(&datom.value, &mut writer);
+            writer.write_u64(!datom.tx); // Keep tx in descending order
+            op::serialize(datom.op, &mut writer);
+            writer.result()
+        }
+
+        pub fn avet(datom: &Datom) -> Vec<u8> {
+            let mut writer = Writer::new(datom::size(datom));
+            writer.write_u8(index::TAG_AVET);
+            writer.write_u64(datom.attribute);
+            value::serialize(&datom.value, &mut writer);
+            writer.write_u64(datom.entity);
+            writer.write_u64(!datom.tx); // Keep tx in descending order
+            op::serialize(datom.op, &mut writer);
+            writer.result()
+        }
+    }
+
+    mod deserialize {
+        use super::*;
+
+        pub fn eavt(reader: &mut Reader) -> Result<Datom, ReadError> {
+            let entity = reader.read_u64()?;
+            let attribute = reader.read_u64()?;
+            let value = value::deserialize(reader)?;
+            let tx = !reader.read_u64()?;
+            let op = op::deserialize(reader)?;
+            Ok(Datom {
+                entity,
+                attribute,
+                value,
+                tx,
+                op,
+            })
+        }
+
+        pub fn aevt(reader: &mut Reader) -> Result<Datom, ReadError> {
+            let attribute = reader.read_u64()?;
+            let entity = reader.read_u64()?;
+            let value = value::deserialize(reader)?;
+            let tx = !reader.read_u64()?;
+            let op = op::deserialize(reader)?;
+            Ok(Datom {
+                entity,
+                attribute,
+                value,
+                tx,
+                op,
+            })
+        }
+
+        pub fn avet(reader: &mut Reader) -> Result<Datom, ReadError> {
+            let attribute = reader.read_u64()?;
+            let value = value::deserialize(reader)?;
+            let entity = reader.read_u64()?;
+            let tx = !reader.read_u64()?;
+            let op = op::deserialize(reader)?;
+            Ok(Datom {
+                entity,
+                attribute,
+                value,
+                tx,
+                op,
+            })
+        }
     }
 
     pub fn deserialize(buffer: &[u8]) -> Result<Datom, ReadError> {
         let mut reader = Reader::new(buffer);
         match reader.read_u8()? {
-            index::TAG_EAVT => parse_eavt(&mut reader),
-            index::TAG_AEVT => Err(ReadError::InvalidInput),
-            index::TAG_AVET => Err(ReadError::InvalidInput),
+            index::TAG_EAVT => deserialize::eavt(&mut reader),
+            index::TAG_AEVT => deserialize::aevt(&mut reader),
+            index::TAG_AVET => deserialize::avet(&mut reader),
             _ => Err(ReadError::InvalidInput),
         }
     }
 
-    fn parse_eavt(reader: &mut Reader) -> Result<Datom, ReadError> {
-        let entity = reader.read_u64()?;
-        let attribute = reader.read_u64()?;
-        let value = value::deserialize(reader)?;
-        let tx = !reader.read_u64()?;
-        let op = op::deserialize(reader)?;
-        Ok(Datom {
-            entity,
-            attribute,
-            value,
-            tx,
-            op,
-        })
-    }
 }
 
 // -------------------------------------------------------------------------------------------------
@@ -169,16 +294,8 @@ impl Writer {
         }
     }
 
-    pub fn result(self) -> Buffer {
-        Buffer(self.buffer)
-    }
-}
-
-pub struct Buffer(Vec<u8>);
-
-impl AsRef<[u8]> for Buffer {
-    fn as_ref(&self) -> &[u8] {
-        &self.0
+    pub fn result(self) -> Vec<u8> {
+        self.buffer
     }
 }
 

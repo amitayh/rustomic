@@ -1,17 +1,23 @@
-use crate::query::pattern::EntityPattern;
+use std::collections::{HashMap, HashSet};
+
+use rocksdb::{ReadOptions, PrefixRange};
+
 use crate::storage::*;
+use crate::schema::attribute::*;
+use crate::schema::default::*;
 
 pub struct DiskStorage {
     db: rocksdb::DB,
+    attribute_cardinality: HashMap<AttributeId, Cardinality>,
 }
 
-fn print_bytes(bytes: &[u8]) {
-    let string = bytes
+#[allow(dead_code)]
+fn bytes_string(bytes: &[u8]) -> String {
+    bytes
         .iter()
         .map(|byte| format!("{:02X}", byte))
         .collect::<Vec<String>>()
-        .join(" ");
-    println!("@@@ {}", string);
+        .join(" ")
 }
 
 impl Storage for DiskStorage {
@@ -19,8 +25,8 @@ impl Storage for DiskStorage {
         let mut batch = rocksdb::WriteBatch::default();
         for datom in datoms {
             batch.put(serde::datom::serialize::eavt(datom), "");
-            //batch.put(datom.encode_aevt(), "");
-            //batch.put(datom.encode_avet(), "");
+            batch.put(serde::datom::serialize::aevt(datom), "");
+            batch.put(serde::datom::serialize::avet(datom), "");
         }
         self.db.write(batch).unwrap();
         Ok(())
@@ -28,31 +34,24 @@ impl Storage for DiskStorage {
 
     fn find_datoms(&self, clause: &Clause, _tx_range: u64) -> Result<Vec<Datom>, StorageError> {
         let mut result = Vec::new();
-
-        let mut read_options = rocksdb::ReadOptions::default();
-
-        let mut lower = Vec::with_capacity(9);
-        //lower.push(index::TAG_EAVT);
-        let mut upper = Vec::with_capacity(9);
-        //upper.push(index::TAG_EAVT);
-        if let EntityPattern::Id(entity) = clause.entity {
-            lower.extend_from_slice(&entity.to_be_bytes());
-            upper.extend_from_slice(&(entity + 1).to_be_bytes());
-        }
-        read_options.set_iterate_lower_bound(lower);
-        read_options.set_iterate_upper_bound(upper);
-
+        let read_options = DiskStorage::read_options(clause);
+        // TODO: `retracted_values` should contain entity and attribute
+        let mut retracted_values = HashSet::new();
         for item in self
             .db
             .iterator_opt(rocksdb::IteratorMode::Start, read_options)
         {
             let (key, _value) = item.unwrap();
-            //print_bytes(&key);
-            //print_bytes(&value);
-            //let datom = Datom::parse(&key).unwrap();
+            //println!("@@@ KEY {}", bytes_string(&key));
+            //dbg!(&datom);
             let datom = serde::datom::deserialize(&key).unwrap();
-            dbg!(&datom);
-            result.push(datom);
+            if datom.op == Op::Retracted {
+                retracted_values.insert(datom.value.clone());
+            } else if !retracted_values.contains(&datom.value) {
+                result.push(datom);
+            } else {
+                retracted_values.remove(&datom.value);
+            }
         }
         Ok(result)
     }
@@ -63,7 +62,21 @@ impl Storage for DiskStorage {
 }
 
 impl DiskStorage {
+    // TODO: initialize existing db without reloading default datoms
     pub fn new(db: rocksdb::DB) -> Self {
-        DiskStorage { db }
+        let mut storage = DiskStorage {
+            db,
+            attribute_cardinality: HashMap::new(),
+        };
+        let init_datoms = default_datoms();
+        storage.save(&init_datoms).unwrap();
+        storage
+    }
+
+    fn read_options(clause: &Clause) -> ReadOptions {
+        let mut read_options = rocksdb::ReadOptions::default();
+        let range = PrefixRange(serde::index::key(clause));
+        read_options.set_iterate_range(range);
+        read_options
     }
 }

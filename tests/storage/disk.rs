@@ -93,10 +93,9 @@ fn retract_values() {
     assert!(read_result.unwrap().is_empty());
 }
 
-/*
 #[test]
 fn replace_values() {
-    let mut storage = DiskStorage::new();
+    let mut storage = create_storage();
 
     let entity = 100;
     let attribute = 101;
@@ -120,7 +119,7 @@ fn replace_values() {
 
 #[test]
 fn restrict_transaction() {
-    let mut storage = DiskStorage::new();
+    let mut storage = create_storage();
 
     let entity = 100;
     let attribute = 101;
@@ -144,6 +143,7 @@ fn restrict_transaction() {
     assert_eq!(expected_result, read_result.unwrap());
 }
 
+/*
 #[test]
 fn replace_values_avet() {
     let mut storage = DiskStorage::new();

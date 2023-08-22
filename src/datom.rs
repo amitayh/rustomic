@@ -1,5 +1,7 @@
 use rust_decimal::prelude::*;
 
+use quickcheck::{Arbitrary, Gen};
+
 #[derive(Hash, Eq, PartialEq, Debug, Clone, PartialOrd, Ord)]
 pub enum Value {
     I64(i64),
@@ -121,6 +123,44 @@ impl Datom {
             value: value.into(),
             tx,
             op: Op::Retracted,
+        }
+    }
+}
+
+impl Arbitrary for Value {
+    fn arbitrary(u: &mut Gen) -> Self {
+        match u.choose(&[0, 1, 2]) {
+            Some(0) => Value::I64(i64::arbitrary(u)),
+            Some(1) => Value::U64(u64::arbitrary(u)),
+            Some(2) => Value::Str(String::arbitrary(u)),
+            _ => panic!(),
+        }
+    }
+}
+
+impl Arbitrary for Op {
+    fn arbitrary(u: &mut Gen) -> Self {
+        if bool::arbitrary(u) {
+            Op::Added
+        } else {
+            Op::Retracted
+        }
+    }
+}
+
+impl Arbitrary for Datom {
+    fn arbitrary(u: &mut Gen) -> Self {
+        let entity = u64::arbitrary(u);
+        let attribute = u64::arbitrary(u);
+        let value = Value::arbitrary(u);
+        let tx = u64::arbitrary(u);
+        let op = Op::arbitrary(u);
+        Datom {
+            entity,
+            attribute,
+            value,
+            tx,
+            op,
         }
     }
 }

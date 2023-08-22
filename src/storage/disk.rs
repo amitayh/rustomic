@@ -1,10 +1,10 @@
 use std::collections::{HashMap, HashSet};
 
-use rocksdb::{ReadOptions, PrefixRange};
+use rocksdb::{PrefixRange, ReadOptions};
 
-use crate::storage::*;
 use crate::schema::attribute::*;
 use crate::schema::default::*;
+use crate::storage::*;
 
 pub struct DiskStorage {
     db: rocksdb::DB,

@@ -4,7 +4,7 @@ use crate::datom::*;
 use crate::storage::*;
 
 pub mod index {
-    use crate::query::pattern::{EntityPattern, AttributePattern, ValuePattern};
+    use crate::query::pattern::{AttributePattern, EntityPattern, ValuePattern};
 
     use super::*;
 
@@ -65,13 +65,13 @@ pub mod index {
                 writer.write_u64(*attribute);
                 value::serialize(value, &mut writer);
                 writer.result()
-            },
+            }
             _ => {
                 let size = 1;
                 let mut writer = Writer::new(size);
                 writer.write_u8(TAG_EAVT);
                 writer.result()
-            },
+            }
         }
     }
 }
@@ -173,7 +173,7 @@ pub mod datom {
 
         pub fn aevt(datom: &Datom) -> Vec<u8> {
             let mut writer = Writer::new(datom::size(datom));
-            writer.write_u8(index::TAG_EAVT);
+            writer.write_u8(index::TAG_AEVT);
             writer.write_u64(datom.attribute);
             writer.write_u64(datom.entity);
             value::serialize(&datom.value, &mut writer);
@@ -252,7 +252,6 @@ pub mod datom {
             _ => Err(ReadError::InvalidInput),
         }
     }
-
 }
 
 // -------------------------------------------------------------------------------------------------

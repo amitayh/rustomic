@@ -29,12 +29,18 @@ mod tests {
         Arc<RwLock<InMemoryStorage>>,
     ) {
         let storage = Arc::new(RwLock::new(InMemoryStorage::new()));
-        let transactor = Transactor::new(storage.clone(), MockClock::new());
+        let mut transactor = Transactor::new(storage.clone(), MockClock::new());
+        assert!(transactor.transact(create_schema()).is_ok());
         (transactor, storage)
     }
 
     fn create_schema() -> Transaction {
         Transaction::new()
+            .with(Attribute::new("movie/name", ValueType::Str))
+            .with(Attribute::new("movie/year", ValueType::U64))
+            .with(Attribute::new("movie/director", ValueType::Ref).many())
+            .with(Attribute::new("movie/cast", ValueType::Ref).many())
+            .with(Attribute::new("actor/name", ValueType::Str))
             .with(Attribute::new("person/name", ValueType::Str).with_doc("A person's name"))
             .with(Attribute::new("person/age", ValueType::I64).with_doc("A person's age"))
             .with(
@@ -54,9 +60,6 @@ mod tests {
     #[test]
     fn return_empty_result() {
         let (mut transactor, storage) = create_db();
-
-        // Create the schema
-        assert!(transactor.transact(create_schema()).is_ok());
 
         // Insert data
         let tx_result = transactor.transact(
@@ -83,9 +86,6 @@ mod tests {
     #[test]
     fn create_entity_by_temp_id() {
         let (mut transactor, storage) = create_db();
-
-        // Create the schema
-        assert!(transactor.transact(create_schema()).is_ok());
 
         // Insert data
         let tx_result = transactor.transact(
@@ -121,9 +121,6 @@ mod tests {
     fn reject_transaction_with_invalid_attribute_type() {
         let (mut transactor, _) = create_db();
 
-        // Create the schema
-        assert!(transactor.transact(create_schema()).is_ok());
-
         // This transaction should fail: "person/name" is of type `ValueType::Str`.
         let tx_result = transactor
             .transact(Transaction::new().with(Operation::on_new().set("person/name", 42)));
@@ -133,9 +130,6 @@ mod tests {
     #[test]
     fn reject_transaction_with_duplicate_temp_ids() {
         let (mut transactor, _) = create_db();
-
-        // Create the schema
-        assert!(transactor.transact(create_schema()).is_ok());
 
         // This transaction should fail: temp ID "duplicate" should only be used once.
         let tx_result = transactor.transact(
@@ -149,9 +143,6 @@ mod tests {
     #[test]
     fn reference_temp_id_in_transaction() {
         let (mut transactor, storage) = create_db();
-
-        // Create the schema
-        assert!(transactor.transact(create_schema()).is_ok());
 
         // Insert data
         let tx_result = transactor.transact(
@@ -201,9 +192,6 @@ mod tests {
     #[test]
     fn support_range_queries() {
         let (mut transactor, storage) = create_db();
-
-        // Create the schema
-        assert!(transactor.transact(create_schema()).is_ok());
 
         // Insert data
         let tx_result = transactor.transact(
@@ -312,9 +300,6 @@ mod tests {
     fn return_all_values_with_cardinality_many() {
         let (mut transactor, storage) = create_db();
 
-        // Create the schema
-        assert!(transactor.transact(create_schema()).is_ok());
-
         // Insert initial data
         let tx_result1 = transactor.transact(
             Transaction::new().with(
@@ -361,9 +346,6 @@ mod tests {
     #[test]
     fn return_correct_value_for_database_snapshot() {
         let (mut transactor, storage) = create_db();
-
-        // Create the schema
-        assert!(transactor.transact(create_schema()).is_ok());
 
         // Insert initial data
         let tx_result1 = transactor.transact(
@@ -415,9 +397,6 @@ mod tests {
     #[test]
     fn search_for_tx_pattern() {
         let (mut transactor, storage) = create_db();
-
-        // Create the schema
-        assert!(transactor.transact(create_schema()).is_ok());
 
         // Insert initial data
         let tx_result = transactor

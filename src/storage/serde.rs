@@ -4,7 +4,7 @@ use crate::datom::*;
 use crate::storage::*;
 
 pub mod index {
-    use crate::query::pattern::{AttributePattern, EntityPattern, ValuePattern};
+    use crate::query::pattern::{AttributePattern, EntityPattern, TxPattern, ValuePattern};
 
     use super::*;
 
@@ -14,6 +14,21 @@ pub mod index {
 
     pub fn key(clause: &Clause) -> Vec<u8> {
         match clause {
+            Clause {
+                entity: EntityPattern::Id(entity),
+                attribute: AttributePattern::Id(attribute),
+                value: ValuePattern::Constant(value),
+                tx: TxPattern::Constant(tx),
+            } => {
+                let size = 1 + 8 + 8 + 8 + value::size(value);
+                let mut writer = Writer::new(size);
+                writer.write_u8(TAG_EAVT);
+                writer.write_u64(*entity);
+                writer.write_u64(*attribute);
+                value::serialize(value, &mut writer);
+                writer.write_u64(*tx);
+                writer.result()
+            }
             Clause {
                 entity: EntityPattern::Id(entity),
                 attribute: AttributePattern::Id(attribute),
@@ -66,6 +81,18 @@ pub mod index {
                 value::serialize(value, &mut writer);
                 writer.result()
             }
+            Clause {
+                entity: _,
+                attribute: AttributePattern::Id(attribute),
+                value: _,
+                tx: _,
+            } => {
+                let size = 1 + 8;
+                let mut writer = Writer::new(size);
+                writer.write_u8(TAG_AEVT);
+                writer.write_u64(*attribute);
+                writer.result()
+            }
             _ => {
                 let size = 1;
                 let mut writer = Writer::new(size);
@@ -113,7 +140,7 @@ mod value {
         }
     }
 
-    pub fn deserialize(reader: &mut Reader) -> Result<Value, ReadError> {
+    pub fn deserialize(reader: &mut Reader) -> ReadResult<Value> {
         match reader.read_u8()? {
             TAG_U64 => Ok(Value::U64(reader.read_u64()?)),
             TAG_I64 => Ok(Value::I64(reader.read_i64()?)),
@@ -126,8 +153,8 @@ mod value {
 mod op {
     use super::*;
 
-    const TAG_ADDED: u8 = 0x00;
-    const TAG_RETRACTED: u8 = 0x01;
+    const TAG_RETRACTED: u8 = 0x00;
+    const TAG_ADDED: u8 = 0x01;
 
     pub fn serialize(op: Op, writer: &mut Writer) {
         writer.write_u8(match op {
@@ -136,7 +163,7 @@ mod op {
         })
     }
 
-    pub fn deserialize(reader: &mut Reader) -> Result<Op, ReadError> {
+    pub fn deserialize(reader: &mut Reader) -> ReadResult<Op> {
         match reader.read_u8()? {
             TAG_ADDED => Ok(Op::Added),
             TAG_RETRACTED => Ok(Op::Retracted),
@@ -197,7 +224,7 @@ pub mod datom {
     mod deserialize {
         use super::*;
 
-        pub fn eavt(reader: &mut Reader) -> Result<Datom, ReadError> {
+        pub fn eavt(reader: &mut Reader) -> ReadResult<Datom> {
             let entity = reader.read_u64()?;
             let attribute = reader.read_u64()?;
             let value = value::deserialize(reader)?;
@@ -212,7 +239,7 @@ pub mod datom {
             })
         }
 
-        pub fn aevt(reader: &mut Reader) -> Result<Datom, ReadError> {
+        pub fn aevt(reader: &mut Reader) -> ReadResult<Datom> {
             let attribute = reader.read_u64()?;
             let entity = reader.read_u64()?;
             let value = value::deserialize(reader)?;
@@ -227,7 +254,7 @@ pub mod datom {
             })
         }
 
-        pub fn avet(reader: &mut Reader) -> Result<Datom, ReadError> {
+        pub fn avet(reader: &mut Reader) -> ReadResult<Datom> {
             let attribute = reader.read_u64()?;
             let value = value::deserialize(reader)?;
             let entity = reader.read_u64()?;
@@ -243,7 +270,7 @@ pub mod datom {
         }
     }
 
-    pub fn deserialize(buffer: &[u8]) -> Result<Datom, ReadError> {
+    pub fn deserialize(buffer: &[u8]) -> ReadResult<Datom> {
         let mut reader = Reader::new(buffer);
         match reader.read_u8()? {
             index::TAG_EAVT => deserialize::eavt(&mut reader),
@@ -305,43 +332,45 @@ pub struct Reader<'a> {
     index: usize,
 }
 
+type ReadResult<T> = Result<T, ReadError>;
+
 impl<'a> Reader<'a> {
     pub fn new(buffer: &'a [u8]) -> Self {
         Reader { buffer, index: 0 }
     }
 
-    pub fn read_u8(&mut self) -> Result<u8, ReadError> {
+    pub fn read_u8(&mut self) -> ReadResult<u8> {
         let buffer = self.read_next(1)?;
         Ok(buffer[0])
     }
 
-    pub fn read_u16(&mut self) -> Result<u16, ReadError> {
+    pub fn read_u16(&mut self) -> ReadResult<u16> {
         let buffer = self.read_next(2)?;
         Ok(u16::from_be_bytes([buffer[0], buffer[1]]))
     }
 
-    pub fn read_u64(&mut self) -> Result<u64, ReadError> {
+    pub fn read_u64(&mut self) -> ReadResult<u64> {
         let buffer = self.read_next(8)?;
         Ok(u64::from_be_bytes([
             buffer[0], buffer[1], buffer[2], buffer[3], buffer[4], buffer[5], buffer[6], buffer[7],
         ]))
     }
 
-    pub fn read_i64(&mut self) -> Result<i64, ReadError> {
+    pub fn read_i64(&mut self) -> ReadResult<i64> {
         let buffer = self.read_next(8)?;
         Ok(i64::from_be_bytes([
             buffer[0], buffer[1], buffer[2], buffer[3], buffer[4], buffer[5], buffer[6], buffer[7],
         ]))
     }
 
-    pub fn read_str(&mut self) -> Result<String, ReadError> {
+    pub fn read_str(&mut self) -> ReadResult<String> {
         let length = self.read_u16()?;
         let buffer = self.read_next(length.into())?;
         let str = String::from_utf8_lossy(buffer);
         Ok(str.into_owned())
     }
 
-    fn read_next(&mut self, num_bytes: usize) -> Result<&[u8], ReadError> {
+    fn read_next(&mut self, num_bytes: usize) -> ReadResult<&[u8]> {
         if self.index + num_bytes > self.buffer.len() {
             return Err(ReadError::EndOfInput);
         }

@@ -5,7 +5,6 @@ use rustomic::datom::*;
 use rustomic::query::clause::*;
 use rustomic::query::pattern::*;
 use rustomic::storage::disk::*;
-use rustomic::storage::*;
 use tempdir::TempDir;
 
 fn create_storage() -> DiskStorage {
@@ -17,17 +16,56 @@ fn create_storage() -> DiskStorage {
 }
 
 #[test]
-fn read_datoms_by_entity_which_does_not_exist() {
+fn return_empty_result_if_no_datoms_match_search_criteria() {
     let storage = create_storage();
 
     let entity = 100;
-    let tx = 101;
-
     let clause = Clause::new().with_entity(EntityPattern::Id(entity));
-    let read_result = storage.find_datoms(&clause, tx);
+    let read_result = storage.find_datoms(&clause);
 
     assert!(read_result.is_ok());
-    assert!(read_result.unwrap().is_empty());
+    assert!(read_result.unwrap().collect::<Vec<Datom>>().is_empty());
+}
+
+#[test]
+fn find_single_datom_by_entity_attribute_and_value() {
+    let mut storage = create_storage();
+
+    let entity = 100;
+    let attribute = 101;
+    let value = Value::U64(102);
+    let tx = 103;
+
+    let datoms = vec![Datom::add(entity, attribute, value.clone(), tx)];
+    assert!(storage.save(&datoms).is_ok());
+
+    let read_result = storage.find_datoms(
+        &Clause::new()
+            .with_entity(EntityPattern::Id(entity))
+            .with_attribute(AttributePattern::Id(attribute))
+            .with_value(ValuePattern::Constant(&value)),
+    );
+
+    assert!(read_result.is_ok());
+    assert_eq!(datoms, read_result.unwrap().collect::<Vec<Datom>>());
+}
+
+#[test]
+fn find_multiple_datoms_by_entity() {
+    let mut storage = create_storage();
+
+    let entity = 100;
+    let tx = 1000;
+    let datoms = vec![
+        Datom::add(entity, 101, 1u64, tx),
+        Datom::add(entity, 102, 2u64, tx),
+    ];
+    assert!(storage.save(&datoms).is_ok());
+
+    let read_result = storage.find_datoms(&Clause::new().with_entity(EntityPattern::Id(entity)));
+
+    assert!(read_result.is_ok());
+    assert_eq!(datoms, read_result.unwrap().collect::<Vec<Datom>>());
 }
 
 #[test]
@@ -36,19 +74,72 @@ fn ignore_datoms_of_other_entities() {
 
     let entity1 = 100;
     let entity2 = 101;
-    let tx = 102;
-    let attribute = 103;
+    let attribute = 102;
+    let tx = 1000;
     let datoms = vec![
         Datom::add(entity1, attribute, 1u64, tx),
         Datom::add(entity2, attribute, 2u64, tx),
     ];
-    let save_result = storage.save(&datoms);
-    assert!(save_result.is_ok());
+    assert!(storage.save(&datoms).is_ok());
 
-    let clause = Clause::new().with_entity(EntityPattern::Id(entity1));
-    let read_result = storage.find_datoms(&clause, tx);
+    let read_result = storage.find_datoms(&Clause::new().with_entity(EntityPattern::Id(entity1)));
+
     assert!(read_result.is_ok());
-    assert_eq!(datoms[0..1], read_result.unwrap());
+    assert_eq!(datoms[0..1], read_result.unwrap().collect::<Vec<Datom>>());
+}
+
+#[test]
+fn ignore_retracted_values() {
+    let mut storage = create_storage();
+
+    let entity = 100;
+    let attribute = 101;
+    let datoms = vec![
+        // Add value 1 in tx 1000
+        Datom::add(entity, attribute, 1u64, 1000),
+        // Retract value 1 in tx 1001
+        Datom::retract(entity, attribute, 1u64, 1001),
+    ];
+    assert!(storage.save(&datoms).is_ok());
+
+    let read_result = storage.find_datoms(
+        &Clause::new()
+            .with_entity(EntityPattern::Id(entity))
+            .with_attribute(AttributePattern::Id(attribute)),
+    );
+
+    dbg!(&read_result);
+
+    assert!(read_result.is_ok());
+    assert!(read_result.unwrap().collect::<Vec<Datom>>().is_empty());
+}
+
+/*
+#[test]
+fn fetch_only_latest_value_for_attribute() {
+    let mut storage = create_storage();
+
+    let entity = 100;
+    let attribute = 101;
+    let datoms = vec![
+        // Add value 1 in tx 1000
+        Datom::add(entity, attribute, 1u64, 1000),
+        // Replace value 1 with 2 in tx 1001
+        Datom::retract(entity, attribute, 1u64, 1001),
+        Datom::add(entity, attribute, 2u64, 1001),
+    ];
+    assert!(storage.save(&datoms).is_ok());
+
+    let read_result = storage.find_datoms(
+        &Clause::new()
+            .with_entity(EntityPattern::Id(entity))
+            .with_attribute(AttributePattern::Id(attribute)),
+    );
+
+    dbg!(&read_result);
+
+    assert!(read_result.is_ok());
+    assert_eq!(datoms[0..1], read_result.unwrap().collect::<Vec<Datom>>());
 }
 
 #[test]
@@ -67,7 +158,7 @@ fn read_datoms_by_entity() {
     assert!(save_result.is_ok());
 
     let clause = Clause::new().with_entity(EntityPattern::Id(entity));
-    let read_result = storage.find_datoms(&clause, tx);
+    let read_result = storage.find_datoms(&clause);
     assert!(read_result.is_ok());
     assert_eq!(datoms, read_result.unwrap());
 }
@@ -88,7 +179,7 @@ fn retract_values() {
     assert!(save_result.is_ok());
 
     let clause = Clause::new().with_entity(EntityPattern::Id(entity));
-    let read_result = storage.find_datoms(&clause, 1001);
+    let read_result = storage.find_datoms(&clause);
     assert!(read_result.is_ok());
     assert!(read_result.unwrap().is_empty());
 }
@@ -110,7 +201,7 @@ fn replace_values() {
     assert!(save_result.is_ok());
 
     let clause = Clause::new().with_entity(EntityPattern::Id(entity));
-    let read_result = storage.find_datoms(&clause, 1001);
+    let read_result = storage.find_datoms(&clause);
     assert!(read_result.is_ok());
 
     let expected_result = vec![Datom::add(entity, attribute, 2u64, 1001)];
@@ -143,7 +234,6 @@ fn restrict_transaction() {
     assert_eq!(expected_result, read_result.unwrap());
 }
 
-/*
 #[test]
 fn replace_values_avet() {
     let mut storage = DiskStorage::new();

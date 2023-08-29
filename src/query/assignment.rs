@@ -104,7 +104,6 @@ impl Assignment {
     /// ```
     pub fn update_with(&self, clause: &Clause, datom: Datom) -> Self {
         let mut assignment = self.clone();
-        //dbg!(&clause);
         if let Some(entity_variable) = clause.entity.variable_name() {
             assignment.assign(entity_variable, datom.entity);
         }

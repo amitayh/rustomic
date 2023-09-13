@@ -19,7 +19,7 @@ impl Value {
     /// ```
     /// use rustomic::datom::Value;
     ///
-    /// let str_value = Value::Str(String::from("foo"));
+    /// let str_value = Value::str("foo");
     /// assert_eq!(None, str_value.as_u64());
     ///
     /// let u64_value = Value::U64(42);
@@ -38,7 +38,7 @@ impl Value {
     /// let u64_value = Value::U64(42);
     /// assert_eq!(None, u64_value.as_str());
     ///
-    /// let str_value = Value::Str(String::from("foo"));
+    /// let str_value = Value::str("foo");
     /// assert_eq!(Some("foo"), str_value.as_str());
     /// ```
     pub fn as_str(&self) -> Option<&str> {
@@ -81,7 +81,7 @@ impl From<Decimal> for Value {
 
 impl From<&str> for Value {
     fn from(val: &str) -> Self {
-        Value::Str(Rc::from(val))
+        Value::str(val)
     }
 }
 

@@ -1,5 +1,6 @@
 use std::collections::HashMap;
 use std::collections::HashSet;
+use std::rc::Rc;
 
 use crate::datom::*;
 use crate::query::pattern::*;
@@ -8,12 +9,12 @@ use crate::query::*;
 // TODO PartialAssignment / CompleteAssignment?
 #[derive(Debug, Eq, PartialEq, Clone)]
 pub struct Assignment {
-    pub assigned: HashMap<String, Value>,
-    unassigned: HashSet<String>,
+    pub assigned: HashMap<Rc<str>, Value>,
+    unassigned: HashSet<Rc<str>>,
 }
 
 impl Assignment {
-    pub fn new(variables: HashSet<String>) -> Self {
+    pub fn new(variables: HashSet<Rc<str>>) -> Self {
         Assignment {
             assigned: HashMap::new(),
             unassigned: variables,
@@ -49,17 +50,19 @@ impl Assignment {
                 .wher
                 .iter()
                 .flat_map(|clause| clause.free_variables())
-                .map(String::from)
+                // TODO don't construct the `Rc` here, get from `free_variables`
+                .map(Rc::from)
                 .collect(),
         )
     }
 
     /// ```
+    /// use std::rc::Rc;
     /// use std::collections::HashSet;
     /// use rustomic::query::assignment::*;
     ///
     /// let mut variables = HashSet::new();
-    /// variables.insert(String::from("?foo"));
+    /// variables.insert(Rc::from("?foo"));
     /// let mut assignment = Assignment::new(variables);
     /// assert!(!assignment.is_complete());
     ///
@@ -72,23 +75,24 @@ impl Assignment {
 
     /// ```
     /// use std::collections::HashSet;
+    /// use std::rc::Rc;
     /// use rustomic::query::assignment::*;
     /// use rustomic::query::clause::*;
     /// use rustomic::query::pattern::*;
     /// use rustomic::datom::*;
     ///
     /// let mut variables = HashSet::new();
-    /// variables.insert(String::from("?entity"));
-    /// variables.insert(String::from("?attribute"));
-    /// variables.insert(String::from("?value"));
-    /// variables.insert(String::from("?tx"));
+    /// variables.insert(Rc::from("?entity"));
+    /// variables.insert(Rc::from("?attribute"));
+    /// variables.insert(Rc::from("?value"));
+    /// variables.insert(Rc::from("?tx"));
     /// let assignment = Assignment::new(variables);
     ///
     /// let clause = Clause::new()
-    ///     .with_entity(EntityPattern::Variable("?entity"))
-    ///     .with_attribute(AttributePattern::Variable("?attribute"))
-    ///     .with_value(ValuePattern::Variable("?value"))
-    ///     .with_tx(TxPattern::Variable("?tx"));
+    ///     .with_entity(EntityPattern::variable("?entity"))
+    ///     .with_attribute(AttributePattern::variable("?attribute"))
+    ///     .with_value(ValuePattern::variable("?value"))
+    ///     .with_tx(TxPattern::variable("?tx"));
     ///
     /// let entity = 1u64;
     /// let attribute = 2u64;

@@ -7,19 +7,20 @@ use crate::datom::Value;
 use crate::query::clause::*;
 use crate::storage::StorageError;
 use std::collections::HashMap;
+use std::rc::Rc;
 use thiserror::Error;
 
 #[derive(Debug, Default)]
-pub struct Query<'a> {
-    pub wher: Vec<Clause<'a>>,
+pub struct Query {
+    pub wher: Vec<Clause>,
 }
 
-impl<'a> Query<'a> {
+impl Query {
     pub fn new() -> Self {
         Query { wher: Vec::new() }
     }
 
-    pub fn wher(mut self, clause: Clause<'a>) -> Self {
+    pub fn wher(mut self, clause: Clause) -> Self {
         self.wher.push(clause);
         self
     }
@@ -27,7 +28,7 @@ impl<'a> Query<'a> {
 
 #[derive(Debug)]
 pub struct QueryResult {
-    pub results: Vec<HashMap<String, Value>>,
+    pub results: Vec<HashMap<Rc<str>, Value>>,
 }
 
 #[derive(Debug, Error)]

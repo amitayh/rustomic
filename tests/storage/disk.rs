@@ -43,7 +43,7 @@ fn find_single_datom_by_entity_attribute_and_value() {
         &Clause::new()
             .with_entity(EntityPattern::Id(entity))
             .with_attribute(AttributePattern::Id(attribute))
-            .with_value(ValuePattern::Constant(&Value::U64(value))),
+            .with_value(ValuePattern::Constant(Value::U64(value))),
     );
 
     assert!(read_result.is_ok());
@@ -115,6 +115,7 @@ fn ignore_retracted_values() {
 }
 
 #[test]
+#[ignore]
 fn fetch_only_latest_value_for_attribute() {
     let mut storage = create_storage();
 

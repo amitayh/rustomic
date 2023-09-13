@@ -32,7 +32,7 @@ impl<S: Storage> Db<S> {
         storage: &RwLockReadGuard<S>,
         clauses: &[Clause],
         assignment: Assignment,
-        results: &mut Vec<HashMap<String, Value>>,
+        results: &mut Vec<HashMap<Rc<str>, Value>>,
     ) -> Result<(), QueryError> {
         if assignment.is_complete() {
             results.push(assignment.assigned);

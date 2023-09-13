@@ -1,19 +1,20 @@
 pub mod transactor;
 
 use std::collections::HashMap;
+use std::rc::Rc;
 
 use crate::datom::Datom;
 use crate::datom::Value;
 use thiserror::Error;
 
 pub enum Entity {
-    New,            // Create a new entity and assign ID automatically.
-    Id(u64),        // Update existing entity by ID.
-    TempId(String), // Use a temp ID within transaction.
+    New,             // Create a new entity and assign ID automatically.
+    Id(u64),         // Update existing entity by ID.
+    TempId(Rc<str>), // Use a temp ID within transaction.
 }
 
 pub struct AttributeValue {
-    pub attribute: String,
+    pub attribute: Rc<str>,
     pub value: Value,
 }
 
@@ -39,7 +40,7 @@ impl Operation {
     }
 
     pub fn on_temp_id(temp_id: &str) -> Self {
-        Self::new(Entity::TempId(String::from(temp_id)))
+        Self::new(Entity::TempId(Rc::from(temp_id)))
     }
 
     pub fn set<V: Into<Value>>(mut self, attribute: &str, value: V) -> Self {
@@ -49,7 +50,7 @@ impl Operation {
 
     pub fn set_mut<V: Into<Value>>(&mut self, attribute: &str, value: V) {
         self.attributes.push(AttributeValue {
-            attribute: String::from(attribute),
+            attribute: Rc::from(attribute),
             value: value.into(),
         });
     }
@@ -77,7 +78,7 @@ impl Transaction {
 pub struct TransctionResult {
     pub tx_id: u64,
     pub tx_data: Vec<Datom>,
-    pub temp_ids: HashMap<String, u64>,
+    pub temp_ids: HashMap<Rc<str>, u64>,
 }
 
 #[derive(Debug, Error)]
@@ -87,9 +88,9 @@ pub enum TransactionError {
     #[error("invalid attribute type")]
     InvalidAttributeType,
     #[error("duplicate temp ID `{0}`")]
-    DuplicateTempId(String),
+    DuplicateTempId(Rc<str>),
     #[error("temp ID `{0}` not found")]
-    TempIdNotFound(String),
+    TempIdNotFound(Rc<str>),
     #[error("storage error")]
     StorageError(#[from] crate::storage::StorageError),
 }

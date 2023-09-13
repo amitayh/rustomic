@@ -131,7 +131,7 @@ impl Storage for InMemoryStorage {
             Clause {
                 entity: _,
                 attribute: AttributePattern::Id(_) | AttributePattern::Ident(_),
-                value: ValuePattern::Constant(_) | ValuePattern::Range(_, _),
+                value: ValuePattern::Constant(_), // | ValuePattern::Range(_, _),
                 tx: _,
             } => self.find_datoms_avet(clause, tx_range),
             _ => self.find_datoms_aevt(clause),
@@ -245,7 +245,7 @@ impl<'a> InMemoryStorage {
             AttributePattern::Id(id) => self.kv_iter(map, id),
             AttributePattern::Ident(ident) => Iter::One(
                 self.ident_to_entity
-                    .get(*ident)
+                    .get(ident)
                     .and_then(|attribute| map.get_key_value(attribute)),
             ),
             _ => Iter::Many(map.iter()),
@@ -257,9 +257,9 @@ impl<'a> InMemoryStorage {
         map: &'a BTreeMap<Value, V>,
         value: &'a ValuePattern,
     ) -> Iter<'a, Value, V> {
-        match *value {
+        match value {
             ValuePattern::Constant(value) => self.kv_iter(map, value),
-            ValuePattern::Range(start, end) => Iter::Range(map.range((start, end))),
+            //ValuePattern::Range(start, end) => Iter::Range(map.range((start, end))),
             _ => Iter::Many(map.iter()),
         }
     }

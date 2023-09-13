@@ -39,8 +39,26 @@ impl ValueType {
     }
 }
 
+pub struct InvalidValue(u64);
+
+impl TryFrom<u64> for ValueType {
+    type Error = InvalidValue;
+
+    fn try_from(value: u64) -> Result<Self, Self::Error> {
+        match value {
+            1 => Ok(ValueType::I64),
+            2 => Ok(ValueType::U64),
+            3 => Ok(ValueType::Decimal),
+            4 => Ok(ValueType::Str),
+            5 => Ok(ValueType::Ref),
+            _ => Err(InvalidValue(value)),
+        }
+    }
+}
+
 impl Value {
     /// ```
+    /// use std::rc::Rc;
     /// use rustomic::datom::Value;
     /// use rustomic::schema::attribute::ValueType;
     /// use rust_decimal::prelude::*;
@@ -49,7 +67,7 @@ impl Value {
     /// assert!(Value::U64(42).matches_type(ValueType::U64));
     /// assert!(Value::U64(42).matches_type(ValueType::Ref));
     /// assert!(Value::Decimal(42.into()).matches_type(ValueType::Decimal));
-    /// assert!(Value::Str(String::from("foo")).matches_type(ValueType::Str));
+    /// assert!(Value::str("foo").matches_type(ValueType::Str));
     /// assert!(!Value::U64(42).matches_type(ValueType::Str));
     /// ```
     pub fn matches_type(&self, value_type: ValueType) -> bool {

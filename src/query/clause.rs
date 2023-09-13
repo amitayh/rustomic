@@ -3,39 +3,39 @@ use crate::query::assignment::*;
 use crate::query::pattern::*;
 
 #[derive(Clone, Debug, Default)]
-pub struct Clause<'a> {
-    pub entity: EntityPattern<'a>,
-    pub attribute: AttributePattern<'a>,
-    pub value: ValuePattern<'a>,
-    pub tx: TxPattern<'a>,
+pub struct Clause {
+    pub entity: EntityPattern,
+    pub attribute: AttributePattern,
+    pub value: ValuePattern,
+    pub tx: TxPattern,
 }
 
-impl<'a> Clause<'a> {
+impl Clause {
     pub fn new() -> Self {
         Clause::default()
     }
 
-    pub fn with_entity(mut self, entity: EntityPattern<'a>) -> Self {
+    pub fn with_entity(mut self, entity: EntityPattern) -> Self {
         self.entity = entity;
         self
     }
 
-    pub fn with_attribute(mut self, attribute: AttributePattern<'a>) -> Self {
+    pub fn with_attribute(mut self, attribute: AttributePattern) -> Self {
         self.attribute = attribute;
         self
     }
 
-    pub fn with_value(mut self, value: ValuePattern<'a>) -> Self {
+    pub fn with_value(mut self, value: ValuePattern) -> Self {
         self.value = value;
         self
     }
 
-    pub fn with_tx(mut self, tx: TxPattern<'a>) -> Self {
+    pub fn with_tx(mut self, tx: TxPattern) -> Self {
         self.tx = tx;
         self
     }
 
-    pub fn with_tx2(&mut self, tx: TxPattern<'a>) {
+    pub fn with_tx2(&mut self, tx: TxPattern) {
         self.tx = tx;
         //*self
     }
@@ -96,10 +96,10 @@ impl<'a> Clause<'a> {
     ///
     /// assert_eq!(EntityPattern::Id(1), assigned.entity);
     /// assert_eq!(AttributePattern::Id(2), assigned.attribute);
-    /// assert_eq!(ValuePattern::Constant(&Value::U64(3)), assigned.value);
+    /// assert_eq!(ValuePattern::Constant(Value::U64(3)), assigned.value);
     /// assert_eq!(TxPattern::Constant(4), assigned.tx);
     /// ```
-    pub fn assign(&self, assignment: &'a Assignment) -> Self {
+    pub fn assign(&self, assignment: &Assignment) -> Self {
         let mut clause = self.clone();
         if let Some(Value::U64(entity)) = assignment.assigned_value(&self.entity) {
             clause.entity = EntityPattern::Id(*entity);
@@ -108,7 +108,7 @@ impl<'a> Clause<'a> {
             clause.attribute = AttributePattern::Id(*attribute);
         }
         if let Some(value) = assignment.assigned_value(&self.value) {
-            clause.value = ValuePattern::Constant(value);
+            clause.value = ValuePattern::Constant(value.clone());
         }
         if let Some(Value::U64(tx)) = assignment.assigned_value(&self.tx) {
             clause.tx = TxPattern::Constant(*tx);

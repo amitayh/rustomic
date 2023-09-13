@@ -13,6 +13,8 @@ use crate::schema::*;
 use crate::storage::*;
 use crate::tx::*;
 
+type TempIds = HashMap<Rc<str>, u64>;
+
 pub struct Transactor<S: Storage, C: Clock> {
     next_entity_id: u64,
     storage: Arc<RwLock<S>>,
@@ -55,7 +57,7 @@ impl<S: Storage, C: Clock> Transactor<S, C> {
     fn generate_temp_ids(
         &mut self,
         transaction: &Transaction,
-    ) -> Result<HashMap<String, u64>, TransactionError> {
+    ) -> Result<TempIds, TransactionError> {
         let mut temp_ids = HashMap::new();
         for operation in &transaction.operations {
             if let Entity::TempId(id) = &operation.entity {
@@ -70,7 +72,7 @@ impl<S: Storage, C: Clock> Transactor<S, C> {
     fn transaction_datoms(
         &mut self,
         transaction: &Transaction,
-        temp_ids: &HashMap<String, u64>,
+        temp_ids: &TempIds,
         last_tx: u64,
     ) -> Result<Vec<Datom>, TransactionError> {
         let mut datoms = Vec::new();
@@ -96,7 +98,7 @@ impl<S: Storage, C: Clock> Transactor<S, C> {
         &mut self,
         tx: u64,
         operation: &Operation,
-        temp_ids: &HashMap<String, u64>,
+        temp_ids: &TempIds,
         last_tx: u64,
     ) -> Result<Vec<Datom>, TransactionError> {
         let mut datoms = Vec::new();
@@ -151,7 +153,7 @@ impl<S: Storage, C: Clock> Transactor<S, C> {
     fn resolve_entity(
         &mut self,
         entity: &Entity,
-        temp_ids: &HashMap<String, u64>,
+        temp_ids: &TempIds,
     ) -> Result<u64, TransactionError> {
         match entity {
             Entity::New => Ok(self.next_entity_id()),

@@ -1,5 +1,6 @@
 use std::ops::Bound;
 use std::ops::RangeBounds;
+use std::rc::Rc;
 
 use crate::datom::*;
 
@@ -8,22 +9,22 @@ pub trait Pattern {
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Default)]
-pub enum EntityPattern<'a> {
-    Variable(&'a str),
+pub enum EntityPattern {
+    Variable(Rc<str>),
     Id(u64),
     #[default]
     Blank,
 }
 
-impl<'a> EntityPattern<'a> {
-    pub fn variable(name: &'a str) -> Self {
-        EntityPattern::Variable(name)
+impl EntityPattern {
+    pub fn variable(name: &str) -> Self {
+        EntityPattern::Variable(Rc::from(name))
     }
 }
 
-impl<'a> Pattern for EntityPattern<'a> {
+impl Pattern for EntityPattern {
     fn variable_name(&self) -> Option<&str> {
-        match *self {
+        match self {
             EntityPattern::Variable(variable) => Some(variable),
             _ => None,
         }
@@ -31,27 +32,27 @@ impl<'a> Pattern for EntityPattern<'a> {
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Default)]
-pub enum AttributePattern<'a> {
-    Variable(&'a str),
-    Ident(&'a str),
+pub enum AttributePattern {
+    Variable(Rc<str>),
+    Ident(Rc<str>),
     Id(u64),
     #[default]
     Blank,
 }
 
-impl<'a> AttributePattern<'a> {
+impl AttributePattern {
     pub fn variable(name: &str) -> AttributePattern {
-        AttributePattern::Variable(name)
+        AttributePattern::Variable(Rc::from(name))
     }
 
     pub fn ident(name: &str) -> AttributePattern {
-        AttributePattern::Ident(name)
+        AttributePattern::Ident(Rc::from(name))
     }
 }
 
-impl<'a> Pattern for AttributePattern<'a> {
+impl Pattern for AttributePattern {
     fn variable_name(&self) -> Option<&str> {
-        match *self {
+        match self {
             AttributePattern::Variable(variable) => Some(variable),
             _ => None,
         }
@@ -59,33 +60,33 @@ impl<'a> Pattern for AttributePattern<'a> {
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Default)]
-pub enum ValuePattern<'a> {
-    Variable(&'a str),
-    Constant(&'a Value),
-    Range(Bound<&'a Value>, Bound<&'a Value>),
+pub enum ValuePattern {
+    Variable(Rc<str>),
+    Constant(Value),
+    //Range(Bound<&'a Value>, Bound<&'a Value>),
     #[default]
     Blank,
 }
 
-impl<'a> ValuePattern<'a> {
-    pub fn variable(name: &'a str) -> Self {
-        ValuePattern::Variable(name)
+impl ValuePattern {
+    pub fn variable(name: &str) -> Self {
+        ValuePattern::Variable(Rc::from(name))
     }
 
-    pub fn constant(value: &'a Value) -> Self {
+    pub fn constant(value: Value) -> Self {
         ValuePattern::Constant(value)
     }
 
-    pub fn range<R: RangeBounds<Value>>(range: &'a R) -> Self {
-        let start = range.start_bound();
-        let end = range.end_bound();
-        ValuePattern::Range(start, end)
-    }
+    //pub fn range<R: RangeBounds<Value>>(range: &'a R) -> Self {
+    //    let start = range.start_bound();
+    //    let end = range.end_bound();
+    //    ValuePattern::Range(start, end)
+    //}
 }
 
-impl<'a> Pattern for ValuePattern<'a> {
+impl Pattern for ValuePattern {
     fn variable_name(&self) -> Option<&str> {
-        match *self {
+        match self {
             ValuePattern::Variable(variable) => Some(variable),
             _ => None,
         }
@@ -93,17 +94,17 @@ impl<'a> Pattern for ValuePattern<'a> {
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Default)]
-pub enum TxPattern<'a> {
-    Variable(&'a str),
+pub enum TxPattern {
+    Variable(Rc<str>),
     Constant(u64),
     Range(Bound<u64>, Bound<u64>),
     #[default]
     Blank,
 }
 
-impl<'a> TxPattern<'a> {
-    pub fn variable(name: &'a str) -> Self {
-        TxPattern::Variable(name)
+impl TxPattern {
+    pub fn variable(name: &str) -> Self {
+        TxPattern::Variable(Rc::from(name))
     }
 
     pub fn range<R: RangeBounds<u64>>(range: R) -> Self {
@@ -113,9 +114,9 @@ impl<'a> TxPattern<'a> {
     }
 }
 
-impl<'a> Pattern for TxPattern<'a> {
+impl Pattern for TxPattern {
     fn variable_name(&self) -> Option<&str> {
-        match *self {
+        match self {
             TxPattern::Variable(variable) => Some(variable),
             _ => None,
         }

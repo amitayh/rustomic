@@ -7,10 +7,16 @@ use crate::schema::default::*;
 use crate::storage::*;
 use thiserror::Error;
 
+#[allow(dead_code)]
 pub struct DiskStorage {
     db: rocksdb::DB,
     attribute_cardinality: HashMap<AttributeId, Cardinality>,
 }
+
+// TODO?
+// Separate storage to 2 layers:
+// 1. Base storage - read/write datoms in sorted order
+// 2. Layer that understands attributes and entities
 
 /*
 impl Storage for DiskStorage {
@@ -99,6 +105,7 @@ impl Foo for DiskStorage {
 
     fn save(&mut self, datoms: &[Datom]) -> Result<(), Self::Error> {
         let mut batch = rocksdb::WriteBatch::default();
+        // TODO: should we use 3 different DBs, or 1 DB with tag?
         for datom in datoms {
             batch.put(serde::datom::serialize::eavt(datom), "");
             batch.put(serde::datom::serialize::aevt(datom), "");
@@ -125,15 +132,32 @@ impl Foo for DiskStorage {
         let iterator = self
             .db
             .iterator_opt(rocksdb::IteratorMode::Start, read_options);
+        //iterator.set_mode(rocksdb::IteratorMode::From(
+        let mut found = HashSet::new();
         for item in iterator {
             let (datom_bytes, _) = item?;
             let datom = serde::datom::deserialize(&datom_bytes)?;
-            dbg!(&datom);
-            if datom.op == Op::Added {
-                result.push(datom);
+            println!("{:?} {:?}", &datom, &found);
+            if found.contains(&(datom.entity, datom.attribute)) {
+                continue;
             }
+            found.insert((datom.entity, datom.attribute));
+            if datom.op == Op::Retracted {
+                continue;
+            }
+            result.push(datom);
         }
         Ok(result.into_iter())
+    }
+}
+
+struct FooIter {}
+
+impl Iterator for FooIter {
+    type Item = Datom;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        None
     }
 }
 

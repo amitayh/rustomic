@@ -2,6 +2,7 @@ use std::collections::btree_map;
 use std::collections::btree_map::Range;
 use std::collections::BTreeMap;
 use std::collections::HashMap;
+use std::rc::Rc;
 
 use crate::datom::*;
 use crate::query::clause::Clause;
@@ -82,7 +83,7 @@ pub struct InMemoryStorage {
     avet: Index<AttributeId, Value, EntityId>,
 
     // Lookup entity ID by ident
-    ident_to_entity: HashMap<String, EntityId>,
+    ident_to_entity: HashMap<Rc<str>, EntityId>,
 }
 
 impl InMemoryStorage {

@@ -1,4 +1,5 @@
 use rust_decimal::prelude::*;
+use std::rc::Rc;
 
 use quickcheck::{Arbitrary, Gen};
 
@@ -7,12 +8,12 @@ pub enum Value {
     I64(i64),
     U64(u64),
     Decimal(Decimal),
-    Str(String),
+    Str(Rc<str>),
 }
 
 impl Value {
     pub fn str(str: &str) -> Value {
-        Value::Str(String::from(str))
+        Value::Str(Rc::from(str))
     }
 
     /// ```
@@ -80,13 +81,7 @@ impl From<Decimal> for Value {
 
 impl From<&str> for Value {
     fn from(val: &str) -> Self {
-        Value::Str(String::from(val))
-    }
-}
-
-impl From<String> for Value {
-    fn from(val: String) -> Self {
-        Value::Str(val)
+        Value::Str(Rc::from(val))
     }
 }
 
@@ -132,7 +127,7 @@ impl Arbitrary for Value {
         match u.choose(&[0, 1, 2]) {
             Some(0) => Value::I64(i64::arbitrary(u)),
             Some(1) => Value::U64(u64::arbitrary(u)),
-            Some(2) => Value::Str(String::arbitrary(u)),
+            Some(2) => Value::Str(String::arbitrary(u).into()),
             _ => panic!(),
         }
     }

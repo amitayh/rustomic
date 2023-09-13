@@ -33,17 +33,17 @@ fn find_single_datom_by_entity_attribute_and_value() {
 
     let entity = 100;
     let attribute = 101;
-    let value = Value::U64(102);
+    let value = 102;
     let tx = 103;
 
-    let datoms = vec![Datom::add(entity, attribute, value.clone(), tx)];
+    let datoms = vec![Datom::add(entity, attribute, value, tx)];
     assert!(storage.save(&datoms).is_ok());
 
     let read_result = storage.find_datoms(
         &Clause::new()
             .with_entity(EntityPattern::Id(entity))
             .with_attribute(AttributePattern::Id(attribute))
-            .with_value(ValuePattern::Constant(&value)),
+            .with_value(ValuePattern::Constant(&Value::U64(value))),
     );
 
     assert!(read_result.is_ok());
@@ -114,7 +114,6 @@ fn ignore_retracted_values() {
     assert!(read_result.unwrap().collect::<Vec<Datom>>().is_empty());
 }
 
-/*
 #[test]
 fn fetch_only_latest_value_for_attribute() {
     let mut storage = create_storage();
@@ -141,6 +140,45 @@ fn fetch_only_latest_value_for_attribute() {
     assert!(read_result.is_ok());
     assert_eq!(datoms[0..1], read_result.unwrap().collect::<Vec<Datom>>());
 }
+
+/*
+
+// ignore_datoms_of_other_entities
+seek [100 "foo/bar"]
+[100 "foo/bar" 1 1000 add]          -> emit
+[101 "foo/bar" 2 1000 add]
+
+// ignore_retracted_values
+seek [100 "foo/bar"]
+[100 "foo/bar" 1 1001 retract]      -> seek [100 "foo/bar" 2]
+[100 "foo/bar" 1 1000 add]
+-> done
+
+// fetch_only_latest_value_for_attribute
+seek [100 "foo/bar"]
+[100 "foo/bar" 1 1001 retract]      -> seek [100 "foo/bar" 2]
+[100 "foo/bar" 1 1000 add]
+[100 "foo/bar" 2 1001 add]          -> emit
+
+// fetch_only_latest_value_for_attribute
+seek [100 "foo/bar"]
+[100 "foo/bar" 1 1001 add]          -> emit?
+[100 "foo/bar" 2 1001 retract]
+[100 "foo/bar" 2 1000 add]
+
+// find_multiple_datoms_by_entity
+[seek 100]
+[100 101 1 1000 add]                -> emit, seek [100 102]
+[100 102 2 1000 add]                -> emit, seek [100 103]
+-> done
+
+// find_multiple_datoms_by_entity
+[seek 100]
+[100 101 1 1000 add]                -> emit, seek [100 102]
+[100 102 1 1001 retract]            -> seek [100 102 2]
+[100 102 2 1001 add]                -> emit, seek [100, 103]
+[100 102 1 1000 add]
+-> done
 
 #[test]
 fn read_datoms_by_entity() {

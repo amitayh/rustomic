@@ -1,3 +1,4 @@
+use std::rc::Rc;
 use thiserror::Error;
 
 use crate::datom::*;
@@ -153,8 +154,8 @@ mod value {
 mod op {
     use super::*;
 
-    const TAG_RETRACTED: u8 = 0x00;
-    const TAG_ADDED: u8 = 0x01;
+    const TAG_ADDED: u8 = 0x00;
+    const TAG_RETRACTED: u8 = 0x01;
 
     pub fn serialize(op: Op, writer: &mut Writer) {
         writer.write_u8(match op {
@@ -327,16 +328,13 @@ impl Writer {
 
 // -------------------------------------------------------------------------------------------------
 
-pub struct Reader<'a> {
-    buffer: &'a [u8],
-    index: usize,
-}
+pub struct Reader<'a>(&'a [u8]);
 
 type ReadResult<T> = Result<T, ReadError>;
 
 impl<'a> Reader<'a> {
     pub fn new(buffer: &'a [u8]) -> Self {
-        Reader { buffer, index: 0 }
+        Reader(buffer)
     }
 
     pub fn read_u8(&mut self) -> ReadResult<u8> {
@@ -363,20 +361,21 @@ impl<'a> Reader<'a> {
         ]))
     }
 
-    pub fn read_str(&mut self) -> ReadResult<String> {
+    pub fn read_str(&mut self) -> ReadResult<Rc<str>> {
         let length = self.read_u16()?;
         let buffer = self.read_next(length.into())?;
-        let str = String::from_utf8_lossy(buffer);
-        Ok(str.into_owned())
+        let str = std::str::from_utf8(buffer)?;
+        Ok(Rc::from(str))
     }
 
     fn read_next(&mut self, num_bytes: usize) -> ReadResult<&[u8]> {
-        if self.index + num_bytes > self.buffer.len() {
+        let Reader(buffer) = self;
+        if num_bytes > buffer.len() {
             return Err(ReadError::EndOfInput);
         }
-        let from = self.index;
-        self.index += num_bytes;
-        Ok(&self.buffer[from..self.index])
+        let result = &buffer[..num_bytes];
+        self.0 = &buffer[num_bytes..];
+        Ok(result)
     }
 }
 
@@ -386,4 +385,6 @@ pub enum ReadError {
     EndOfInput,
     #[error("invalid input")]
     InvalidInput,
+    #[error("utf8 error")]
+    Utf8Error(#[from] std::str::Utf8Error),
 }

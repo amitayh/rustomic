@@ -1,5 +1,6 @@
 use std::collections::{HashMap, HashSet};
 
+use rocksdb::{IteratorMode, DBIteratorWithThreadMode, DBRawIteratorWithThreadMode, DBCommon, SingleThreaded, DBWithThreadMode};
 use rocksdb::{PrefixRange, ReadOptions};
 
 use crate::schema::attribute::*;
@@ -61,11 +62,11 @@ impl Storage for DiskStorage {
 }
 */
 
-pub trait Foo {
+pub trait Foo<'a> {
     type Error;
     type Iter: Iterator<Item = Datom>;
     fn save(&mut self, datoms: &[Datom]) -> Result<(), Self::Error>;
-    fn find_datoms(&self, clause: &Clause) -> Result<Self::Iter, Self::Error>;
+    fn find_datoms(&'a self, clause: &Clause) -> Result<Self::Iter, Self::Error>;
 }
 
 impl DiskStorage {
@@ -99,9 +100,10 @@ impl DiskStorage {
     }
 }
 
-impl Foo for DiskStorage {
+impl<'a> Foo<'a> for DiskStorage {
     type Error = DiskStorageError;
-    type Iter = std::vec::IntoIter<Datom>;
+    //type Iter = std::vec::IntoIter<Datom>;
+    type Iter = FooIter<'a>;
 
     fn save(&mut self, datoms: &[Datom]) -> Result<(), Self::Error> {
         let mut batch = rocksdb::WriteBatch::default();
@@ -115,11 +117,10 @@ impl Foo for DiskStorage {
         Ok(())
     }
 
-    fn find_datoms(&self, clause: &Clause) -> Result<Self::Iter, Self::Error> {
-        let mut result = Vec::new();
-        let key = serde::index::key(clause);
+    fn find_datoms(&'a self, clause: &Clause) -> Result<Self::Iter, Self::Error> {
 
         /*
+        let key = serde::index::key(clause);
         let mut iterator = self.db.prefix_iterator(&key);
         while let Some(result) = iterator.next() {
             let (datom_bytes, _) = result?;
@@ -127,12 +128,13 @@ impl Foo for DiskStorage {
         }
         */
 
-        let mut read_options = ReadOptions::default();
-        read_options.set_iterate_range(PrefixRange(key));
-        let iterator = self
-            .db
-            .iterator_opt(rocksdb::IteratorMode::Start, read_options);
-        //iterator.set_mode(rocksdb::IteratorMode::From(
+        Ok(FooIter::new(clause, &self.db))
+
+        /*
+        let mut result = Vec::new();
+        let read_options = ReadOptions::default();
+        //read_options.set_iterate_range(PrefixRange(key));
+        let iterator = self.db.iterator_opt(IteratorMode::Start, read_options);
         let mut found = HashSet::new();
         for item in iterator {
             let (datom_bytes, _) = item?;
@@ -148,16 +150,50 @@ impl Foo for DiskStorage {
             result.push(datom);
         }
         Ok(result.into_iter())
+        */
     }
 }
 
-struct FooIter {}
+type DBRawIterator<'a> = DBRawIteratorWithThreadMode<'a, DBWithThreadMode<SingleThreaded>>;
 
-impl Iterator for FooIter {
+pub struct FooIter<'a> {
+    iterator: DBRawIterator<'a>,
+}
+
+impl<'a> FooIter<'a> {
+    fn new(clause: &Clause, db: &'a rocksdb::DB) -> Self {
+        let key = serde::index::key(clause);
+        let read_options = ReadOptions::default();
+        let mut iterator = db.raw_iterator_opt(read_options);
+        iterator.seek(key);
+        Self { iterator }
+    }
+}
+
+impl<'a> Iterator for FooIter<'a> {
     type Item = Datom;
 
     fn next(&mut self) -> Option<Self::Item> {
-        None
+        let mut result = None;
+        let datom_bytes = self.iterator.key()?;
+        let datom = serde::datom::deserialize(datom_bytes).unwrap();
+        if datom.op == Op::Added {
+            result = Some(datom);
+            dbg!(&result);
+            self.iterator.next();
+        } else {
+            //self.iterator.seek()
+        }
+        /*
+        iterator.seek(key);
+        while iterator.valid() {
+            let datom_bytes = iterator.key().unwrap_or(b"");
+            let datom = serde::datom::deserialize(&datom_bytes)?;
+            dbg!(datom);
+            iterator.next();
+        }
+        */
+        result
     }
 }
 

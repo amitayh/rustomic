@@ -108,7 +108,7 @@ fn ignore_retracted_values() {
             .with_attribute(AttributePattern::Id(attribute)),
     );
 
-    dbg!(&read_result);
+    //dbg!(&read_result);
 
     assert!(read_result.is_ok());
     assert!(read_result.unwrap().collect::<Vec<Datom>>().is_empty());
@@ -136,7 +136,7 @@ fn fetch_only_latest_value_for_attribute() {
             .with_attribute(AttributePattern::Id(attribute)),
     );
 
-    dbg!(&read_result);
+    //dbg!(&read_result);
 
     assert!(read_result.is_ok());
     assert_eq!(datoms[0..1], read_result.unwrap().collect::<Vec<Datom>>());

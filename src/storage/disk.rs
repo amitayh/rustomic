@@ -1,6 +1,9 @@
 use std::collections::{HashMap, HashSet};
 
-use rocksdb::{IteratorMode, DBIteratorWithThreadMode, DBRawIteratorWithThreadMode, DBCommon, SingleThreaded, DBWithThreadMode};
+use rocksdb::{
+    DBCommon, DBIteratorWithThreadMode, DBRawIteratorWithThreadMode, DBWithThreadMode,
+    IteratorMode, SingleThreaded,
+};
 use rocksdb::{PrefixRange, ReadOptions};
 
 use crate::schema::attribute::*;
@@ -118,7 +121,6 @@ impl<'a> Foo<'a> for DiskStorage {
     }
 
     fn find_datoms(&'a self, clause: &Clause) -> Result<Self::Iter, Self::Error> {
-
         /*
         let key = serde::index::key(clause);
         let mut iterator = self.db.prefix_iterator(&key);
@@ -126,11 +128,6 @@ impl<'a> Foo<'a> for DiskStorage {
             let (datom_bytes, _) = result?;
             let datom = serde::datom::deserialize(&datom_bytes)?;
         }
-        */
-
-        Ok(FooIter::new(clause, &self.db))
-
-        /*
         let mut result = Vec::new();
         let read_options = ReadOptions::default();
         //read_options.set_iterate_range(PrefixRange(key));
@@ -151,22 +148,23 @@ impl<'a> Foo<'a> for DiskStorage {
         }
         Ok(result.into_iter())
         */
+
+        Ok(FooIter::new(clause, &self.db))
     }
 }
 
-type DBRawIterator<'a> = DBRawIteratorWithThreadMode<'a, DBWithThreadMode<SingleThreaded>>;
-
 pub struct FooIter<'a> {
-    iterator: DBRawIterator<'a>,
+    iterator: DBRawIteratorWithThreadMode<'a, DBWithThreadMode<SingleThreaded>>,
+    start: Vec<u8>,
 }
 
 impl<'a> FooIter<'a> {
     fn new(clause: &Clause, db: &'a rocksdb::DB) -> Self {
-        let key = serde::index::key(clause);
+        let start = serde::index::key(clause);
         let read_options = ReadOptions::default();
         let mut iterator = db.raw_iterator_opt(read_options);
-        iterator.seek(key);
-        Self { iterator }
+        iterator.seek(&start);
+        Self { iterator, start }
     }
 }
 
@@ -176,10 +174,12 @@ impl<'a> Iterator for FooIter<'a> {
     fn next(&mut self) -> Option<Self::Item> {
         let mut result = None;
         let datom_bytes = self.iterator.key()?;
+        if datom_bytes >= &self.start {
+            return None;
+        }
         let datom = serde::datom::deserialize(datom_bytes).unwrap();
         if datom.op == Op::Added {
             result = Some(datom);
-            dbg!(&result);
             self.iterator.next();
         } else {
             //self.iterator.seek()

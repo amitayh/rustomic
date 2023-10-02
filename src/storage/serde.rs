@@ -119,56 +119,60 @@ pub mod datom {
     pub fn deserialize(buffer: &[u8]) -> ReadResult<Datom> {
         let mut reader = Reader::new(buffer);
         match reader.read()? {
-            index::TAG_EAVT => eavt(&mut reader),
-            index::TAG_AEVT => aevt(&mut reader),
-            index::TAG_AVET => avet(&mut reader),
+            index::TAG_EAVT => deserialize::eavt(&mut reader),
+            index::TAG_AEVT => deserialize::aevt(&mut reader),
+            index::TAG_AVET => deserialize::avet(&mut reader),
             _ => Err(ReadError::InvalidInput),
         }
     }
 
-    fn eavt(reader: &mut Reader) -> ReadResult<Datom> {
-        let entity = reader.read()?;
-        let attribute = reader.read()?;
-        let value = reader.read()?;
-        let tx: u64 = !reader.read()?;
-        let op = reader.read()?;
-        Ok(Datom {
-            entity,
-            attribute,
-            value,
-            tx,
-            op,
-        })
-    }
+    mod deserialize {
+        use super::*;
 
-    fn aevt(reader: &mut Reader) -> ReadResult<Datom> {
-        let attribute = reader.read()?;
-        let entity = reader.read()?;
-        let value = reader.read()?;
-        let tx: u64 = !reader.read()?;
-        let op = reader.read()?;
-        Ok(Datom {
-            entity,
-            attribute,
-            value,
-            tx,
-            op,
-        })
-    }
+        pub fn eavt(reader: &mut Reader) -> ReadResult<Datom> {
+            let entity = reader.read()?;
+            let attribute = reader.read()?;
+            let value = reader.read()?;
+            let tx: u64 = !reader.read()?;
+            let op = reader.read()?;
+            Ok(Datom {
+                entity,
+                attribute,
+                value,
+                tx,
+                op,
+            })
+        }
 
-    fn avet(reader: &mut Reader) -> ReadResult<Datom> {
-        let attribute = reader.read()?;
-        let value = reader.read()?;
-        let entity = reader.read()?;
-        let tx: u64 = !reader.read()?;
-        let op = reader.read()?;
-        Ok(Datom {
-            entity,
-            attribute,
-            value,
-            tx,
-            op,
-        })
+        pub fn aevt(reader: &mut Reader) -> ReadResult<Datom> {
+            let attribute = reader.read()?;
+            let entity = reader.read()?;
+            let value = reader.read()?;
+            let tx: u64 = !reader.read()?;
+            let op = reader.read()?;
+            Ok(Datom {
+                entity,
+                attribute,
+                value,
+                tx,
+                op,
+            })
+        }
+
+        pub fn avet(reader: &mut Reader) -> ReadResult<Datom> {
+            let attribute = reader.read()?;
+            let value = reader.read()?;
+            let entity = reader.read()?;
+            let tx: u64 = !reader.read()?;
+            let op = reader.read()?;
+            Ok(Datom {
+                entity,
+                attribute,
+                value,
+                tx,
+                op,
+            })
+        }
     }
 }
 
@@ -238,7 +242,7 @@ impl Writable for Value {
     fn size(&self) -> usize {
         1 + // Value tag
         match self {
-            Value::U64(_) | Value::I64(0) => 8,
+            Value::U64(_) | Value::I64(_) => 8,
             Value::Str(value) => value.size(),
             _ => 0,
         }
@@ -279,23 +283,25 @@ impl Writable for Op {
 
 // -------------------------------------------------------------------------------------------------
 
-pub struct Reader<'a>(&'a [u8]);
+pub struct Reader<'a> {
+    buffer: &'a [u8],
+    index: usize,
+}
 
 type ReadResult<T> = Result<T, ReadError>;
 
 impl<'a> Reader<'a> {
     pub fn new(buffer: &'a [u8]) -> Self {
-        Reader(buffer)
+        Self { buffer, index: 0 }
     }
 
     fn read_next(&mut self, num_bytes: usize) -> ReadResult<&[u8]> {
-        let Reader(buffer) = self;
-        if num_bytes > buffer.len() {
+        if self.index + num_bytes > self.buffer.len() {
             return Err(ReadError::EndOfInput);
         }
-        let result = &buffer[..num_bytes];
-        self.0 = &buffer[num_bytes..];
-        Ok(result)
+        let from = self.index;
+        self.index += num_bytes;
+        Ok(&self.buffer[from..self.index])
     }
 }
 

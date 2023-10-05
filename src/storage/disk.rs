@@ -11,7 +11,6 @@ use crate::schema::default::*;
 use crate::storage::*;
 use thiserror::Error;
 
-#[allow(dead_code)]
 pub struct DiskStorage {
     db: rocksdb::DB,
     attribute_cardinality: HashMap<AttributeId, Cardinality>,
@@ -121,41 +120,13 @@ impl<'a> Foo<'a> for DiskStorage {
     }
 
     fn find_datoms(&'a self, clause: &Clause) -> Result<Self::Iter, Self::Error> {
-        /*
-        let key = serde::index::key(clause);
-        let mut iterator = self.db.prefix_iterator(&key);
-        while let Some(result) = iterator.next() {
-            let (datom_bytes, _) = result?;
-            let datom = serde::datom::deserialize(&datom_bytes)?;
-        }
-        let mut result = Vec::new();
-        let read_options = ReadOptions::default();
-        //read_options.set_iterate_range(PrefixRange(key));
-        let iterator = self.db.iterator_opt(IteratorMode::Start, read_options);
-        let mut found = HashSet::new();
-        for item in iterator {
-            let (datom_bytes, _) = item?;
-            let datom = serde::datom::deserialize(&datom_bytes)?;
-            println!("{:?} {:?}", &datom, &found);
-            if found.contains(&(datom.entity, datom.attribute)) {
-                continue;
-            }
-            found.insert((datom.entity, datom.attribute));
-            if datom.op == Op::Retracted {
-                continue;
-            }
-            result.push(datom);
-        }
-        Ok(result.into_iter())
-        */
-
         Ok(FooIter::new(clause, &self.db))
     }
 }
 
 pub struct FooIter<'a> {
     iterator: DBRawIteratorWithThreadMode<'a, DBWithThreadMode<SingleThreaded>>,
-    start: Vec<u8>,
+    end: Vec<u8>,
 }
 
 impl<'a> FooIter<'a> {
@@ -164,7 +135,8 @@ impl<'a> FooIter<'a> {
         let read_options = ReadOptions::default();
         let mut iterator = db.raw_iterator_opt(read_options);
         iterator.seek(&start);
-        Self { iterator, start }
+        let end = next_prefix(&start).unwrap(); // TODO
+        Self { iterator, end }
     }
 }
 
@@ -172,28 +144,55 @@ impl<'a> Iterator for FooIter<'a> {
     type Item = Datom;
 
     fn next(&mut self) -> Option<Self::Item> {
-        let mut result = None;
-        let datom_bytes = self.iterator.key()?;
-        if datom_bytes >= &self.start {
+        if !self.iterator.valid() {
             return None;
         }
+
+        let datom_bytes = self.iterator.key()?;
+        if datom_bytes >= &self.end {
+            return None;
+        }
+
         let datom = serde::datom::deserialize(datom_bytes).unwrap();
-        if datom.op == Op::Added {
-            result = Some(datom);
-            self.iterator.next();
-        } else {
-            //self.iterator.seek()
+        if datom.op == Op::Retracted {
+            let seek_key_size = serde::index::seek_key_size(&datom);
+            let seek_key = next_prefix(&datom_bytes[..seek_key_size]).unwrap();
+            self.iterator.seek(seek_key);
+            return self.next();
         }
-        /*
-        iterator.seek(key);
-        while iterator.valid() {
-            let datom_bytes = iterator.key().unwrap_or(b"");
-            let datom = serde::datom::deserialize(&datom_bytes)?;
-            dbg!(datom);
-            iterator.next();
-        }
-        */
-        result
+
+        self.iterator.next();
+        Some(datom)
+    }
+}
+
+/// Returns lowest value following largest value with given prefix.
+///
+/// In other words, computes upper bound for a prefix scan over list of keys
+/// sorted in lexicographical order.  This means that a prefix scan can be
+/// expressed as range scan over a right-open `[prefix, next_prefix(prefix))`
+/// range.
+///
+/// For example, for prefix `foo` the function returns `fop`.
+///
+/// Returns `None` if there is no value which can follow value with given
+/// prefix.  This happens when prefix consists entirely of `'\xff'` bytes (or is
+/// empty).
+fn next_prefix(prefix: &[u8]) -> Option<Vec<u8>> {
+    let ffs = prefix
+        .iter()
+        .rev()
+        .take_while(|&&byte| byte == u8::MAX)
+        .count();
+    let next = &prefix[..(prefix.len() - ffs)];
+    if next.is_empty() {
+        // Prefix consisted of \xff bytes.  There is no prefix that
+        // follows it.
+        None
+    } else {
+        let mut next = next.to_vec();
+        *next.last_mut().unwrap() += 1;
+        Some(next)
     }
 }
 

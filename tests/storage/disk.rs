@@ -69,6 +69,40 @@ fn find_multiple_datoms_by_entity() {
 }
 
 #[test]
+fn find_multiple_datoms_by_attribute() {
+    let mut storage = create_storage();
+
+    let entity1 = 100;
+    let entity2 = 101;
+    let attribute1 = 102;
+    let attribute2 = 103;
+    let datoms = vec![
+        Datom::add(entity1, attribute1, 1u64, 1000),
+        Datom::retract(entity1, attribute1, 1u64, 1001),
+        Datom::add(entity1, attribute1, 2u64, 1001),
+        Datom::add(entity2, attribute1, 1u64, 1002),
+        Datom::add(entity2, attribute2, 2u64, 1002),
+        Datom::add(entity2, attribute2, 3u64, 1002),
+    ];
+    assert!(storage.save(&datoms).is_ok());
+
+    let read_result = storage.find_datoms(
+        &Clause::new()
+            .with_attribute(AttributePattern::Id(attribute1)),
+    );
+
+    assert!(read_result.is_ok());
+
+    let read_result = read_result.unwrap().collect::<Vec<Datom>>();
+    let expected = vec![
+        Datom::add(entity1, attribute1, 2u64, 1001),
+        Datom::add(entity2, attribute1, 1u64, 1002),
+    ];
+    assert_eq!(2, read_result.len());
+    assert!(expected.iter().all(|datom| read_result.contains(datom)));
+}
+
+#[test]
 fn ignore_datoms_of_other_entities() {
     let mut storage = create_storage();
 
@@ -108,14 +142,11 @@ fn ignore_retracted_values() {
             .with_attribute(AttributePattern::Id(attribute)),
     );
 
-    //dbg!(&read_result);
-
     assert!(read_result.is_ok());
     assert!(read_result.unwrap().collect::<Vec<Datom>>().is_empty());
 }
 
 #[test]
-#[ignore]
 fn fetch_only_latest_value_for_attribute() {
     let mut storage = create_storage();
 
@@ -136,13 +167,102 @@ fn fetch_only_latest_value_for_attribute() {
             .with_attribute(AttributePattern::Id(attribute)),
     );
 
-    //dbg!(&read_result);
-
     assert!(read_result.is_ok());
-    assert_eq!(datoms[0..1], read_result.unwrap().collect::<Vec<Datom>>());
+    assert_eq!(datoms[2..], read_result.unwrap().collect::<Vec<Datom>>());
 }
 
 /*
+
+# EAVT
++---------+-------------+------+------+---------+
+| e       | a           | v    | t    | op      |
++---------+-------------+------+------+---------+
+| 100     | foo/baz     | 1    | 1001 | retract | <- seek [100 foo/baz 2]
+| 100     | foo/baz     | 1    | 1000 | add     |
+| 100     | foo/baz     | 2    | 1001 | add     | <- emit, next
+| 101     | foo/bar     | 3    | 1002 | add     | <- end
+| 101     | foo/bar     | 4    | 1002 | add     |
+| 101     | foo/baz     | 1    | 1002 | add     |
+| foo/bar | cardinality | many | 0    | add     |
++---------+-------------+------+------+---------+
+
+[100 _ _]
+
+# AEVT
++-------------+---------+------+------+---------+
+| a           | e       | v    | t    | op      |
++-------------+---------+------+------+---------+
+| cardinality | foo/bar | many | 0    | add     |
+| foo/bar     | 101     | 3    | 1002 | add     |
+| foo/bar     | 101     | 4    | 1002 | add     |
+| foo/baz     | 100     | 1    | 1001 | retract | <- seek [foo/baz 100 2]
+| foo/baz     | 100     | 1    | 1000 | add     |
+| foo/baz     | 100     | 2    | 1001 | add     | <- emit, next
+| foo/baz     | 101     | 1    | 1002 | add     | <- emit, next
++-------------+---------+------+------+---------+ <- end
+
+[_ foo/baz _]
+
+# AVET
++-------------+------+---------+------+---------+
+| a           | v    | e       | t    | op      |
++-------------+------+---------+------+---------+
+| cardinality | many | foo/bar | 0    | add     |
+| foo/bar     | 3    | 101     | 1002 | add     |
+| foo/bar     | 4    | 101     | 1002 | add     |
+| foo/baz     | 1    | 100     | 1001 | retract | <- seek [foo/baz 1 101]
+| foo/baz     | 1    | 100     | 1000 | add     |
+| foo/baz     | 1    | 101     | 1002 | add     | <- emit, next
+| foo/baz     | 2    | 100     | 1001 | add     | <- emit, next
++-------------+------+---------+------+---------+ <- end
+
+[_ foo/baz _]
+
+# ignore_datoms_of_other_entities
+
+q: [101 foo/baz]
+expected: [[101 foo/baz 1 1002]]
+
+seek [101 foo/baz]
++---------+-------------+------+------+---------+
+| e       | a           | v    | t    | op      |
++---------+-------------+------+------+---------+
+| 100     | foo/baz     | 1    | 1001 | retract |
+| 100     | foo/baz     | 1    | 1000 | add     |
+| 100     | foo/baz     | 2    | 1001 | add     |
+| 101     | foo/bar     | 3    | 1002 | add     |
+| 101     | foo/bar     | 4    | 1002 | add     |
+| 101     | foo/baz     | 1    | 1002 | add     | <- emit, next
+| foo/bar | cardinality | many | 0    | add     | <- end
++---------+-------------+------+------+---------+
+
+# ignore_retracted_values
+
+# fetch_only_latest_value_for_attribute
+
+q: [100 foo/baz]
+expected: [[100 foo/baz 2 1001]]
+
+seek [100 foo/baz]
++---------+-------------+------+------+---------+
+| e       | a           | v    | t    | op      |
++---------+-------------+------+------+---------+
+| 100     | foo/baz     | 1    | 1001 | retract | <- seek [100 foo/baz 2]
+| 100     | foo/baz     | 1    | 1000 | add     |
+| 100     | foo/baz     | 2    | 1001 | add     | <- emit, next
+| 101     | foo/bar     | 3    | 1002 | add     | <- end
+| 101     | foo/bar     | 4    | 1002 | add     |
+| 101     | foo/baz     | 1    | 1002 | add     |
+| foo/bar | cardinality | many | 0    | add     |
++---------+-------------+------+------+---------+
+
+# fetch_only_latest_value_for_attribute
+
+# find_multiple_datoms_by_entity
+
+# find_multiple_datoms_by_entity
+
+---------------------------------------------------------------------------------------------------
 
 // ignore_datoms_of_other_entities
 seek [100 "foo/bar"]
@@ -163,7 +283,12 @@ seek [100 "foo/bar"]
 
 // fetch_only_latest_value_for_attribute
 seek [100 "foo/bar"]
-[100 "foo/bar" 1 1001 add]          -> emit?
+[100 "foo/bar" 1 1001 retract]      -> seek [100 "foo/bar" 2]
+[100 "foo/bar" 1 1000 add]
+[100 "foo/bar" 2 1001 add]          -> emit
+
+seek [100 "foo/bar"]
+[100 "foo/bar" 1 1001 add]          -> emit
 [100 "foo/bar" 2 1001 retract]
 [100 "foo/bar" 2 1000 add]
 

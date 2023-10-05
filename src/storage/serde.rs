@@ -63,6 +63,10 @@ pub mod index {
             _ => write_to_vec!(&TAG_AEVT),
         }
     }
+
+    pub fn seek_key_size(datom: &Datom) -> usize {
+        TAG_EAVT.size() + datom.entity.size() + datom.attribute.size() + datom.value.size()
+    }
 }
 
 mod value {
@@ -185,7 +189,7 @@ pub trait Writable {
 
 impl Writable for u8 {
     fn size(&self) -> usize {
-        1
+        std::mem::size_of::<u8>()
     }
 
     fn write(&self, buffer: &mut Vec<u8>) {
@@ -195,7 +199,7 @@ impl Writable for u8 {
 
 impl Writable for u16 {
     fn size(&self) -> usize {
-        2
+        std::mem::size_of::<u16>()
     }
 
     fn write(&self, buffer: &mut Vec<u8>) {
@@ -205,7 +209,7 @@ impl Writable for u16 {
 
 impl Writable for u64 {
     fn size(&self) -> usize {
-        4
+        std::mem::size_of::<u64>()
     }
 
     fn write(&self, buffer: &mut Vec<u8>) {
@@ -215,7 +219,7 @@ impl Writable for u64 {
 
 impl Writable for i64 {
     fn size(&self) -> usize {
-        4
+        std::mem::size_of::<i64>()
     }
 
     fn write(&self, buffer: &mut Vec<u8>) {
@@ -226,7 +230,7 @@ impl Writable for i64 {
 // TODO: how to handle longer strings?
 impl Writable for str {
     fn size(&self) -> usize {
-        2 + // Length
+        std::mem::size_of::<u16>() + // Length
         self.len()
     }
 
@@ -240,9 +244,10 @@ impl Writable for str {
 
 impl Writable for Value {
     fn size(&self) -> usize {
-        1 + // Value tag
+        std::mem::size_of::<u8>() + // Value tag
         match self {
-            Value::U64(_) | Value::I64(_) => 8,
+            Value::U64(value) => value.size(),
+            Value::I64(value) => value.size(),
             Value::Str(value) => value.size(),
             _ => 0,
         }

@@ -9,6 +9,14 @@ pub trait Pattern {
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Default)]
+pub enum Pattern2<T> {
+    Variable(Rc<str>),
+    Constant(T),
+    #[default]
+    Blank,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Default)]
 pub enum EntityPattern {
     Variable(Rc<str>),
     Id(u64),

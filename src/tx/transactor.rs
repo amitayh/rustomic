@@ -11,20 +11,25 @@ use crate::query::pattern::*;
 use crate::schema::attribute::*;
 use crate::schema::*;
 use crate::storage::*;
+use crate::tx::attribute_resolver::*;
 use crate::tx::*;
 
 type TempIds = HashMap<Rc<str>, u64>;
 
 pub struct Transactor<S: Storage, C: Clock> {
     next_entity_id: u64,
+    attribute_resolver: CachingAttributeResolver<StorageAttributeResolver<S>>,
     storage: Arc<RwLock<S>>,
     clock: C,
 }
 
 impl<S: Storage, C: Clock> Transactor<S, C> {
     pub fn new(storage: Arc<RwLock<S>>, clock: C) -> Self {
+        let attribute_resolver =
+            CachingAttributeResolver::new(StorageAttributeResolver::new(storage.clone()));
         Transactor {
             next_entity_id: 100,
+            attribute_resolver,
             storage,
             clock,
         }
@@ -106,6 +111,7 @@ impl<S: Storage, C: Clock> Transactor<S, C> {
         let storage = self.read_storage()?;
         for AttributeValue { attribute, value } in &operation.attributes {
             let attribute_id = storage.resolve_ident(attribute)?;
+            let attribute = self.attribute_resolver.resolve(attribute);
             let (cardinality, value_type) =
                 self.attribute_metadata(&storage, attribute_id, last_tx)?;
 

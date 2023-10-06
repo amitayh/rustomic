@@ -86,10 +86,8 @@ fn find_multiple_datoms_by_attribute() {
     ];
     assert!(storage.save(&datoms).is_ok());
 
-    let read_result = storage.find_datoms(
-        &Clause::new()
-            .with_attribute(AttributePattern::Id(attribute1)),
-    );
+    let read_result =
+        storage.find_datoms(&Clause::new().with_attribute(AttributePattern::Id(attribute1)));
 
     assert!(read_result.is_ok());
 

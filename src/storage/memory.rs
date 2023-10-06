@@ -100,8 +100,9 @@ impl InMemoryStorage {
     }
 }
 
-impl Storage for InMemoryStorage {
-    //type Iter = std::slice::Iter<'a, Datom>;
+impl<'a> Storage<'a> for InMemoryStorage {
+    type Error = StorageError;
+    type Iter = std::slice::Iter<'a, Datom>;
 
     fn save(&mut self, datoms: &[Datom]) -> Result<(), StorageError> {
         for datom in datoms {
@@ -113,14 +114,16 @@ impl Storage for InMemoryStorage {
         Ok(())
     }
 
+    /*
     fn resolve_ident(&self, ident: &str) -> Result<EntityId, StorageError> {
         self.ident_to_entity
             .get(ident)
             .copied()
             .ok_or_else(|| StorageError::IdentNotFound(String::from(ident)))
     }
+    */
 
-    fn find_datoms(&self, clause: &Clause, tx_range: u64) -> Result<Vec<Datom>, StorageError> {
+    fn find(&self, clause: &Clause) -> Result<Vec<Datom>, StorageError> {
         match clause {
             Clause {
                 entity: EntityPattern::Id(_),
@@ -133,7 +136,7 @@ impl Storage for InMemoryStorage {
                 attribute: AttributePattern::Id(_) | AttributePattern::Ident(_),
                 value: ValuePattern::Constant(_), // | ValuePattern::Range(_, _),
                 tx: _,
-            } => self.find_datoms_avet(clause, tx_range),
+            } => self.find_datoms_avet(clause),
             _ => self.find_datoms_aevt(clause),
         }
     }
@@ -203,14 +206,13 @@ impl<'a> InMemoryStorage {
     fn find_datoms_avet(
         &'a self,
         clause: &'a Clause,
-        tx_range: u64,
     ) -> Result<Vec<Datom>, StorageError> {
         let mut datoms = Vec::new();
         for (attribute, vet) in self.a_iter(&self.avet, &clause.attribute) {
             for (value, et) in self.v_iter(vet, &clause.value) {
                 for (entity, t) in self.e_iter(et, &clause.entity) {
                     let mut latest_value_tx = None;
-                    for (tx, op) in t.range(..=tx_range) {
+                    for (tx, op) in t {
                         latest_value_tx = match op {
                             Op::Added => Some(tx),
                             Op::Retracted => None,

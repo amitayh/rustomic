@@ -95,11 +95,12 @@ impl InMemoryStorage {
             ident_to_entity: HashMap::new(),
         };
         let init_datoms = default_datoms();
-        storage.save(&init_datoms).unwrap();
+        //storage.save(&init_datoms).unwrap();
         storage
     }
 }
 
+/*
 impl<'a> Storage<'a> for InMemoryStorage {
     type Error = StorageError;
     type Iter = std::slice::Iter<'a, Datom>;
@@ -141,6 +142,7 @@ impl<'a> Storage<'a> for InMemoryStorage {
         }
     }
 }
+*/
 
 impl<'a> InMemoryStorage {
     fn update_eavt(&mut self, datom: &Datom) {

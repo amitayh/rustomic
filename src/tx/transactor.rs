@@ -1,8 +1,5 @@
 use std::collections::HashMap;
 use std::sync::Arc;
-use std::sync::RwLock;
-use std::sync::RwLockReadGuard;
-use std::sync::RwLockWriteGuard;
 
 use crate::clock::Clock;
 use crate::datom::*;
@@ -16,33 +13,35 @@ use crate::tx::*;
 
 type TempIds = HashMap<Rc<str>, u64>;
 
-pub struct Transactor<S: Storage, C: Clock> {
+pub struct Transactor<'a, R: ReadStorage<'a>, W: WriteStorage, C: Clock> {
     next_entity_id: u64,
-    attribute_resolver: CachingAttributeResolver<StorageAttributeResolver<S>>,
-    storage: Arc<RwLock<S>>,
+    read: Arc<R>,
+    write: W,
+    attribute_resolver: CachingAttributeResolver<StorageAttributeResolver<'a, R>>,
     clock: C,
 }
 
-impl<S: Storage, C: Clock> Transactor<S, C> {
-    pub fn new(storage: Arc<RwLock<S>>, clock: C) -> Self {
+impl<'a, R: ReadStorage<'a>, W: WriteStorage, C: Clock> Transactor<'a, R, W, C> {
+    pub fn new(read: Arc<R>, write: W, clock: C) -> Self {
         let attribute_resolver =
-            CachingAttributeResolver::new(StorageAttributeResolver::new(storage.clone()));
+            CachingAttributeResolver::new(StorageAttributeResolver::new(read.clone()));
         Transactor {
             next_entity_id: 100,
+            read,
+            write,
             attribute_resolver,
-            storage,
             clock,
         }
     }
 
     pub fn transact(
-        &mut self,
+        &'a mut self,
         transaction: Transaction,
     ) -> Result<TransctionResult, TransactionError> {
         let last_tx = self.next_entity_id;
         let temp_ids = self.generate_temp_ids(&transaction)?;
         let datoms = self.transaction_datoms(&transaction, &temp_ids, last_tx)?;
-        self.write_storage()?.save(&datoms)?;
+        self.write.save(&datoms).unwrap(); // TODO
 
         Ok(TransctionResult {
             tx_id: datoms[0].tx,
@@ -51,16 +50,8 @@ impl<S: Storage, C: Clock> Transactor<S, C> {
         })
     }
 
-    fn read_storage(&self) -> Result<RwLockReadGuard<S>, TransactionError> {
-        self.storage.read().map_err(|_| TransactionError::Error)
-    }
-
-    fn write_storage(&self) -> Result<RwLockWriteGuard<S>, TransactionError> {
-        self.storage.write().map_err(|_| TransactionError::Error)
-    }
-
     fn generate_temp_ids(
-        &mut self,
+        &'a mut self,
         transaction: &Transaction,
     ) -> Result<TempIds, TransactionError> {
         let mut temp_ids = HashMap::new();
@@ -75,7 +66,7 @@ impl<S: Storage, C: Clock> Transactor<S, C> {
     }
 
     fn transaction_datoms(
-        &mut self,
+        &'a mut self,
         transaction: &Transaction,
         temp_ids: &TempIds,
         last_tx: u64,
@@ -100,7 +91,7 @@ impl<S: Storage, C: Clock> Transactor<S, C> {
     }
 
     fn operation_datoms(
-        &mut self,
+        &'a mut self,
         tx: u64,
         operation: &Operation,
         temp_ids: &TempIds,
@@ -108,38 +99,32 @@ impl<S: Storage, C: Clock> Transactor<S, C> {
     ) -> Result<Vec<Datom>, TransactionError> {
         let mut datoms = Vec::new();
         let entity = self.resolve_entity(&operation.entity, temp_ids)?;
-        let storage = self.read_storage()?;
         for AttributeValue { attribute, value } in &operation.attributes {
-            let attribute_id = storage.resolve_ident(attribute)?;
-            let attribute = self.attribute_resolver.resolve(attribute);
-            let (cardinality, value_type) =
-                self.attribute_metadata(&storage, attribute_id, last_tx)?;
-
-            if cardinality == Cardinality::One {
+            let attribute = self.attribute_resolver.resolve(attribute).unwrap(); // TODO
+            if attribute.cardinality == Cardinality::One {
                 let mut retracted =
-                    self.retract_old_values(&storage, entity, attribute_id, last_tx, tx)?;
+                    self.retract_old_values(entity, attribute.id, last_tx, tx)?;
                 datoms.append(&mut retracted);
             }
 
             let mut v = value.clone();
             if let Some(id) = value.as_str().and_then(|str| temp_ids.get(str)) {
-                if value_type == ValueType::Ref {
+                if attribute.value_type == ValueType::Ref {
                     v = Value::U64(*id);
                 }
             };
 
-            if !v.matches_type(value_type) {
+            if !v.matches_type(attribute.value_type) {
                 return Err(TransactionError::InvalidAttributeType);
             }
 
-            datoms.push(Datom::add(entity, attribute_id, v, tx));
+            datoms.push(Datom::add(entity, attribute.id, v, tx));
         }
         Ok(datoms)
     }
 
     fn retract_old_values(
-        &self,
-        storage: &RwLockReadGuard<S>,
+        &'a self,
         entity: u64,
         attribute: u64,
         last_tx: u64,
@@ -150,14 +135,14 @@ impl<S: Storage, C: Clock> Transactor<S, C> {
         let clause = Clause::new()
             .with_entity(EntityPattern::Id(entity))
             .with_attribute(AttributePattern::Id(attribute));
-        for datom in storage.find_datoms(&clause, last_tx)? {
+        for datom in self.read.find(&clause).unwrap() { // TODO
             datoms.push(Datom::retract(entity, attribute, datom.value, tx));
         }
         Ok(datoms)
     }
 
     fn resolve_entity(
-        &mut self,
+        &'a mut self,
         entity: &Entity,
         temp_ids: &TempIds,
     ) -> Result<u64, TransactionError> {
@@ -172,13 +157,12 @@ impl<S: Storage, C: Clock> Transactor<S, C> {
     }
 
     fn attribute_metadata(
-        &self,
-        storage: &RwLockReadGuard<S>,
+        &'a self,
         attribute: u64,
         last_tx: u64,
     ) -> Result<(Cardinality, ValueType), TransactionError> {
         let clause = Clause::new().with_entity(EntityPattern::Id(attribute));
-        let datoms = storage.find_datoms(&clause, last_tx)?;
+        let datoms = self.read.find(&clause).unwrap(); // TODO
         let mut cardinality = None;
         let mut value_type = None;
         for datom in datoms {

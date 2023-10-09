@@ -17,12 +17,10 @@ pub trait Storage {
 
     fn save(&mut self, datoms: &[Datom]) -> Result<(), StorageError>;
 
-    fn resolve_ident(&self, ident: &str) -> Result<EntityId, StorageError>;
-
     fn find_datoms(&self, clause: &Clause, tx_range: u64) -> Result<Vec<Datom>, StorageError>;
 
     fn find(&self, clause: &Clause) -> Result<Vec<Datom>, StorageError> {
-        self.find_datoms(clause, 0)
+        self.find_datoms(clause, u64::MAX)
     }
     //fn find_datoms(&self, clause: &Clause) -> Result<Self::Iter, StorageError>;
 }

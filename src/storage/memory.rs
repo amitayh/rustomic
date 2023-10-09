@@ -113,13 +113,6 @@ impl Storage for InMemoryStorage {
         Ok(())
     }
 
-    fn resolve_ident(&self, ident: &str) -> Result<EntityId, StorageError> {
-        self.ident_to_entity
-            .get(ident)
-            .copied()
-            .ok_or_else(|| StorageError::IdentNotFound(String::from(ident)))
-    }
-
     fn find_datoms(&self, clause: &Clause, tx_range: u64) -> Result<Vec<Datom>, StorageError> {
         match clause {
             Clause {

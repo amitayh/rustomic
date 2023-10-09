@@ -11,6 +11,7 @@ use crate::query::pattern::*;
 use crate::schema::attribute::*;
 use crate::schema::*;
 use crate::storage::*;
+use crate::tx::attribute_resolver::*;
 use crate::tx::*;
 
 type TempIds = HashMap<Rc<str>, u64>;
@@ -19,14 +20,18 @@ pub struct Transactor<S: Storage, C: Clock> {
     next_entity_id: u64,
     storage: Arc<RwLock<S>>,
     clock: C,
+    attribute_resolver: CachingAttributeResolver<StorageAttributeResolver<S>>,
 }
 
 impl<S: Storage, C: Clock> Transactor<S, C> {
     pub fn new(storage: Arc<RwLock<S>>, clock: C) -> Self {
+        let attribute_resolver =
+            CachingAttributeResolver::new(StorageAttributeResolver::new(storage.clone()));
         Transactor {
             next_entity_id: 100,
             storage,
             clock,
+            attribute_resolver,
         }
     }
 
@@ -103,42 +108,45 @@ impl<S: Storage, C: Clock> Transactor<S, C> {
     ) -> Result<Vec<Datom>, TransactionError> {
         let mut datoms = Vec::new();
         let entity = self.resolve_entity(&operation.entity, temp_ids)?;
-        let storage = self.read_storage()?;
-        for AttributeValue { attribute, value } in &operation.attributes {
-            let attribute_id = storage.resolve_ident(attribute)?;
-            let (cardinality, value_type) =
-                self.attribute_metadata(&storage, attribute_id, last_tx)?;
+        //let attribute_resolver = &mut self.attribute_resolver;
+        let mut retract_attributes = Vec::new();
+        for AttributeValue { attribute: ident, value } in &operation.attributes {
+            let attribute = self.attribute_resolver.resolve(ident).unwrap();
 
-            if cardinality == Cardinality::One {
-                let mut retracted =
-                    self.retract_old_values(&storage, entity, attribute_id, last_tx, tx)?;
-                datoms.append(&mut retracted);
+            if attribute.cardinality == Cardinality::One {
+                retract_attributes.push(attribute.id);
             }
 
             let mut v = value.clone();
             if let Some(id) = value.as_str().and_then(|str| temp_ids.get(str)) {
-                if value_type == ValueType::Ref {
+                if attribute.value_type == ValueType::Ref {
                     v = Value::U64(*id);
                 }
             };
 
-            if !v.matches_type(value_type) {
+            if !v.matches_type(attribute.value_type) {
                 return Err(TransactionError::InvalidAttributeType);
             }
 
-            datoms.push(Datom::add(entity, attribute_id, v, tx));
+            datoms.push(Datom::add(entity, attribute.id, v, tx));
         }
+
+        for attribute_id in retract_attributes {
+            let mut retracted = self.retract_old_values(entity, attribute_id, last_tx, tx)?;
+            datoms.append(&mut retracted);
+        }
+
         Ok(datoms)
     }
 
     fn retract_old_values(
         &self,
-        storage: &RwLockReadGuard<S>,
         entity: u64,
         attribute: u64,
         last_tx: u64,
         tx: u64,
     ) -> Result<Vec<Datom>, TransactionError> {
+        let storage = self.read_storage()?;
         let mut datoms = Vec::new();
         // Retract previous values
         let clause = Clause::new()
@@ -162,33 +170,6 @@ impl<S: Storage, C: Clock> Transactor<S, C> {
                 .get(temp_id)
                 .copied()
                 .ok_or_else(|| TransactionError::TempIdNotFound(temp_id.clone())),
-        }
-    }
-
-    fn attribute_metadata(
-        &self,
-        storage: &RwLockReadGuard<S>,
-        attribute: u64,
-        last_tx: u64,
-    ) -> Result<(Cardinality, ValueType), TransactionError> {
-        let clause = Clause::new().with_entity(EntityPattern::Id(attribute));
-        let datoms = storage.find_datoms(&clause, last_tx)?;
-        let mut cardinality = None;
-        let mut value_type = None;
-        for datom in datoms {
-            match datom.attribute {
-                DB_ATTR_TYPE_ID => {
-                    value_type = datom.value.as_u64().and_then(ValueType::from);
-                }
-                DB_ATTR_CARDINALITY_ID => {
-                    cardinality = datom.value.as_u64().and_then(Cardinality::from);
-                }
-                _ => {}
-            }
-        }
-        match (cardinality, value_type) {
-            (Some(cardinality), Some(value_type)) => Ok((cardinality, value_type)),
-            _ => Err(TransactionError::Error),
         }
     }
 }

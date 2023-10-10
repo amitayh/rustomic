@@ -92,6 +92,8 @@ pub enum TransactionError<S> {
     DuplicateTempId(Rc<str>),
     #[error("temp ID `{0}` not found")]
     TempIdNotFound(Rc<str>),
+    #[error("ident `{0}` not found")]
+    IdentNotFound(Rc<str>),
     #[error("storage error")]
     StorageError(#[from] S),
 }

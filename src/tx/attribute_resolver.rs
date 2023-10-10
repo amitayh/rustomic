@@ -3,6 +3,7 @@ use std::rc::Rc;
 use std::sync::Arc;
 use std::sync::RwLock;
 
+use crate::datom::Datom;
 use crate::query::clause::Clause;
 use crate::query::pattern::*;
 use crate::schema::attribute::*;
@@ -19,8 +20,10 @@ pub struct Attribute {
 pub trait AttributeResolver {
     type Error;
 
-    fn resolve(&mut self, ident: &str) -> Option<Attribute>;
+    fn resolve(&mut self, ident: &str) -> Result<Option<Attribute>, Self::Error>;
 }
+
+// ------------------------------------------------------------------------------------------------
 
 pub struct StorageAttributeResolver<S: Storage> {
     storage: Arc<RwLock<S>>,
@@ -35,40 +38,59 @@ impl<S: Storage> StorageAttributeResolver<S> {
 impl<S: Storage> AttributeResolver for StorageAttributeResolver<S> {
     type Error = S::Error;
 
-    fn resolve(&mut self, ident: &str) -> Option<Attribute> {
+    fn resolve(&mut self, ident: &str) -> Result<Option<Attribute>, Self::Error> {
         let storage = self.storage.read().unwrap(); // TODO
-        let attribute_id = storage
-            .find(
-                &Clause::new()
-                    .with_attribute(AttributePattern::Id(DB_ATTR_IDENT_ID))
-                    .with_value(ValuePattern::constant(ident.into())),
-            )
-            .unwrap() // TODO
-            .first()?
-            .entity;
 
-        let mut cardinality = None;
-        let mut value_type = None;
-        let clause = Clause::new().with_entity(EntityPattern::Id(attribute_id));
-        for datom in storage.find(&clause).unwrap() {
-            // TODO
-            match datom.attribute {
-                DB_ATTR_TYPE_ID => {
-                    value_type = datom.value.as_u64().and_then(ValueType::from);
-                }
-                DB_ATTR_CARDINALITY_ID => {
-                    cardinality = datom.value.as_u64().and_then(Cardinality::from);
-                }
-                _ => (),
+        let clause = Clause::new()
+                .with_attribute(AttributePattern::Id(DB_ATTR_IDENT_ID))
+                .with_value(ValuePattern::constant(ident.into()));
+
+        for datom in storage.find(&clause)? {
+            let attribute_id = datom.entity;
+            let mut builder = Builder::new(attribute_id);
+            let clause = Clause::new().with_entity(EntityPattern::Id(attribute_id));
+            for datom in storage.find(&clause)? {
+                builder.consume(&datom);
             }
+            return Ok(builder.build());
         }
-        Some(Attribute {
-            id: attribute_id,
-            value_type: value_type?,
-            cardinality: cardinality?,
-        })
+
+        Ok(None)
     }
 }
+
+struct Builder {
+    id: u64,
+    value_type: Option<ValueType>,
+    cardinality: Option<Cardinality>,
+}
+
+impl Builder {
+    fn new(id: u64) -> Self {
+        Self { id, value_type: None, cardinality: None }
+    }
+
+    fn consume(&mut self, datom: &Datom) {
+        match datom.attribute {
+            DB_ATTR_TYPE_ID => {
+                self.value_type = datom.value.as_u64().and_then(ValueType::from);
+            }
+            DB_ATTR_CARDINALITY_ID => {
+                self.cardinality = datom.value.as_u64().and_then(Cardinality::from);
+            }
+            _ => (),
+        }
+    }
+
+    fn build(&self) -> Option<Attribute> {
+        let id = self.id;
+        let value_type = self.value_type?;
+        let cardinality = self.cardinality?;
+        Some(Attribute { id, value_type, cardinality })
+    }
+}
+
+// ------------------------------------------------------------------------------------------------
 
 pub struct CachingAttributeResolver<Inner: AttributeResolver> {
     cache: HashMap<Rc<str>, Attribute>,
@@ -85,13 +107,14 @@ impl<Inner: AttributeResolver> CachingAttributeResolver<Inner> {
 impl<Inner: AttributeResolver> AttributeResolver for CachingAttributeResolver<Inner> {
     type Error = Inner::Error;
 
-    fn resolve(&mut self, ident: &str) -> Option<Attribute> {
-        self.cache.get(ident).cloned().or_else(|| {
-            let result = self.inner.resolve(ident);
-            if let Some(attribute) = &result {
-                self.cache.insert(ident.into(), attribute.clone());
-            }
-            result
-        })
+    fn resolve(&mut self, ident: &str) -> Result<Option<Attribute>, Self::Error> {
+        if let Some(attribute) = self.cache.get(ident) {
+            return Ok(Some(attribute.clone()));
+        }
+        if let Some(attribute) = self.inner.resolve(ident)? {
+            self.cache.insert(ident.into(), attribute.clone());
+            return Ok(Some(attribute));
+        }
+        Ok(None)
     }
 }

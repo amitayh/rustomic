@@ -110,8 +110,16 @@ impl<S: Storage, C: Clock> Transactor<S, C> {
         let entity = self.resolve_entity(&operation.entity, temp_ids)?;
         //let attribute_resolver = &mut self.attribute_resolver;
         let mut retract_attributes = Vec::new();
-        for AttributeValue { attribute: ident, value } in &operation.attributes {
-            let attribute = self.attribute_resolver.resolve(ident).unwrap();
+        for AttributeValue {
+            attribute: ident,
+            value,
+        } in &operation.attributes
+        {
+            let attribute;
+            match self.attribute_resolver.resolve(ident)? {
+                Some(attr) => attribute = attr,
+                None => return Err(TransactionError::IdentNotFound(ident.clone())),
+            }
 
             if attribute.cardinality == Cardinality::One {
                 retract_attributes.push(attribute.id);

@@ -5,7 +5,6 @@ pub mod pattern;
 
 use crate::datom::Value;
 use crate::query::clause::*;
-use crate::storage::StorageError;
 use std::collections::HashMap;
 use std::rc::Rc;
 use thiserror::Error;
@@ -32,9 +31,9 @@ pub struct QueryResult {
 }
 
 #[derive(Debug, Error)]
-pub enum QueryError {
+pub enum QueryError<S> {
     #[error("error")]
     Error,
     #[error("storage error")]
-    StorageError(#[from] StorageError),
+    StorageError(#[from] S),
 }

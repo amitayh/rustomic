@@ -38,7 +38,7 @@ impl<S: Storage, C: Clock> Transactor<S, C> {
     pub fn transact(
         &mut self,
         transaction: Transaction,
-    ) -> Result<TransctionResult, TransactionError> {
+    ) -> Result<TransctionResult, TransactionError<S::Error>> {
         let last_tx = self.next_entity_id;
         let temp_ids = self.generate_temp_ids(&transaction)?;
         let datoms = self.transaction_datoms(&transaction, &temp_ids, last_tx)?;
@@ -51,18 +51,18 @@ impl<S: Storage, C: Clock> Transactor<S, C> {
         })
     }
 
-    fn read_storage(&self) -> Result<RwLockReadGuard<S>, TransactionError> {
+    fn read_storage(&self) -> Result<RwLockReadGuard<S>, TransactionError<S::Error>> {
         self.storage.read().map_err(|_| TransactionError::Error)
     }
 
-    fn write_storage(&self) -> Result<RwLockWriteGuard<S>, TransactionError> {
+    fn write_storage(&self) -> Result<RwLockWriteGuard<S>, TransactionError<S::Error>> {
         self.storage.write().map_err(|_| TransactionError::Error)
     }
 
     fn generate_temp_ids(
         &mut self,
         transaction: &Transaction,
-    ) -> Result<TempIds, TransactionError> {
+    ) -> Result<TempIds, TransactionError<S::Error>> {
         let mut temp_ids = HashMap::new();
         for operation in &transaction.operations {
             if let Entity::TempId(id) = &operation.entity {
@@ -79,7 +79,7 @@ impl<S: Storage, C: Clock> Transactor<S, C> {
         transaction: &Transaction,
         temp_ids: &TempIds,
         last_tx: u64,
-    ) -> Result<Vec<Datom>, TransactionError> {
+    ) -> Result<Vec<Datom>, TransactionError<S::Error>> {
         let mut datoms = Vec::new();
         let tx = self.create_tx_datom();
         for operation in &transaction.operations {
@@ -105,7 +105,7 @@ impl<S: Storage, C: Clock> Transactor<S, C> {
         operation: &Operation,
         temp_ids: &TempIds,
         last_tx: u64,
-    ) -> Result<Vec<Datom>, TransactionError> {
+    ) -> Result<Vec<Datom>, TransactionError<S::Error>> {
         let mut datoms = Vec::new();
         let entity = self.resolve_entity(&operation.entity, temp_ids)?;
         //let attribute_resolver = &mut self.attribute_resolver;
@@ -145,7 +145,7 @@ impl<S: Storage, C: Clock> Transactor<S, C> {
         attribute: u64,
         last_tx: u64,
         tx: u64,
-    ) -> Result<Vec<Datom>, TransactionError> {
+    ) -> Result<Vec<Datom>, TransactionError<S::Error>> {
         let storage = self.read_storage()?;
         let mut datoms = Vec::new();
         // Retract previous values
@@ -162,7 +162,7 @@ impl<S: Storage, C: Clock> Transactor<S, C> {
         &mut self,
         entity: &Entity,
         temp_ids: &TempIds,
-    ) -> Result<u64, TransactionError> {
+    ) -> Result<u64, TransactionError<S::Error>> {
         match entity {
             Entity::New => Ok(self.next_entity_id()),
             Entity::Id(id) => Ok(*id),

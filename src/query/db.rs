@@ -19,7 +19,7 @@ impl<S: Storage> Db<S> {
         Db { storage, tx }
     }
 
-    pub fn query(&self, query: Query) -> Result<QueryResult, QueryError> {
+    pub fn query(&self, query: Query) -> Result<QueryResult, QueryError<S::Error>> {
         let mut results = Vec::new();
         let assignment = Assignment::from_query(&query);
         let storage = self.storage.read().map_err(|_| QueryError::Error)?;
@@ -33,7 +33,7 @@ impl<S: Storage> Db<S> {
         clauses: &[Clause],
         assignment: Assignment,
         results: &mut Vec<HashMap<Rc<str>, Value>>,
-    ) -> Result<(), QueryError> {
+    ) -> Result<(), QueryError<S::Error>> {
         if assignment.is_complete() {
             results.push(assignment.assigned);
             return Ok(());

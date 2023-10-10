@@ -13,6 +13,7 @@ type TransactionId = u64;
 
 // TODO: separate read / write?
 pub trait Storage {
+    type Error;
     //type Iter: Iterator<Item = Datom>;
 
     fn save(&mut self, datoms: &[Datom]) -> Result<(), StorageError>;

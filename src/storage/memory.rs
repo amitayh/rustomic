@@ -101,6 +101,7 @@ impl InMemoryStorage {
 }
 
 impl Storage for InMemoryStorage {
+    type Error = StorageError;
     //type Iter = std::slice::Iter<'a, Datom>;
 
     fn save(&mut self, datoms: &[Datom]) -> Result<(), StorageError> {

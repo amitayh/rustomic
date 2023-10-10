@@ -17,6 +17,8 @@ pub struct Attribute {
 }
 
 pub trait AttributeResolver {
+    type Error;
+
     fn resolve(&mut self, ident: &str) -> Option<Attribute>;
 }
 
@@ -31,6 +33,8 @@ impl<S: Storage> StorageAttributeResolver<S> {
 }
 
 impl<S: Storage> AttributeResolver for StorageAttributeResolver<S> {
+    type Error = S::Error;
+
     fn resolve(&mut self, ident: &str) -> Option<Attribute> {
         let storage = self.storage.read().unwrap(); // TODO
         let attribute_id = storage
@@ -79,6 +83,8 @@ impl<Inner: AttributeResolver> CachingAttributeResolver<Inner> {
 }
 
 impl<Inner: AttributeResolver> AttributeResolver for CachingAttributeResolver<Inner> {
+    type Error = Inner::Error;
+
     fn resolve(&mut self, ident: &str) -> Option<Attribute> {
         self.cache.get(ident).cloned().or_else(|| {
             let result = self.inner.resolve(ident);

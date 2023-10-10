@@ -130,7 +130,7 @@ fn restrict_transaction() {
     assert!(read_result.is_ok());
 
     let expected_result = vec![Datom::add(entity, attribute, 1u64, 1000)];
-    assert_eq!(expected_result, read_result.unwrap());
+    assert_eq!(expected_result, read_result.unwrap().collect::<Vec<Datom>>());
 }
 
 /*

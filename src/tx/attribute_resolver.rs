@@ -42,8 +42,8 @@ impl<S: Storage> AttributeResolver for StorageAttributeResolver<S> {
         let storage = self.storage.read().unwrap(); // TODO
 
         let clause = Clause::new()
-                .with_attribute(AttributePattern::Id(DB_ATTR_IDENT_ID))
-                .with_value(ValuePattern::constant(ident.into()));
+            .with_attribute(AttributePattern::Id(DB_ATTR_IDENT_ID))
+            .with_value(ValuePattern::constant(ident.into()));
 
         for datom in storage.find(&clause)? {
             let attribute_id = datom.entity;
@@ -67,7 +67,11 @@ struct Builder {
 
 impl Builder {
     fn new(id: u64) -> Self {
-        Self { id, value_type: None, cardinality: None }
+        Self {
+            id,
+            value_type: None,
+            cardinality: None,
+        }
     }
 
     fn consume(&mut self, datom: &Datom) {
@@ -86,7 +90,11 @@ impl Builder {
         let id = self.id;
         let value_type = self.value_type?;
         let cardinality = self.cardinality?;
-        Some(Attribute { id, value_type, cardinality })
+        Some(Attribute {
+            id,
+            value_type,
+            cardinality,
+        })
     }
 }
 

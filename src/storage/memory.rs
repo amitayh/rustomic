@@ -11,6 +11,10 @@ use crate::schema::default::*;
 use crate::schema::*;
 use crate::storage::*;
 
+// TODO: create structs?
+type EntityId = u64;
+type AttributeId = u64;
+type TransactionId = u64;
 type TxOp = BTreeMap<TransactionId, Op>;
 type Index<A, B, C> = BTreeMap<A, BTreeMap<B, BTreeMap<C, TxOp>>>;
 
@@ -102,7 +106,7 @@ impl InMemoryStorage {
 
 impl Storage for InMemoryStorage {
     type Error = StorageError;
-    //type Iter = std::slice::Iter<'a, Datom>;
+    type Iter = std::vec::IntoIter<Datom>;
 
     fn save(&mut self, datoms: &[Datom]) -> Result<(), StorageError> {
         for datom in datoms {
@@ -130,6 +134,11 @@ impl Storage for InMemoryStorage {
             } => self.find_datoms_avet(clause, tx_range),
             _ => self.find_datoms_aevt(clause),
         }
+    }
+
+    fn find(&self, clause: &Clause) -> Result<Self::Iter, Self::Error> {
+        let datoms = self.find_datoms(clause, u64::MAX)?;
+        Ok(datoms.into_iter())
     }
 }
 

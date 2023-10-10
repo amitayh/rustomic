@@ -1,19 +1,17 @@
 use std::collections::{HashMap, HashSet};
 
-use rocksdb::{
-    DBCommon, DBIteratorWithThreadMode, DBRawIteratorWithThreadMode, DBWithThreadMode,
-    IteratorMode, SingleThreaded,
-};
-use rocksdb::{PrefixRange, ReadOptions};
+use rocksdb::*;
 
 use crate::schema::attribute::*;
 use crate::schema::default::*;
 use crate::storage::*;
 use thiserror::Error;
 
+type AttributeId = u64;
+
 pub struct DiskStorage {
     db: rocksdb::DB,
-    attribute_cardinality: HashMap<AttributeId, Cardinality>,
+    _attribute_cardinality: HashMap<AttributeId, Cardinality>,
 }
 
 // TODO?
@@ -76,7 +74,7 @@ impl DiskStorage {
     pub fn new(db: rocksdb::DB) -> Self {
         let mut storage = DiskStorage {
             db,
-            attribute_cardinality: HashMap::new(),
+            _attribute_cardinality: HashMap::new(),
         };
         let init_datoms = default_datoms();
         storage.save(&init_datoms).unwrap();

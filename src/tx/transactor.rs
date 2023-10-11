@@ -115,11 +115,11 @@ impl<S: Storage, C: Clock> Transactor<S, C> {
             value,
         } in &operation.attributes
         {
-            let attribute;
-            match self.attribute_resolver.resolve(ident)? {
-                Some(attr) => attribute = attr,
+            
+            let attribute = match self.attribute_resolver.resolve(ident)? {
+                Some(attr) => attr,
                 None => return Err(TransactionError::IdentNotFound(ident.clone())),
-            }
+            };
 
             if attribute.cardinality == Cardinality::One {
                 retract_attributes.push(attribute.id);

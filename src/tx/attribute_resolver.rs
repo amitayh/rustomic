@@ -45,7 +45,7 @@ impl<S: Storage> AttributeResolver for StorageAttributeResolver<S> {
             .with_attribute(AttributePattern::Id(DB_ATTR_IDENT_ID))
             .with_value(ValuePattern::constant(ident.into()));
 
-        for datom in storage.find(&clause)? {
+        if let Some(datom) = storage.find(&clause)?.next() {
             let attribute_id = datom.entity;
             let mut builder = Builder::new(attribute_id);
             let clause = Clause::new().with_entity(EntityPattern::Id(attribute_id));

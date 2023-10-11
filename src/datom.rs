@@ -12,8 +12,8 @@ pub enum Value {
 }
 
 impl Value {
-    pub fn str(str: &str) -> Value {
-        Value::Str(Rc::from(str))
+    pub fn str(str: &str) -> Self {
+        Self::Str(Rc::from(str))
     }
 
     /// ```
@@ -27,7 +27,7 @@ impl Value {
     /// ```
     pub fn as_u64(&self) -> Option<u64> {
         match *self {
-            Value::U64(value) => Some(value),
+            Self::U64(value) => Some(value),
             _ => None,
         }
     }
@@ -43,7 +43,7 @@ impl Value {
     /// ```
     pub fn as_str(&self) -> Option<&str> {
         match self {
-            Value::Str(value) => Some(value),
+            Self::Str(value) => Some(value),
             _ => None,
         }
     }
@@ -51,37 +51,37 @@ impl Value {
 
 impl From<i32> for Value {
     fn from(val: i32) -> Self {
-        Value::I64(val.into())
+        Self::I64(val.into())
     }
 }
 
 impl From<u32> for Value {
     fn from(val: u32) -> Self {
-        Value::U64(val.into())
+        Self::U64(val.into())
     }
 }
 
 impl From<i64> for Value {
     fn from(val: i64) -> Self {
-        Value::I64(val)
+        Self::I64(val)
     }
 }
 
 impl From<u64> for Value {
     fn from(val: u64) -> Self {
-        Value::U64(val)
+        Self::U64(val)
     }
 }
 
 impl From<Decimal> for Value {
     fn from(val: Decimal) -> Self {
-        Value::Decimal(val)
+        Self::Decimal(val)
     }
 }
 
 impl From<&str> for Value {
     fn from(val: &str) -> Self {
-        Value::str(val)
+        Self::str(val)
     }
 }
 
@@ -101,8 +101,8 @@ pub struct Datom {
 }
 
 impl Datom {
-    pub fn add<V: Into<Value>>(entity: u64, attribute: u64, value: V, tx: u64) -> Datom {
-        Datom {
+    pub fn add<V: Into<Value>>(entity: u64, attribute: u64, value: V, tx: u64) -> Self {
+        Self {
             entity,
             attribute,
             value: value.into(),
@@ -111,8 +111,8 @@ impl Datom {
         }
     }
 
-    pub fn retract<V: Into<Value>>(entity: u64, attribute: u64, value: V, tx: u64) -> Datom {
-        Datom {
+    pub fn retract<V: Into<Value>>(entity: u64, attribute: u64, value: V, tx: u64) -> Self {
+        Self {
             entity,
             attribute,
             value: value.into(),
@@ -125,9 +125,9 @@ impl Datom {
 impl Arbitrary for Value {
     fn arbitrary(u: &mut Gen) -> Self {
         match u.choose(&[0, 1, 2]) {
-            Some(0) => Value::I64(i64::arbitrary(u)),
-            Some(1) => Value::U64(u64::arbitrary(u)),
-            Some(2) => Value::Str(String::arbitrary(u).into()),
+            Some(0) => Self::I64(i64::arbitrary(u)),
+            Some(1) => Self::U64(u64::arbitrary(u)),
+            Some(2) => Self::Str(String::arbitrary(u).into()),
             _ => panic!(),
         }
     }
@@ -136,9 +136,9 @@ impl Arbitrary for Value {
 impl Arbitrary for Op {
     fn arbitrary(u: &mut Gen) -> Self {
         if bool::arbitrary(u) {
-            Op::Added
+            Self::Added
         } else {
-            Op::Retracted
+            Self::Retracted
         }
     }
 }
@@ -150,7 +150,7 @@ impl Arbitrary for Datom {
         let value = Value::arbitrary(u);
         let tx = u64::arbitrary(u);
         let op = Op::arbitrary(u);
-        Datom {
+        Self {
             entity,
             attribute,
             value,

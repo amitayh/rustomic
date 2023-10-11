@@ -15,7 +15,7 @@ pub struct Assignment {
 
 impl Assignment {
     pub fn new(variables: HashSet<Rc<str>>) -> Self {
-        Assignment {
+        Self {
             assigned: HashMap::new(),
             unassigned: variables,
         }
@@ -45,7 +45,7 @@ impl Assignment {
     /// assert_eq!(Value::U64(3), assignment.assigned["baz"]);
     /// ```
     pub fn from_query(query: &Query) -> Self {
-        Assignment::new(
+        Self::new(
             query
                 .wher
                 .iter()

@@ -189,7 +189,7 @@ pub trait Writable {
 
 impl Writable for u8 {
     fn size(&self) -> usize {
-        std::mem::size_of::<u8>()
+        std::mem::size_of::<Self>()
     }
 
     fn write(&self, buffer: &mut Vec<u8>) {
@@ -199,7 +199,7 @@ impl Writable for u8 {
 
 impl Writable for u16 {
     fn size(&self) -> usize {
-        std::mem::size_of::<u16>()
+        std::mem::size_of::<Self>()
     }
 
     fn write(&self, buffer: &mut Vec<u8>) {
@@ -209,7 +209,7 @@ impl Writable for u16 {
 
 impl Writable for u64 {
     fn size(&self) -> usize {
-        std::mem::size_of::<u64>()
+        std::mem::size_of::<Self>()
     }
 
     fn write(&self, buffer: &mut Vec<u8>) {
@@ -219,7 +219,7 @@ impl Writable for u64 {
 
 impl Writable for i64 {
     fn size(&self) -> usize {
-        std::mem::size_of::<i64>()
+        std::mem::size_of::<Self>()
     }
 
     fn write(&self, buffer: &mut Vec<u8>) {
@@ -246,24 +246,24 @@ impl Writable for Value {
     fn size(&self) -> usize {
         std::mem::size_of::<u8>() + // Value tag
         match self {
-            Value::U64(value) => value.size(),
-            Value::I64(value) => value.size(),
-            Value::Str(value) => value.size(),
+            Self::U64(value) => value.size(),
+            Self::I64(value) => value.size(),
+            Self::Str(value) => value.size(),
             _ => 0,
         }
     }
 
     fn write(&self, buffer: &mut Vec<u8>) {
         match self {
-            Value::U64(value) => {
+            Self::U64(value) => {
                 value::TAG_U64.write(buffer);
                 value.write(buffer);
             }
-            Value::I64(value) => {
+            Self::I64(value) => {
                 value::TAG_I64.write(buffer);
                 value.write(buffer);
             }
-            Value::Str(value) => {
+            Self::Str(value) => {
                 value::TAG_STR.write(buffer);
                 value.write(buffer);
             }
@@ -279,8 +279,8 @@ impl Writable for Op {
 
     fn write(&self, buffer: &mut Vec<u8>) {
         match self {
-            Op::Added => op::TAG_ADDED,
-            Op::Retracted => op::TAG_RETRACTED,
+            Self::Added => op::TAG_ADDED,
+            Self::Retracted => op::TAG_RETRACTED,
         }
         .write(buffer)
     }

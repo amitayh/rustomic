@@ -15,6 +15,6 @@ impl Clock for MockClock {
 
 impl MockClock {
     pub fn new() -> Self {
-        MockClock { now: 0 }
+        Self { now: 0 }
     }
 }

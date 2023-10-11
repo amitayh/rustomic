@@ -16,7 +16,7 @@ pub struct Query {
 
 impl Query {
     pub fn new() -> Self {
-        Query { wher: Vec::new() }
+        Self { wher: Vec::new() }
     }
 
     pub fn wher(mut self, clause: Clause) -> Self {

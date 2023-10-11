@@ -26,7 +26,7 @@ pub struct Operation {
 
 impl Operation {
     pub fn new(entity: Entity) -> Self {
-        Operation {
+        Self {
             entity,
             attributes: Vec::new(),
         }
@@ -64,7 +64,7 @@ pub struct Transaction {
 
 impl Transaction {
     pub fn new() -> Self {
-        Transaction {
+        Self {
             operations: Vec::new(),
         }
     }

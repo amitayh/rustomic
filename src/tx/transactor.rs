@@ -27,7 +27,7 @@ impl<S: Storage, C: Clock> Transactor<S, C> {
     pub fn new(storage: Arc<RwLock<S>>, clock: C) -> Self {
         let attribute_resolver =
             CachingAttributeResolver::new(StorageAttributeResolver::new(storage.clone()));
-        Transactor {
+        Self {
             next_entity_id: 100,
             storage,
             clock,
@@ -115,7 +115,6 @@ impl<S: Storage, C: Clock> Transactor<S, C> {
             value,
         } in &operation.attributes
         {
-            
             let attribute = match self.attribute_resolver.resolve(ident)? {
                 Some(attr) => attr,
                 None => return Err(TransactionError::IdentNotFound(ident.clone())),

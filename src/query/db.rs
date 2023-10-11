@@ -16,7 +16,7 @@ pub struct Db<S: Storage> {
 
 impl<S: Storage> Db<S> {
     pub fn new(storage: Arc<RwLock<S>>, tx: u64) -> Self {
-        Db { storage, tx }
+        Self { storage, tx }
     }
 
     pub fn query(&self, query: Query) -> Result<QueryResult, QueryError<S::Error>> {

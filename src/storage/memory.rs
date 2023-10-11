@@ -92,7 +92,7 @@ pub struct InMemoryStorage {
 
 impl InMemoryStorage {
     pub fn new() -> Self {
-        let mut storage = InMemoryStorage {
+        let mut storage = Self {
             eavt: BTreeMap::new(),
             aevt: BTreeMap::new(),
             avet: BTreeMap::new(),

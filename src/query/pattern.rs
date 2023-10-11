@@ -26,14 +26,14 @@ pub enum EntityPattern {
 
 impl EntityPattern {
     pub fn variable(name: &str) -> Self {
-        EntityPattern::Variable(Rc::from(name))
+        Self::Variable(Rc::from(name))
     }
 }
 
 impl Pattern for EntityPattern {
     fn variable_name(&self) -> Option<&str> {
         match self {
-            EntityPattern::Variable(variable) => Some(variable),
+            Self::Variable(variable) => Some(variable),
             _ => None,
         }
     }
@@ -49,19 +49,19 @@ pub enum AttributePattern {
 }
 
 impl AttributePattern {
-    pub fn variable(name: &str) -> AttributePattern {
-        AttributePattern::Variable(Rc::from(name))
+    pub fn variable(name: &str) -> Self {
+        Self::Variable(Rc::from(name))
     }
 
-    pub fn ident(name: &str) -> AttributePattern {
-        AttributePattern::Ident(Rc::from(name))
+    pub fn ident(name: &str) -> Self {
+        Self::Ident(Rc::from(name))
     }
 }
 
 impl Pattern for AttributePattern {
     fn variable_name(&self) -> Option<&str> {
         match self {
-            AttributePattern::Variable(variable) => Some(variable),
+            Self::Variable(variable) => Some(variable),
             _ => None,
         }
     }
@@ -78,11 +78,11 @@ pub enum ValuePattern {
 
 impl ValuePattern {
     pub fn variable(name: &str) -> Self {
-        ValuePattern::Variable(Rc::from(name))
+        Self::Variable(Rc::from(name))
     }
 
     pub fn constant(value: Value) -> Self {
-        ValuePattern::Constant(value)
+        Self::Constant(value)
     }
 
     //pub fn range<R: RangeBounds<Value>>(range: &'a R) -> Self {
@@ -95,7 +95,7 @@ impl ValuePattern {
 impl Pattern for ValuePattern {
     fn variable_name(&self) -> Option<&str> {
         match self {
-            ValuePattern::Variable(variable) => Some(variable),
+            Self::Variable(variable) => Some(variable),
             _ => None,
         }
     }
@@ -112,20 +112,20 @@ pub enum TxPattern {
 
 impl TxPattern {
     pub fn variable(name: &str) -> Self {
-        TxPattern::Variable(Rc::from(name))
+        Self::Variable(Rc::from(name))
     }
 
     pub fn range<R: RangeBounds<u64>>(range: R) -> Self {
         let start = range.start_bound().cloned();
         let end = range.end_bound().cloned();
-        TxPattern::Range(start, end)
+        Self::Range(start, end)
     }
 }
 
 impl Pattern for TxPattern {
     fn variable_name(&self) -> Option<&str> {
         match self {
-            TxPattern::Variable(variable) => Some(variable),
+            Self::Variable(variable) => Some(variable),
             _ => None,
         }
     }

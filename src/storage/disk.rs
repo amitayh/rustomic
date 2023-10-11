@@ -72,7 +72,7 @@ pub trait Foo<'a> {
 impl DiskStorage {
     // TODO: initialize existing db without reloading default datoms
     pub fn new(db: rocksdb::DB) -> Self {
-        let mut storage = DiskStorage {
+        let mut storage = Self {
             db,
             _attribute_cardinality: HashMap::new(),
         };

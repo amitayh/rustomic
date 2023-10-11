@@ -27,13 +27,13 @@ impl ValueType {
     /// }
     /// assert_eq!(None, ValueType::from(42));
     /// ```
-    pub fn from(value: u64) -> Option<ValueType> {
+    pub fn from(value: u64) -> Option<Self> {
         match value {
-            1 => Some(ValueType::I64),
-            2 => Some(ValueType::U64),
-            3 => Some(ValueType::Decimal),
-            4 => Some(ValueType::Str),
-            5 => Some(ValueType::Ref),
+            1 => Some(Self::I64),
+            2 => Some(Self::U64),
+            3 => Some(Self::Decimal),
+            4 => Some(Self::Str),
+            5 => Some(Self::Ref),
             _ => None,
         }
     }
@@ -46,11 +46,11 @@ impl TryFrom<u64> for ValueType {
 
     fn try_from(value: u64) -> Result<Self, Self::Error> {
         match value {
-            1 => Ok(ValueType::I64),
-            2 => Ok(ValueType::U64),
-            3 => Ok(ValueType::Decimal),
-            4 => Ok(ValueType::Str),
-            5 => Ok(ValueType::Ref),
+            1 => Ok(Self::I64),
+            2 => Ok(Self::U64),
+            3 => Ok(Self::Decimal),
+            4 => Ok(Self::Str),
+            5 => Ok(Self::Ref),
             _ => Err(InvalidValue(value)),
         }
     }
@@ -72,10 +72,10 @@ impl Value {
     /// ```
     pub fn matches_type(&self, value_type: ValueType) -> bool {
         match self {
-            Value::I64(_) => value_type == ValueType::I64,
-            Value::U64(_) => value_type == ValueType::U64 || value_type == ValueType::Ref,
-            Value::Decimal(_) => value_type == ValueType::Decimal,
-            Value::Str(_) => value_type == ValueType::Str,
+            Self::I64(_) => value_type == ValueType::I64,
+            Self::U64(_) => value_type == ValueType::U64 || value_type == ValueType::Ref,
+            Self::Decimal(_) => value_type == ValueType::Decimal,
+            Self::Str(_) => value_type == ValueType::Str,
         }
     }
 }
@@ -94,10 +94,10 @@ impl Cardinality {
     /// assert_eq!(Some(Cardinality::Many), Cardinality::from(1));
     /// assert_eq!(None, Cardinality::from(42));
     /// ```
-    pub fn from(value: u64) -> Option<Cardinality> {
+    pub fn from(value: u64) -> Option<Self> {
         match value {
-            0 => Some(Cardinality::One),
-            1 => Some(Cardinality::Many),
+            0 => Some(Self::One),
+            1 => Some(Self::Many),
             _ => None,
         }
     }
@@ -141,7 +141,7 @@ impl<'a> Attribute<'a> {
 
 impl<'a> From<Attribute<'a>> for tx::Operation {
     fn from(val: Attribute<'a>) -> Self {
-        let mut operation = tx::Operation::on_new()
+        let mut operation = Self::on_new()
             .set(DB_ATTR_IDENT_IDENT, val.ident)
             .set(DB_ATTR_CARDINALITY_IDENT, val.cardinality as u64)
             .set(DB_ATTR_TYPE_IDENT, val.value_type as u64);

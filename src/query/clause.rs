@@ -12,7 +12,7 @@ pub struct Clause {
 
 impl Clause {
     pub fn new() -> Self {
-        Clause::default()
+        Self::default()
     }
 
     pub fn with_entity(mut self, entity: EntityPattern) -> Self {

@@ -10,6 +10,7 @@ use crate::query::pattern::*;
 use crate::schema::default::*;
 use crate::schema::*;
 use crate::storage::*;
+use thiserror::Error;
 
 // TODO: create structs?
 type EntityId = u64;
@@ -135,12 +136,39 @@ impl Storage for InMemoryStorage {
             _ => self.find_datoms_aevt(clause),
         }
     }
+}
 
-    fn find(&self, clause: &Clause) -> Result<Self::Iter, Self::Error> {
-        let datoms = self.find_datoms(clause, u64::MAX)?;
+//-------------------------------------------------------------------------------------------------
+
+#[derive(Debug, Error)]
+#[error("read error")]
+pub struct ReadError;
+
+impl ReadStorage for InMemoryStorage {
+    type ReadError = ReadError;
+    type Iter = std::vec::IntoIter<Datom>;
+
+    fn find(&self, clause: &Clause) -> Result<Self::Iter, Self::ReadError> {
+        let datoms = self.find_datoms(clause, u64::MAX).map_err(|_| ReadError)?;
         Ok(datoms.into_iter())
     }
 }
+
+//-------------------------------------------------------------------------------------------------
+
+#[derive(Debug, Error)]
+#[error("write error")]
+pub struct WriteError;
+
+impl WriteStorage for InMemoryStorage {
+    type WriteError = WriteError;
+
+    fn save2(&mut self, datoms: &[Datom]) -> Result<(), Self::WriteError> {
+        self.save(datoms).map_err(|_| WriteError)
+    }
+}
+
+//-------------------------------------------------------------------------------------------------
 
 impl<'a> InMemoryStorage {
     fn update_eavt(&mut self, datom: &Datom) {

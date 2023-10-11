@@ -25,18 +25,18 @@ pub trait AttributeResolver {
 
 // ------------------------------------------------------------------------------------------------
 
-pub struct StorageAttributeResolver<S: Storage> {
+pub struct StorageAttributeResolver<S: ReadStorage> {
     storage: Arc<RwLock<S>>,
 }
 
-impl<S: Storage> StorageAttributeResolver<S> {
+impl<S: ReadStorage> StorageAttributeResolver<S> {
     pub fn new(storage: Arc<RwLock<S>>) -> Self {
         Self { storage }
     }
 }
 
-impl<S: Storage> AttributeResolver for StorageAttributeResolver<S> {
-    type Error = S::Error;
+impl<S: ReadStorage> AttributeResolver for StorageAttributeResolver<S> {
+    type Error = S::ReadError;
 
     fn resolve(&mut self, ident: &str) -> Result<Option<Attribute>, Self::Error> {
         let storage = self.storage.read().unwrap(); // TODO

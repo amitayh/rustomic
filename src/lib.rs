@@ -25,11 +25,11 @@ mod tests {
     use super::tx::*;
 
     fn create_db() -> (
-        Transactor<InMemoryStorage, MockClock>,
+        Transactor<InMemoryStorage, InMemoryStorage, MockClock>,
         Arc<RwLock<InMemoryStorage>>,
     ) {
         let storage = Arc::new(RwLock::new(InMemoryStorage::new()));
-        let mut transactor = Transactor::new(storage.clone(), MockClock::new());
+        let mut transactor = Transactor::new(storage.clone(), storage.clone(), MockClock::new());
         assert!(transactor.transact(create_schema()).is_ok());
         (transactor, storage)
     }

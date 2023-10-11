@@ -14,8 +14,20 @@ pub trait Storage {
     fn save(&mut self, datoms: &[Datom]) -> Result<(), Self::Error>;
 
     fn find_datoms(&self, clause: &Clause, tx_range: u64) -> Result<Vec<Datom>, Self::Error>;
+}
 
-    fn find(&self, clause: &Clause) -> Result<Self::Iter, Self::Error>;
+pub trait ReadStorage {
+    type ReadError: std::error::Error;
+    type Iter: Iterator<Item = Datom>;
+
+    fn find(&self, clause: &Clause) -> Result<Self::Iter, Self::ReadError>;
+}
+
+pub trait WriteStorage {
+    type WriteError: std::error::Error;
+
+    // TODO: rename to `save` after previous is deprecated
+    fn save2(&mut self, datoms: &[Datom]) -> Result<(), Self::WriteError>;
 }
 
 #[derive(Debug, Error)]

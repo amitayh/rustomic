@@ -83,7 +83,7 @@ pub struct TransctionResult {
 }
 
 #[derive(Debug, Error)]
-pub enum TransactionError<S> {
+pub enum TransactionError {
     #[error("error")]
     Error, // TODO: remove generic error
     #[error("invalid attribute type")]
@@ -94,6 +94,4 @@ pub enum TransactionError<S> {
     TempIdNotFound(Rc<str>),
     #[error("ident `{0}` not found")]
     IdentNotFound(Rc<str>),
-    #[error("storage error")]
-    StorageError(#[from] S),
 }

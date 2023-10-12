@@ -65,7 +65,6 @@ impl Storage for DiskStorage {
 pub trait Foo<'a> {
     type Error;
     type Iter: Iterator<Item = Datom>;
-    fn save(&mut self, datoms: &[Datom]) -> Result<(), Self::Error>;
     fn find_datoms(&'a self, clause: &Clause) -> Result<Self::Iter, Self::Error>;
 }
 
@@ -100,10 +99,8 @@ impl DiskStorage {
     }
 }
 
-impl<'a> Foo<'a> for DiskStorage {
+impl WriteStorage for DiskStorage {
     type Error = DiskStorageError;
-    //type Iter = std::vec::IntoIter<Datom>;
-    type Iter = FooIter<'a>;
 
     fn save(&mut self, datoms: &[Datom]) -> Result<(), Self::Error> {
         let mut batch = rocksdb::WriteBatch::default();
@@ -116,6 +113,12 @@ impl<'a> Foo<'a> for DiskStorage {
         self.db.write(batch)?;
         Ok(())
     }
+}
+
+impl<'a> Foo<'a> for DiskStorage {
+    type Error = DiskStorageError;
+    //type Iter = std::vec::IntoIter<Datom>;
+    type Iter = FooIter<'a>;
 
     fn find_datoms(&'a self, clause: &Clause) -> Result<Self::Iter, Self::Error> {
         Ok(FooIter::new(clause, &self.db))

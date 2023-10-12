@@ -4,6 +4,7 @@ use rocksdb::{Options, DB};
 use rustomic::datom::*;
 use rustomic::query::clause::*;
 use rustomic::query::pattern::*;
+use rustomic::storage::*;
 use rustomic::storage::disk::*;
 use tempdir::TempDir;
 

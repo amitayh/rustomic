@@ -141,10 +141,10 @@ impl InMemoryStorage {
 pub struct ReadError;
 
 impl ReadStorage for InMemoryStorage {
-    type ReadError = ReadError;
+    type Error = ReadError;
     type Iter = std::vec::IntoIter<Datom>;
 
-    fn find(&self, clause: &Clause) -> Result<Self::Iter, Self::ReadError> {
+    fn find(&self, clause: &Clause) -> Result<Self::Iter, Self::Error> {
         let datoms = self.find_datoms(clause, u64::MAX).map_err(|_| ReadError)?;
         Ok(datoms.into_iter())
     }
@@ -157,9 +157,9 @@ impl ReadStorage for InMemoryStorage {
 pub struct WriteError;
 
 impl WriteStorage for InMemoryStorage {
-    type WriteError = WriteError;
+    type Error = WriteError;
 
-    fn save(&mut self, datoms: &[Datom]) -> Result<(), Self::WriteError> {
+    fn save(&mut self, datoms: &[Datom]) -> Result<(), Self::Error> {
         self.save_datoms(datoms).map_err(|_| WriteError)
     }
 }

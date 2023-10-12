@@ -7,17 +7,17 @@ use crate::query::clause::Clause;
 use thiserror::Error;
 
 pub trait ReadStorage {
-    type ReadError: std::error::Error;
+    type Error: std::error::Error;
     type Iter: Iterator<Item = Datom>;
 
-    fn find(&self, clause: &Clause) -> Result<Self::Iter, Self::ReadError>;
+    fn find(&self, clause: &Clause) -> Result<Self::Iter, Self::Error>;
 }
 
 pub trait WriteStorage {
-    type WriteError: std::error::Error;
+    type Error: std::error::Error;
 
     // TODO: rename to `save` after previous is deprecated
-    fn save(&mut self, datoms: &[Datom]) -> Result<(), Self::WriteError>;
+    fn save(&mut self, datoms: &[Datom]) -> Result<(), Self::Error>;
 }
 
 #[derive(Debug, Error)]

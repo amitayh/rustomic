@@ -36,7 +36,7 @@ impl<S: ReadStorage> StorageAttributeResolver<S> {
 }
 
 impl<S: ReadStorage> AttributeResolver for StorageAttributeResolver<S> {
-    type Error = S::ReadError;
+    type Error = S::Error;
 
     fn resolve(&mut self, ident: &str) -> Result<Option<Attribute>, Self::Error> {
         let storage = self.storage.read().unwrap(); // TODO

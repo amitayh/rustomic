@@ -19,49 +19,6 @@ pub struct DiskStorage {
 // 1. Base storage - read/write datoms in sorted order
 // 2. Layer that understands attributes and entities
 
-/*
-impl Storage for DiskStorage {
-    fn save(&mut self, datoms: &[Datom]) -> Result<(), StorageError> {
-        let mut batch = rocksdb::WriteBatch::default();
-        for datom in datoms {
-            batch.put(serde::datom::serialize::eavt(datom), "");
-            batch.put(serde::datom::serialize::aevt(datom), "");
-            batch.put(serde::datom::serialize::avet(datom), "");
-        }
-        self.db.write(batch).unwrap();
-        Ok(())
-    }
-
-    fn find_datoms(&self, clause: &Clause, _tx_range: u64) -> Result<Vec<Datom>, StorageError> {
-        let mut result = Vec::new();
-        let read_options = DiskStorage::read_options(clause);
-        // TODO: `retracted_values` should contain entity and attribute
-        let mut retracted_values = HashSet::new();
-        for item in self
-            .db
-            .iterator_opt(rocksdb::IteratorMode::Start, read_options)
-        {
-            let (key, _value) = item.unwrap();
-            //println!("@@@ KEY {}", bytes_string(&key));
-            //dbg!(&datom);
-            let datom = serde::datom::deserialize(&key).unwrap();
-            if datom.op == Op::Retracted {
-                retracted_values.insert(datom.value.clone());
-            } else if !retracted_values.contains(&datom.value) {
-                result.push(datom);
-            } else {
-                retracted_values.remove(&datom.value);
-            }
-        }
-        Ok(result)
-    }
-
-    fn resolve_ident(&self, _ident: &str) -> Result<EntityId, StorageError> {
-        todo!()
-    }
-}
-*/
-
 pub trait Foo<'a> {
     type Error;
     type Iter: Iterator<Item = Datom>;

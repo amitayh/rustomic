@@ -8,8 +8,8 @@ use crate::query::clause::Clause;
 use crate::query::pattern::*;
 use crate::schema::attribute::*;
 use crate::schema::*;
+use crate::storage::attribute_resolver::*;
 use crate::storage::*;
-use crate::tx::attribute_resolver::*;
 use crate::tx::*;
 
 type TempIds = HashMap<Rc<str>, u64>;

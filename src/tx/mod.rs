@@ -1,4 +1,3 @@
-pub mod attribute_resolver;
 pub mod transactor;
 
 use std::collections::HashMap;

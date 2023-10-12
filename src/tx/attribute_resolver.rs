@@ -41,6 +41,7 @@ impl<S: ReadStorage> AttributeResolver for StorageAttributeResolver<S> {
     fn resolve(&mut self, ident: &str) -> Result<Option<Attribute>, Self::Error> {
         let storage = self.storage.read().unwrap(); // TODO
 
+        // [?attribute :db/attr/ident ?ident]
         let clause = Clause::new()
             .with_attribute(AttributePattern::Id(DB_ATTR_IDENT_ID))
             .with_value(ValuePattern::constant(ident.into()));
@@ -48,6 +49,7 @@ impl<S: ReadStorage> AttributeResolver for StorageAttributeResolver<S> {
         if let Some(datom) = storage.find(&clause)?.next() {
             let attribute_id = datom.entity;
             let mut builder = Builder::new(attribute_id);
+            // [?attribute _ _]
             let clause = Clause::new().with_entity(EntityPattern::Id(attribute_id));
             for datom in storage.find(&clause)? {
                 builder.consume(&datom);

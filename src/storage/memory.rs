@@ -103,13 +103,8 @@ impl InMemoryStorage {
         storage.save(&init_datoms).unwrap();
         storage
     }
-}
 
-impl Storage for InMemoryStorage {
-    type Error = StorageError;
-    type Iter = std::vec::IntoIter<Datom>;
-
-    fn save(&mut self, datoms: &[Datom]) -> Result<(), StorageError> {
+    fn save_datoms(&mut self, datoms: &[Datom]) -> Result<(), StorageError> {
         for datom in datoms {
             self.update_eavt(datom);
             self.update_aevt(datom);
@@ -119,7 +114,8 @@ impl Storage for InMemoryStorage {
         Ok(())
     }
 
-    fn find_datoms(&self, clause: &Clause, tx_range: u64) -> Result<Vec<Datom>, StorageError> {
+    #[deprecated]
+    pub fn find_datoms(&self, clause: &Clause, tx_range: u64) -> Result<Vec<Datom>, StorageError> {
         match clause {
             Clause {
                 entity: EntityPattern::Id(_),
@@ -163,8 +159,8 @@ pub struct WriteError;
 impl WriteStorage for InMemoryStorage {
     type WriteError = WriteError;
 
-    fn save2(&mut self, datoms: &[Datom]) -> Result<(), Self::WriteError> {
-        self.save(datoms).map_err(|_| WriteError)
+    fn save(&mut self, datoms: &[Datom]) -> Result<(), Self::WriteError> {
+        self.save_datoms(datoms).map_err(|_| WriteError)
     }
 }
 

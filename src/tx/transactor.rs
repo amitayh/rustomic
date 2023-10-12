@@ -41,7 +41,7 @@ impl<R: ReadStorage, W: WriteStorage, C: Clock> Transactor<R, W, C> {
     ) -> Result<TransctionResult, TransactionError> {
         let temp_ids = self.generate_temp_ids(&transaction)?;
         let datoms = self.transaction_datoms(&transaction, &temp_ids)?;
-        self.write.write().unwrap().save2(&datoms).unwrap(); // TODO
+        self.write.write().unwrap().save(&datoms).unwrap(); // TODO
 
         Ok(TransctionResult {
             tx_id: datoms[0].tx,

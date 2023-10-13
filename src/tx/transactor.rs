@@ -104,7 +104,7 @@ impl<R: ReadStorage, W: WriteStorage, C: Clock> Transactor<R, W, C> {
             value,
         } in &operation.attributes
         {
-            let attribute = match self.attribute_resolver.resolve(ident).unwrap() {
+            let attribute = match self.attribute_resolver.resolve_ident(ident).unwrap() {
                 Some(attr) => attr,
                 None => return Err(TransactionError::IdentNotFound(ident.clone())),
             };

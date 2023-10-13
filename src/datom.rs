@@ -47,6 +47,13 @@ impl Value {
             _ => None,
         }
     }
+
+    pub fn as_string(&self) -> Option<Rc<str>> {
+        match self {
+            Self::Str(value) => Some(value.clone()),
+            _ => None,
+        }
+    }
 }
 
 impl From<i32> for Value {

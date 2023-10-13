@@ -11,7 +11,7 @@ type AttributeId = u64;
 
 pub struct DiskStorage {
     db: rocksdb::DB,
-    _attribute_cardinality: HashMap<AttributeId, Cardinality>,
+    _attribute_resolver: HashMap<AttributeId, Cardinality>,
 }
 
 // TODO?
@@ -30,7 +30,7 @@ impl DiskStorage {
     pub fn new(db: rocksdb::DB) -> Self {
         let mut storage = Self {
             db,
-            _attribute_cardinality: HashMap::new(),
+            _attribute_resolver: HashMap::new(),
         };
         let init_datoms = default_datoms();
         storage.save(&init_datoms).unwrap();

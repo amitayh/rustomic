@@ -19,13 +19,12 @@ pub struct Transactor<R: ReadStorage, W: WriteStorage, C: Clock> {
     read: Arc<RwLock<R>>,
     write: Arc<RwLock<W>>,
     clock: C,
-    attribute_resolver: CachingAttributeResolver<StorageAttributeResolver<R>>,
+    attribute_resolver: CachingAttributeResolver<R>,
 }
 
 impl<R: ReadStorage, W: WriteStorage, C: Clock> Transactor<R, W, C> {
     pub fn new(read: Arc<RwLock<R>>, write: Arc<RwLock<W>>, clock: C) -> Self {
-        let attribute_resolver =
-            CachingAttributeResolver::new(StorageAttributeResolver::new(read.clone()));
+        let attribute_resolver = CachingAttributeResolver::new(read.clone());
         Self {
             next_entity_id: 100,
             read,

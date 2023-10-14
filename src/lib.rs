@@ -8,10 +8,12 @@ pub mod tx;
 #[cfg(test)]
 mod tests {
     use std::collections::HashSet;
+    use std::rc::Rc;
     use std::sync::Arc;
     use std::sync::RwLock;
 
     use crate::clock::MockClock;
+    use crate::storage::attribute_resolver::CachingAttributeResolver;
     use crate::storage::memory::InMemoryStorage;
 
     use super::datom::*;
@@ -28,6 +30,9 @@ mod tests {
         Transactor<InMemoryStorage, InMemoryStorage, MockClock>,
         Arc<RwLock<InMemoryStorage>>,
     ) {
+        let s = Rc::new(InMemoryStorage::new());
+        //let resolver = CachingAttributeResolver::new(s);
+
         let storage = Arc::new(RwLock::new(InMemoryStorage::new()));
         let mut transactor = Transactor::new(storage.clone(), storage.clone(), MockClock::new());
         assert!(transactor.transact(create_schema()).is_ok());

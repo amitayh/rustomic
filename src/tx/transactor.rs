@@ -1,8 +1,6 @@
 use std::collections::HashMap;
-use std::sync::Arc;
-use std::sync::RwLock;
 
-use crate::clock::Clock;
+use crate::clock::Instant;
 use crate::datom::*;
 use crate::query::clause::Clause;
 use crate::query::pattern::*;
@@ -12,35 +10,31 @@ use crate::storage::attribute_resolver::*;
 use crate::storage::*;
 use crate::tx::*;
 
-type TempIds = HashMap<Rc<str>, u64>;
+type TempId = Rc<str>;
+type EntityId = u64;
+type TempIds = HashMap<TempId, EntityId>;
 
-pub struct Transactor<R: ReadStorage, W: WriteStorage, C: Clock> {
+pub struct Transactor {
     next_entity_id: u64,
-    read: Arc<RwLock<R>>,
-    write: Arc<RwLock<W>>,
-    clock: C,
-    attribute_resolver: CachingAttributeResolver<R>,
+    attribute_resolver: CachingAttributeResolver,
 }
 
-impl<R: ReadStorage, W: WriteStorage, C: Clock> Transactor<R, W, C> {
-    pub fn new(read: Arc<RwLock<R>>, write: Arc<RwLock<W>>, clock: C) -> Self {
-        let attribute_resolver = CachingAttributeResolver::new(read.clone());
+impl Transactor {
+    pub fn new() -> Self {
         Self {
             next_entity_id: 100,
-            read,
-            write,
-            clock,
-            attribute_resolver,
+            attribute_resolver: CachingAttributeResolver::new(),
         }
     }
 
-    pub fn transact(
+    pub fn transact<S: ReadStorage>(
         &mut self,
+        storage: &S,
+        now: Instant,
         transaction: Transaction,
-    ) -> Result<TransctionResult, TransactionError> {
-        let temp_ids = self.generate_temp_ids(&transaction)?;
-        let datoms = self.transaction_datoms(&transaction, &temp_ids)?;
-        self.write.write().unwrap().save(&datoms).unwrap(); // TODO
+    ) -> Result<TransctionResult, TransactionError<S::Error>> {
+        let temp_ids = self.generate_temp_ids::<S>(&transaction)?;
+        let datoms = self.transaction_datoms(storage, now, &transaction, &temp_ids)?;
 
         Ok(TransctionResult {
             tx_id: datoms[0].tx,
@@ -49,10 +43,10 @@ impl<R: ReadStorage, W: WriteStorage, C: Clock> Transactor<R, W, C> {
         })
     }
 
-    fn generate_temp_ids(
+    fn generate_temp_ids<S: ReadStorage>(
         &mut self,
         transaction: &Transaction,
-    ) -> Result<TempIds, TransactionError> {
+    ) -> Result<TempIds, TransactionError<S::Error>> {
         let mut temp_ids = HashMap::new();
         for operation in &transaction.operations {
             if let Entity::TempId(id) = &operation.entity {
@@ -64,46 +58,49 @@ impl<R: ReadStorage, W: WriteStorage, C: Clock> Transactor<R, W, C> {
         Ok(temp_ids)
     }
 
-    fn transaction_datoms(
+    fn transaction_datoms<S: ReadStorage>(
         &mut self,
+        storage: &S,
+        now: Instant,
         transaction: &Transaction,
         temp_ids: &TempIds,
-    ) -> Result<Vec<Datom>, TransactionError> {
+    ) -> Result<Vec<Datom>, TransactionError<S::Error>> {
         let mut datoms = Vec::new();
-        let tx = self.create_tx_datom();
+        let tx = self.create_tx_datom(now);
         for operation in &transaction.operations {
-            datoms.append(&mut self.operation_datoms(tx.entity, operation, temp_ids)?);
+            let mut op_datoms = self.operation_datoms(storage, tx.entity, operation, temp_ids)?;
+            datoms.append(&mut op_datoms);
         }
         datoms.push(tx);
         Ok(datoms)
     }
 
-    fn next_entity_id(&mut self) -> u64 {
+    fn next_entity_id(&mut self) -> EntityId {
         self.next_entity_id += 1;
         self.next_entity_id
     }
 
-    fn create_tx_datom(&mut self) -> Datom {
+    fn create_tx_datom(&mut self, now: Instant) -> Datom {
         let tx = self.next_entity_id();
-        Datom::add(tx, DB_TX_TIME_ID, self.clock.now(), tx)
+        Datom::add(tx, DB_TX_TIME_ID, now.0, tx)
     }
 
-    fn operation_datoms(
+    fn operation_datoms<S: ReadStorage>(
         &mut self,
+        storage: &S,
         tx: u64,
         operation: &Operation,
         temp_ids: &TempIds,
-    ) -> Result<Vec<Datom>, TransactionError> {
+    ) -> Result<Vec<Datom>, TransactionError<S::Error>> {
         let mut datoms = Vec::new();
-        let entity = self.resolve_entity(&operation.entity, temp_ids)?;
-        //let attribute_resolver = &mut self.attribute_resolver;
+        let entity = self.resolve_entity::<S>(&operation.entity, temp_ids)?;
         let mut retract_attributes = Vec::new();
         for AttributeValue {
             attribute: ident,
             value,
         } in &operation.attributes
         {
-            let attribute = match self.attribute_resolver.resolve_ident(ident).unwrap() {
+            let attribute = match self.attribute_resolver.resolve_ident(storage, ident)? {
                 Some(attr) => attr,
                 None => return Err(TransactionError::IdentNotFound(ident.clone())),
             };
@@ -127,36 +124,36 @@ impl<R: ReadStorage, W: WriteStorage, C: Clock> Transactor<R, W, C> {
         }
 
         for attribute_id in retract_attributes {
-            let mut retracted = self.retract_old_values(entity, attribute_id, tx)?;
+            let mut retracted = self.retract_old_values(storage, entity, attribute_id, tx)?;
             datoms.append(&mut retracted);
         }
 
         Ok(datoms)
     }
 
-    fn retract_old_values(
+    fn retract_old_values<S: ReadStorage>(
         &self,
+        storage: &S,
         entity: u64,
         attribute: u64,
         tx: u64,
-    ) -> Result<Vec<Datom>, TransactionError> {
-        let storage = self.read.read().unwrap();
+    ) -> Result<Vec<Datom>, TransactionError<S::Error>> {
         let mut datoms = Vec::new();
         // Retract previous values
         let clause = Clause::new()
             .with_entity(EntityPattern::Id(entity))
             .with_attribute(AttributePattern::Id(attribute));
-        for datom in storage.find(&clause).unwrap() {
+        for datom in storage.find(&clause)? {
             datoms.push(Datom::retract(entity, attribute, datom.value, tx));
         }
         Ok(datoms)
     }
 
-    fn resolve_entity(
+    fn resolve_entity<S: ReadStorage>(
         &mut self,
         entity: &Entity,
         temp_ids: &TempIds,
-    ) -> Result<u64, TransactionError> {
+    ) -> Result<u64, TransactionError<S::Error>> {
         match entity {
             Entity::New => Ok(self.next_entity_id()),
             Entity::Id(id) => Ok(*id),

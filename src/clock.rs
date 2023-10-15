@@ -1,3 +1,5 @@
+pub struct Instant(pub u64);
+
 pub trait Clock {
     fn now(&self) -> u64;
 }

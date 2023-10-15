@@ -82,9 +82,9 @@ pub struct TransctionResult {
 }
 
 #[derive(Debug, Error)]
-pub enum TransactionError {
-    #[error("error")]
-    Error, // TODO: remove generic error
+pub enum TransactionError<S> {
+    #[error("storage error")]
+    StorageError(#[from] S),
     #[error("invalid attribute type")]
     InvalidAttributeType,
     #[error("duplicate temp ID `{0}`")]

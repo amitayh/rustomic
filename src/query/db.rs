@@ -1,5 +1,4 @@
 use std::collections::HashMap;
-use std::sync::{Arc, RwLock, RwLockReadGuard};
 
 use crate::datom::Value;
 use crate::query::assignment::*;
@@ -9,27 +8,25 @@ use crate::storage::*;
 
 use super::pattern::TxPattern;
 
-pub struct Db<S: ReadStorage> {
-    storage: Arc<RwLock<S>>,
+pub struct Db {
     tx: u64,
 }
 
-impl<S: ReadStorage> Db<S> {
-    pub fn new(storage: Arc<RwLock<S>>, tx: u64) -> Self {
-        Self { storage, tx }
+impl Db {
+    pub fn new(tx: u64) -> Self {
+        Self { tx }
     }
 
-    pub fn query(&self, query: Query) -> Result<QueryResult, QueryError<S::Error>> {
+    pub fn query<S: ReadStorage>(&self, storage: &S, query: Query) -> Result<QueryResult, QueryError<S::Error>> {
         let mut results = Vec::new();
         let assignment = Assignment::from_query(&query);
-        let storage = self.storage.read().map_err(|_| QueryError::Error)?;
-        self.resolve(&storage, &query.wher, assignment, &mut results)?;
+        self.resolve(storage, &query.wher, assignment, &mut results)?;
         Ok(QueryResult { results })
     }
 
-    fn resolve(
+    fn resolve<S: ReadStorage>(
         &self,
-        storage: &RwLockReadGuard<S>,
+        storage: &S,
         clauses: &[Clause],
         assignment: Assignment,
         results: &mut Vec<HashMap<Rc<str>, Value>>,

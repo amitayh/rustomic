@@ -21,9 +21,7 @@ pub trait ReadStorage {
     fn resolve_ident(&self, ident: &str) -> Result<Option<Attribute>, Self::Error> {
         // [?attribute :db/attr/ident ?ident]
         let clause = Clause::new()
-            .with_attribute(crate::query::pattern::AttributePattern::Id(
-                DB_ATTR_IDENT_ID,
-            ))
+            .with_attribute(AttributePattern::Id(DB_ATTR_IDENT_ID))
             .with_value(ValuePattern::constant(ident.into()));
         if let Some(datom) = self.find(&clause)?.next() {
             return self.resolve_id(datom.entity);
@@ -92,12 +90,11 @@ impl Builder {
     }
 
     fn build(self) -> Option<Attribute> {
-        let id = self.id;
         let ident = self.ident?;
         let value_type = self.value_type?;
         let cardinality = self.cardinality?;
         Some(Attribute {
-            id,
+            id: self.id,
             ident,
             value_type,
             cardinality,

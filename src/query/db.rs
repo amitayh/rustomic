@@ -17,7 +17,11 @@ impl Db {
         Self { tx }
     }
 
-    pub fn query<S: ReadStorage>(&self, storage: &S, query: Query) -> Result<QueryResult, QueryError<S::Error>> {
+    pub fn query<S: ReadStorage>(
+        &self,
+        storage: &S,
+        query: Query,
+    ) -> Result<QueryResult, QueryError<S::Error>> {
         let mut results = Vec::new();
         let assignment = Assignment::from_query(&query);
         self.resolve(storage, &query.wher, assignment, &mut results)?;

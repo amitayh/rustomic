@@ -8,6 +8,7 @@ pub mod tx;
 #[cfg(test)]
 mod tests {
     use std::collections::HashSet;
+    use std::time::SystemTime;
 
     use crate::clock::Instant;
     use crate::storage::memory::InMemoryStorage;
@@ -28,9 +29,11 @@ mod tests {
         storage: &mut InMemoryStorage,
         transaction: Transaction,
     ) -> TransctionResult {
-        let now = time::OffsetDateTime::now_utc();
+        let now = SystemTime::now()
+            .duration_since(SystemTime::UNIX_EPOCH)
+            .expect("time went backwards");
         let result = transactor
-            .transact(storage, Instant(0), transaction)
+            .transact(storage, Instant(now.as_secs()), transaction)
             .expect("unable to transact");
         storage.save(&result.tx_data).expect("unable to save");
         result
@@ -76,7 +79,8 @@ mod tests {
             &mut storage,
             Transaction::new()
                 .with(Operation::on_new().set("person/name", "Alice"))
-                .with(Operation::on_new().set("person/name", "Bob")));
+                .with(Operation::on_new().set("person/name", "Bob")),
+        );
 
         let db = Db::new(tx_result.tx_id);
         let query_result = db.query(
@@ -93,24 +97,24 @@ mod tests {
         assert!(query_result.unwrap().results.is_empty());
     }
 
-    /*
     #[test]
     fn create_entity_by_temp_id() {
-        let (mut transactor, storage) = create_db();
+        let (mut transactor, mut storage) = create_db();
 
         // Insert data
-        let tx_result = transactor.transact(
-            Transaction::new().with(Operation::on_temp_id("joe").set("person/name", "Joe")),
-        );
-        assert!(tx_result.is_ok());
         let TransctionResult {
             tx_id,
             tx_data: _,
             temp_ids,
-        } = tx_result.unwrap();
+        } = transact(
+            &mut transactor,
+            &mut storage,
+            Transaction::new().with(Operation::on_temp_id("joe").set("person/name", "Joe")),
+        );
 
-        let db = Db::new(storage, tx_id);
+        let db = Db::new(tx_id);
         let query_result = db.query(
+            &storage,
             Query::new().wher(
                 Clause::new()
                     .with_entity(EntityPattern::variable("?joe"))
@@ -128,6 +132,7 @@ mod tests {
         );
     }
 
+    /*
     #[test]
     fn reject_transaction_with_invalid_attribute_type() {
         let (mut transactor, _) = create_db();

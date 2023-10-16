@@ -19,9 +19,9 @@ impl CachingAttributeResolver {
         }
     }
 
-    pub fn resolve_ident<S: ReadStorage>(
+    pub fn resolve_ident<'a, S: ReadStorage<'a>>(
         &mut self,
-        storage: &S,
+        storage: &'a S,
         ident: &str,
     ) -> Result<Option<Attribute>, S::Error> {
         if let Some(attribute) = self.by_ident.get(ident) {
@@ -34,9 +34,9 @@ impl CachingAttributeResolver {
         Ok(None)
     }
 
-    pub fn resolve_id<S: ReadStorage>(
+    pub fn resolve_id<'a, S: ReadStorage<'a>>(
         &mut self,
-        storage: &S,
+        storage: &'a S,
         attribute_id: u64,
     ) -> Result<Option<Attribute>, S::Error> {
         if let Some(attribute) = self.by_id.get(&attribute_id) {

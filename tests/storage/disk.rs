@@ -22,7 +22,7 @@ fn return_empty_result_if_no_datoms_match_search_criteria() {
 
     let entity = 100;
     let clause = Clause::new().with_entity(EntityPattern::Id(entity));
-    let read_result = storage.find_datoms(&clause);
+    let read_result = storage.find(&clause);
 
     assert!(read_result.is_ok());
     assert!(read_result.unwrap().collect::<Vec<Datom>>().is_empty());
@@ -40,7 +40,7 @@ fn find_single_datom_by_entity_attribute_and_value() {
     let datoms = vec![Datom::add(entity, attribute, value, tx)];
     assert!(storage.save(&datoms).is_ok());
 
-    let read_result = storage.find_datoms(
+    let read_result = storage.find(
         &Clause::new()
             .with_entity(EntityPattern::Id(entity))
             .with_attribute(AttributePattern::Id(attribute))
@@ -63,7 +63,7 @@ fn find_multiple_datoms_by_entity() {
     ];
     assert!(storage.save(&datoms).is_ok());
 
-    let read_result = storage.find_datoms(&Clause::new().with_entity(EntityPattern::Id(entity)));
+    let read_result = storage.find(&Clause::new().with_entity(EntityPattern::Id(entity)));
 
     assert!(read_result.is_ok());
     assert_eq!(datoms, read_result.unwrap().collect::<Vec<Datom>>());
@@ -87,8 +87,7 @@ fn find_multiple_datoms_by_attribute() {
     ];
     assert!(storage.save(&datoms).is_ok());
 
-    let read_result =
-        storage.find_datoms(&Clause::new().with_attribute(AttributePattern::Id(attribute1)));
+    let read_result = storage.find(&Clause::new().with_attribute(AttributePattern::Id(attribute1)));
 
     assert!(read_result.is_ok());
 
@@ -115,7 +114,7 @@ fn ignore_datoms_of_other_entities() {
     ];
     assert!(storage.save(&datoms).is_ok());
 
-    let read_result = storage.find_datoms(&Clause::new().with_entity(EntityPattern::Id(entity1)));
+    let read_result = storage.find(&Clause::new().with_entity(EntityPattern::Id(entity1)));
 
     assert!(read_result.is_ok());
     assert_eq!(datoms[0..1], read_result.unwrap().collect::<Vec<Datom>>());
@@ -135,7 +134,7 @@ fn ignore_retracted_values() {
     ];
     assert!(storage.save(&datoms).is_ok());
 
-    let read_result = storage.find_datoms(
+    let read_result = storage.find(
         &Clause::new()
             .with_entity(EntityPattern::Id(entity))
             .with_attribute(AttributePattern::Id(attribute)),
@@ -160,7 +159,7 @@ fn fetch_only_latest_value_for_attribute() {
     ];
     assert!(storage.save(&datoms).is_ok());
 
-    let read_result = storage.find_datoms(
+    let read_result = storage.find(
         &Clause::new()
             .with_entity(EntityPattern::Id(entity))
             .with_attribute(AttributePattern::Id(attribute)),
@@ -321,7 +320,7 @@ fn read_datoms_by_entity() {
     assert!(save_result.is_ok());
 
     let clause = Clause::new().with_entity(EntityPattern::Id(entity));
-    let read_result = storage.find_datoms(&clause);
+    let read_result = storage.find(&clause);
     assert!(read_result.is_ok());
     assert_eq!(datoms, read_result.unwrap());
 }
@@ -342,7 +341,7 @@ fn retract_values() {
     assert!(save_result.is_ok());
 
     let clause = Clause::new().with_entity(EntityPattern::Id(entity));
-    let read_result = storage.find_datoms(&clause);
+    let read_result = storage.find(&clause);
     assert!(read_result.is_ok());
     assert!(read_result.unwrap().is_empty());
 }
@@ -364,7 +363,7 @@ fn replace_values() {
     assert!(save_result.is_ok());
 
     let clause = Clause::new().with_entity(EntityPattern::Id(entity));
-    let read_result = storage.find_datoms(&clause);
+    let read_result = storage.find(&clause);
     assert!(read_result.is_ok());
 
     let expected_result = vec![Datom::add(entity, attribute, 2u64, 1001)];
@@ -419,7 +418,7 @@ fn replace_values_avet() {
     let clause1 = Clause::new()
         .with_attribute(AttributePattern::Id(attribute))
         .with_value(ValuePattern::constant(&Value::U64(1)));
-    let read_result1 = storage.find_datoms(&clause1, 1001);
+    let read_result1 = storage.find(&clause1, 1001);
     assert!(read_result1.is_ok());
     assert!(read_result1.unwrap().is_empty());
 
@@ -427,7 +426,7 @@ fn replace_values_avet() {
     let clause2 = Clause::new()
         .with_attribute(AttributePattern::Id(attribute))
         .with_value(ValuePattern::constant(&Value::U64(2)));
-    let read_result2 = storage.find_datoms(&clause2, 1001);
+    let read_result2 = storage.find(&clause2, 1001);
     assert!(read_result2.is_ok());
     assert_eq!(
         vec![Datom::add(entity, attribute, 2u64, 1001)],
@@ -438,7 +437,7 @@ fn replace_values_avet() {
     let clause3 = Clause::new()
         .with_attribute(AttributePattern::Id(attribute))
         .with_value(ValuePattern::range(&(Value::U64(1)..)));
-    let read_result3 = storage.find_datoms(&clause3, 1001);
+    let read_result3 = storage.find(&clause3, 1001);
     assert!(read_result3.is_ok());
     assert_eq!(
         vec![Datom::add(entity, attribute, 2u64, 1001)],

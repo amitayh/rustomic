@@ -13,13 +13,13 @@ use crate::schema::attribute::*;
 use crate::schema::*;
 use thiserror::Error;
 
-pub trait ReadStorage {
+pub trait ReadStorage<'a> {
     type Error: std::error::Error;
     type Iter: Iterator<Item = Datom>;
 
-    fn find(&self, clause: &Clause) -> Result<Self::Iter, Self::Error>;
+    fn find(&'a self, clause: &Clause) -> Result<Self::Iter, Self::Error>;
 
-    fn resolve_ident(&self, ident: &str) -> Result<Option<Attribute>, Self::Error> {
+    fn resolve_ident(&'a self, ident: &str) -> Result<Option<Attribute>, Self::Error> {
         // [?attribute :db/attr/ident ?ident]
         let clause = Clause::new()
             .with_attribute(AttributePattern::Id(DB_ATTR_IDENT_ID))
@@ -30,7 +30,7 @@ pub trait ReadStorage {
         Ok(None)
     }
 
-    fn resolve_id(&self, attribute_id: u64) -> Result<Option<Attribute>, Self::Error> {
+    fn resolve_id(&'a self, attribute_id: u64) -> Result<Option<Attribute>, Self::Error> {
         let mut builder = Builder::new(attribute_id);
         // [?attribute _ _]
         let clause = Clause::new().with_entity(EntityPattern::Id(attribute_id));

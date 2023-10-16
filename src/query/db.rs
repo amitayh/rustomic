@@ -17,9 +17,9 @@ impl Db {
         Self { tx }
     }
 
-    pub fn query<S: ReadStorage>(
+    pub fn query<'a, S: ReadStorage<'a>>(
         &self,
-        storage: &S,
+        storage: &'a S,
         query: Query,
     ) -> Result<QueryResult, QueryError<S::Error>> {
         let mut results = Vec::new();
@@ -28,9 +28,9 @@ impl Db {
         Ok(QueryResult { results })
     }
 
-    fn resolve<S: ReadStorage>(
+    fn resolve<'a, S: ReadStorage<'a>>(
         &self,
-        storage: &S,
+        storage: &'a S,
         clauses: &[Clause],
         assignment: Assignment,
         results: &mut Vec<HashMap<Rc<str>, Value>>,

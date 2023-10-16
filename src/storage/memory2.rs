@@ -91,12 +91,30 @@ impl WriteStorage for InMemoryStorage {
 
 //-------------------------------------------------------------------------------------------------
 
-impl ReadStorage for InMemoryStorage {
+fn satisfies(clause: &Clause, datom: &Datom) -> bool {
+    let mut result = true;
+    if let EntityPattern::Id(entity) = clause.entity {
+        result &= datom.entity == entity;
+    }
+    if let AttributePattern::Id(attribute) = clause.attribute {
+        result &= datom.attribute == attribute;
+    }
+    if let ValuePattern::Constant(value) = &clause.value {
+        result &= &datom.value == value;
+    }
+    result
+}
+
+impl<'a> ReadStorage<'a> for InMemoryStorage {
     type Error = InMemoryStorageError;
 
     type Iter = InMemoryStorageIter;
 
-    fn find(&self, clause: &Clause) -> Result<Self::Iter, Self::Error> {
+    fn find(&'a self, clause: &Clause) -> Result<Self::Iter, Self::Error> {
+        //self.index.iter()
+        //    .map(|bytes| serde::datom::deserialize(bytes).unwrap())
+        //    .filter(|datom| satisfies(clause, datom));
+
         let start = serde::index::key(clause);
         let end = serde::index::next_prefix(&start).unwrap(); // TODO
         let datoms = self
@@ -116,6 +134,7 @@ impl InMemoryStorageIter {
         Self
     }
 }
+
 impl Iterator for InMemoryStorageIter {
     type Item = Datom;
 

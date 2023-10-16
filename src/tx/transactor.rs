@@ -27,9 +27,9 @@ impl Transactor {
         }
     }
 
-    pub fn transact<S: ReadStorage>(
+    pub fn transact<'a, S: ReadStorage<'a>>(
         &mut self,
-        storage: &S,
+        storage: &'a S,
         now: Instant,
         transaction: Transaction,
     ) -> Result<TransctionResult, TransactionError<S::Error>> {
@@ -43,7 +43,7 @@ impl Transactor {
         })
     }
 
-    fn generate_temp_ids<S: ReadStorage>(
+    fn generate_temp_ids<'a, S: ReadStorage<'a>>(
         &mut self,
         transaction: &Transaction,
     ) -> Result<TempIds, TransactionError<S::Error>> {
@@ -58,9 +58,9 @@ impl Transactor {
         Ok(temp_ids)
     }
 
-    fn transaction_datoms<S: ReadStorage>(
+    fn transaction_datoms<'a, S: ReadStorage<'a>>(
         &mut self,
-        storage: &S,
+        storage: &'a S,
         now: Instant,
         transaction: &Transaction,
         temp_ids: &TempIds,
@@ -85,9 +85,9 @@ impl Transactor {
         Datom::add(tx, DB_TX_TIME_ID, now.0, tx)
     }
 
-    fn operation_datoms<S: ReadStorage>(
+    fn operation_datoms<'a, S: ReadStorage<'a>>(
         &mut self,
-        storage: &S,
+        storage: &'a S,
         tx: u64,
         operation: &Operation,
         temp_ids: &TempIds,
@@ -131,9 +131,9 @@ impl Transactor {
         Ok(datoms)
     }
 
-    fn retract_old_values<S: ReadStorage>(
+    fn retract_old_values<'a, S: ReadStorage<'a>>(
         &self,
-        storage: &S,
+        storage: &'a S,
         entity: u64,
         attribute: u64,
         tx: u64,
@@ -149,7 +149,7 @@ impl Transactor {
         Ok(datoms)
     }
 
-    fn resolve_entity<S: ReadStorage>(
+    fn resolve_entity<'a, S: ReadStorage<'a>>(
         &mut self,
         entity: &Entity,
         temp_ids: &TempIds,

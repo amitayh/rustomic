@@ -14,17 +14,6 @@ pub struct DiskStorage {
     _attribute_resolver: HashMap<AttributeId, Cardinality>,
 }
 
-// TODO?
-// Separate storage to 2 layers:
-// 1. Base storage - read/write datoms in sorted order
-// 2. Layer that understands attributes and entities
-
-pub trait Foo<'a> {
-    type Error;
-    type Iter: Iterator<Item = Datom>;
-    fn find_datoms(&'a self, clause: &Clause) -> Result<Self::Iter, Self::Error>;
-}
-
 impl DiskStorage {
     // TODO: initialize existing db without reloading default datoms
     pub fn new(db: rocksdb::DB) -> Self {
@@ -72,12 +61,12 @@ impl WriteStorage for DiskStorage {
     }
 }
 
-impl<'a> Foo<'a> for DiskStorage {
+impl<'a> ReadStorage<'a> for DiskStorage {
     type Error = DiskStorageError;
     //type Iter = std::vec::IntoIter<Datom>;
     type Iter = FooIter<'a>;
 
-    fn find_datoms(&'a self, clause: &Clause) -> Result<Self::Iter, Self::Error> {
+    fn find(&'a self, clause: &Clause) -> Result<Self::Iter, Self::Error> {
         Ok(FooIter::new(clause, &self.db))
     }
 }

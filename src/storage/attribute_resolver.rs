@@ -51,7 +51,7 @@ impl CachingAttributeResolver {
 
     fn update_cache(&mut self, attribute: &Attribute) {
         self.by_ident
-            .insert(attribute.ident.clone(), attribute.clone());
+            .insert(Rc::clone(&attribute.ident), attribute.clone());
         self.by_id.insert(attribute.id, attribute.clone());
     }
 }

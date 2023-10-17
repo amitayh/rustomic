@@ -7,7 +7,7 @@ pub mod tx;
 
 #[cfg(test)]
 mod tests {
-    use std::collections::HashSet;
+
     use std::time::SystemTime;
 
     use crate::clock::Instant;
@@ -20,7 +20,7 @@ mod tests {
     use super::query::pattern::*;
     use super::query::*;
     use super::schema::attribute::*;
-    use super::schema::*;
+
     use super::tx::transactor::*;
     use super::tx::*;
 

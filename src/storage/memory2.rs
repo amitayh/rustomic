@@ -117,7 +117,7 @@ impl<'a> ReadStorage<'a> for InMemoryStorage {
 
         let start = serde::index::key(clause);
         let end = serde::index::next_prefix(&start).unwrap(); // TODO
-        let datoms = self
+        let _datoms = self
             .index
             .range(start..end)
             .map(|bytes| serde::datom::deserialize(bytes).unwrap())
@@ -130,7 +130,7 @@ impl<'a> ReadStorage<'a> for InMemoryStorage {
 pub struct InMemoryStorageIter;
 
 impl InMemoryStorageIter {
-    fn new(clause: &Clause) -> Self {
+    fn new(_clause: &Clause) -> Self {
         Self
     }
 }

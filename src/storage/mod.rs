@@ -37,7 +37,7 @@ pub trait ReadStorage<'a> {
         for datom in self.find(&clause)? {
             builder.consume(&datom);
         }
-        return Ok(builder.build());
+        Ok(builder.build())
     }
 }
 

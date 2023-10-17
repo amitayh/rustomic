@@ -197,7 +197,7 @@ impl<'a> InMemoryStorage {
             op: _,
         } = datom
         {
-            self.ident_to_entity.insert(ident.clone(), *entity);
+            self.ident_to_entity.insert(Rc::clone(ident), *entity);
         }
     }
 

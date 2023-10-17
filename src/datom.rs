@@ -50,7 +50,7 @@ impl Value {
 
     pub fn as_string(&self) -> Option<Rc<str>> {
         match self {
-            Self::Str(value) => Some(value.clone()),
+            Self::Str(value) => Some(Rc::clone(value)),
             _ => None,
         }
     }

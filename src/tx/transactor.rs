@@ -19,6 +19,12 @@ pub struct Transactor {
     attribute_resolver: CachingAttributeResolver,
 }
 
+impl Default for Transactor {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl Transactor {
     pub fn new() -> Self {
         Self {
@@ -50,8 +56,11 @@ impl Transactor {
         let mut temp_ids = HashMap::new();
         for operation in &transaction.operations {
             if let Entity::TempId(id) = &operation.entity {
-                if temp_ids.insert(id.clone(), self.next_entity_id()).is_some() {
-                    return Err(TransactionError::DuplicateTempId(id.clone()));
+                if temp_ids
+                    .insert(Rc::clone(id), self.next_entity_id())
+                    .is_some()
+                {
+                    return Err(TransactionError::DuplicateTempId(Rc::clone(id)));
                 }
             };
         }
@@ -102,7 +111,7 @@ impl Transactor {
         {
             let attribute = match self.attribute_resolver.resolve_ident(storage, ident)? {
                 Some(attr) => attr,
-                None => return Err(TransactionError::IdentNotFound(ident.clone())),
+                None => return Err(TransactionError::IdentNotFound(Rc::clone(ident))),
             };
 
             if attribute.cardinality == Cardinality::One {
@@ -160,7 +169,7 @@ impl Transactor {
             Entity::TempId(temp_id) => temp_ids
                 .get(temp_id)
                 .copied()
-                .ok_or_else(|| TransactionError::TempIdNotFound(temp_id.clone())),
+                .ok_or_else(|| TransactionError::TempIdNotFound(Rc::clone(temp_id))),
         }
     }
 }

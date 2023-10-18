@@ -76,26 +76,17 @@ pub mod index {
     /// range.
     ///
     /// For example, for prefix `foo` the function returns `fop`.
-    ///
-    /// Returns `None` if there is no value which can follow value with given
-    /// prefix.  This happens when prefix consists entirely of `'\xff'` bytes (or is
-    /// empty).
-    pub fn next_prefix(prefix: &[u8]) -> Option<Vec<u8>> {
+    pub fn next_prefix(prefix: &[u8]) -> Vec<u8> {
         let ffs = prefix
             .iter()
             .rev()
             .take_while(|&&byte| byte == u8::MAX)
             .count();
-        let next = &prefix[..(prefix.len() - ffs)];
-        if next.is_empty() {
-            // Prefix consisted of \xff bytes.  There is no prefix that
-            // follows it.
-            None
-        } else {
-            let mut next = next.to_vec();
-            *next.last_mut().unwrap() += 1;
-            Some(next)
+        let mut next = (&prefix[..(prefix.len() - ffs)]).to_vec();
+        if let Some(last) = next.last_mut() {
+            *last += 1;
         }
+        next
     }
 }
 

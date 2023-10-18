@@ -82,7 +82,7 @@ impl<'a> FooIter<'a> {
         let read_options = ReadOptions::default();
         let mut iterator = db.raw_iterator_opt(read_options);
         iterator.seek(&start);
-        let end = serde::index::next_prefix(&start).unwrap(); // TODO
+        let end = serde::index::next_prefix(&start);
         Self { iterator, end }
     }
 }
@@ -103,7 +103,7 @@ impl Iterator for FooIter<'_> {
         let datom = serde::datom::deserialize(datom_bytes).unwrap();
         if datom.op == Op::Retracted {
             let seek_key_size = serde::index::seek_key_size(&datom);
-            let seek_key = serde::index::next_prefix(&datom_bytes[..seek_key_size]).unwrap();
+            let seek_key = serde::index::next_prefix(&datom_bytes[..seek_key_size]);
             self.iterator.seek(seek_key);
             return self.next();
         }

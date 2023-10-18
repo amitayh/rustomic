@@ -104,17 +104,17 @@ impl<'a> ReadStorage<'a> for InMemoryStorage {
 
 pub struct InMemoryStorageIter<'a> {
     index: &'a BTreeSet<Vec<u8>>,
-    current: Range<'a, Vec<u8>>,
+    range: Range<'a, Vec<u8>>,
     end: Vec<u8>,
 }
 
 impl<'a> InMemoryStorageIter<'a> {
     fn new(index: &'a BTreeSet<Vec<u8>>, clause: &Clause) -> Self {
         let start = serde::index::key(clause);
-        let end = serde::index::next_prefix(&start).unwrap(); // TODO
+        let end = serde::index::next_prefix(&start);
         Self {
             index: &index,
-            current: index.range(start..end.clone()),
+            range: index.range(start..),
             end,
         }
     }
@@ -124,16 +124,16 @@ impl<'a> Iterator for InMemoryStorageIter<'a> {
     type Item = Datom;
 
     fn next(&mut self) -> Option<Self::Item> {
-        let datom_bytes = self.current.next()?;
+        let datom_bytes = self.range.next()?;
         if datom_bytes >= &self.end {
             return None;
         }
 
-        let datom = serde::datom::deserialize(datom_bytes).unwrap();
+        let datom = serde::datom::deserialize(datom_bytes).unwrap(); // TODO
         if datom.op == Op::Retracted {
             let seek_key_size = serde::index::seek_key_size(&datom);
-            let seek_key = serde::index::next_prefix(&datom_bytes[..seek_key_size]).unwrap();
-            self.current = self.index.range(seek_key..self.end.clone());
+            let seek_key = serde::index::next_prefix(&datom_bytes[..seek_key_size]);
+            self.range = self.index.range(seek_key..);
             return self.next();
         }
         Some(datom)

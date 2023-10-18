@@ -92,6 +92,12 @@ impl From<&str> for Value {
     }
 }
 
+impl From<Rc<str>> for Value {
+    fn from(val: Rc<str>) -> Self {
+        Self::Str(Rc::clone(&val))
+    }
+}
+
 #[derive(Hash, Eq, PartialEq, Debug, Clone, Copy)]
 pub enum Op {
     Added,

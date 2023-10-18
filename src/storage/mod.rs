@@ -44,7 +44,6 @@ pub trait ReadStorage<'a> {
 pub trait WriteStorage {
     type Error: std::error::Error;
 
-    // TODO: rename to `save` after previous is deprecated
     fn save(&mut self, datoms: &[Datom]) -> Result<(), Self::Error>;
 }
 

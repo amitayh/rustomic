@@ -44,15 +44,11 @@ impl Operation {
     }
 
     pub fn set<V: Into<Value>>(mut self, attribute: &str, value: V) -> Self {
-        self.set_mut(attribute, value);
-        self
-    }
-
-    pub fn set_mut<V: Into<Value>>(&mut self, attribute: &str, value: V) {
         self.attributes.push(AttributeValue {
             attribute: Rc::from(attribute),
             value: value.into(),
         });
+        self
     }
 }
 

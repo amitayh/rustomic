@@ -39,7 +39,7 @@ impl Transactor {
         now: Instant,
         transaction: Transaction,
     ) -> Result<TransctionResult, TransactionError<S::Error>> {
-        let temp_ids = self.generate_temp_ids::<S>(&transaction)?;
+        let temp_ids = self.generate_temp_ids(&transaction)?;
         let datoms = self.transaction_datoms(storage, now, &transaction, &temp_ids)?;
 
         Ok(TransctionResult {
@@ -49,18 +49,16 @@ impl Transactor {
         })
     }
 
-    fn generate_temp_ids<'a, S: ReadStorage<'a>>(
+    fn generate_temp_ids<Error>(
         &mut self,
         transaction: &Transaction,
-    ) -> Result<TempIds, TransactionError<S::Error>> {
+    ) -> Result<TempIds, TransactionError<Error>> {
         let mut temp_ids = HashMap::new();
         for operation in &transaction.operations {
-            if let Entity::TempId(id) = &operation.entity {
-                if temp_ids
-                    .insert(Rc::clone(id), self.next_entity_id())
-                    .is_some()
-                {
-                    return Err(TransactionError::DuplicateTempId(Rc::clone(id)));
+            if let Entity::TempId(temp_id) = &operation.entity {
+                let entity_id = self.next_entity_id();
+                if temp_ids.insert(Rc::clone(temp_id), entity_id).is_some() {
+                    return Err(TransactionError::DuplicateTempId(Rc::clone(temp_id)));
                 }
             };
         }
@@ -102,7 +100,7 @@ impl Transactor {
         temp_ids: &TempIds,
     ) -> Result<Vec<Datom>, TransactionError<S::Error>> {
         let mut datoms = Vec::new();
-        let entity = self.resolve_entity::<S>(&operation.entity, temp_ids)?;
+        let entity = self.resolve_entity(&operation.entity, temp_ids)?;
         let mut retract_attributes = Vec::new();
         for AttributeValue {
             attribute: ident,
@@ -158,11 +156,11 @@ impl Transactor {
         Ok(datoms)
     }
 
-    fn resolve_entity<'a, S: ReadStorage<'a>>(
+    fn resolve_entity<Error>(
         &mut self,
         entity: &Entity,
         temp_ids: &TempIds,
-    ) -> Result<u64, TransactionError<S::Error>> {
+    ) -> Result<u64, TransactionError<Error>> {
         match entity {
             Entity::New => Ok(self.next_entity_id()),
             Entity::Id(id) => Ok(*id),

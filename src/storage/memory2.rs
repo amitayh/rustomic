@@ -1,3 +1,4 @@
+use std::collections::btree_set::Range;
 use std::collections::BTreeSet;
 
 use crate::storage::*;
@@ -91,54 +92,219 @@ impl WriteStorage for InMemoryStorage {
 
 //-------------------------------------------------------------------------------------------------
 
-fn satisfies(clause: &Clause, datom: &Datom) -> bool {
-    let mut result = true;
-    if let EntityPattern::Id(entity) = clause.entity {
-        result &= datom.entity == entity;
-    }
-    if let AttributePattern::Id(attribute) = clause.attribute {
-        result &= datom.attribute == attribute;
-    }
-    if let ValuePattern::Constant(value) = &clause.value {
-        result &= &datom.value == value;
-    }
-    result
-}
-
 impl<'a> ReadStorage<'a> for InMemoryStorage {
     type Error = InMemoryStorageError;
 
-    type Iter = InMemoryStorageIter;
+    type Iter = InMemoryStorageIter<'a>;
 
     fn find(&'a self, clause: &Clause) -> Result<Self::Iter, Self::Error> {
-        //self.index.iter()
-        //    .map(|bytes| serde::datom::deserialize(bytes).unwrap())
-        //    .filter(|datom| satisfies(clause, datom));
+        Ok(InMemoryStorageIter::new(&self.index, clause))
+    }
+}
 
+pub struct InMemoryStorageIter<'a> {
+    index: &'a BTreeSet<Vec<u8>>,
+    current: Range<'a, Vec<u8>>,
+    end: Vec<u8>,
+}
+
+impl<'a> InMemoryStorageIter<'a> {
+    fn new(index: &'a BTreeSet<Vec<u8>>, clause: &Clause) -> Self {
         let start = serde::index::key(clause);
         let end = serde::index::next_prefix(&start).unwrap(); // TODO
-        let _datoms = self
-            .index
-            .range(start..end)
-            .map(|bytes| serde::datom::deserialize(bytes).unwrap())
-            .filter(|datom| datom.op == Op::Added);
-
-        todo!()
+        Self {
+            index: &index,
+            current: index.range(start..end.clone()),
+            end,
+        }
     }
 }
 
-pub struct InMemoryStorageIter;
-
-impl InMemoryStorageIter {
-    fn new(_clause: &Clause) -> Self {
-        Self
-    }
-}
-
-impl Iterator for InMemoryStorageIter {
+impl<'a> Iterator for InMemoryStorageIter<'a> {
     type Item = Datom;
 
     fn next(&mut self) -> Option<Self::Item> {
-        None
+        let datom_bytes = self.current.next()?;
+        if datom_bytes >= &self.end {
+            return None;
+        }
+
+        let datom = serde::datom::deserialize(datom_bytes).unwrap();
+        if datom.op == Op::Retracted {
+            let seek_key_size = serde::index::seek_key_size(&datom);
+            let seek_key = serde::index::next_prefix(&datom_bytes[..seek_key_size]).unwrap();
+            self.current = self.index.range(seek_key..self.end.clone());
+            return self.next();
+        }
+        Some(datom)
+    }
+}
+
+//-------------------------------------------------------------------------------------------------
+
+#[cfg(test)]
+mod tests {
+    use crate::datom::*;
+    use crate::query::clause::*;
+    use crate::query::pattern::*;
+    use crate::storage::memory2::InMemoryStorage;
+    use crate::storage::*;
+
+    fn create_storage() -> InMemoryStorage {
+        InMemoryStorage::new()
+    }
+
+    #[test]
+    fn return_empty_result_if_no_datoms_match_search_criteria() {
+        let storage = create_storage();
+
+        let entity = 100;
+        let clause = Clause::new().with_entity(EntityPattern::Id(entity));
+        let read_result = storage.find(&clause);
+
+        assert!(read_result.is_ok());
+        assert!(read_result.unwrap().collect::<Vec<Datom>>().is_empty());
+    }
+
+    #[test]
+    fn find_single_datom_by_entity_attribute_and_value() {
+        let mut storage = create_storage();
+
+        let entity = 100;
+        let attribute = 101;
+        let value = 102;
+        let tx = 103;
+
+        let datoms = vec![Datom::add(entity, attribute, value, tx)];
+        assert!(storage.save(&datoms).is_ok());
+
+        let read_result = storage.find(
+            &Clause::new()
+                .with_entity(EntityPattern::Id(entity))
+                .with_attribute(AttributePattern::Id(attribute))
+                .with_value(ValuePattern::Constant(Value::U64(value))),
+        );
+
+        assert!(read_result.is_ok());
+        assert_eq!(datoms, read_result.unwrap().collect::<Vec<Datom>>());
+    }
+
+    #[test]
+    fn find_multiple_datoms_by_entity() {
+        let mut storage = create_storage();
+
+        let entity = 100;
+        let tx = 1000;
+        let datoms = vec![
+            Datom::add(entity, 101, 1u64, tx),
+            Datom::add(entity, 102, 2u64, tx),
+        ];
+        assert!(storage.save(&datoms).is_ok());
+
+        let read_result = storage.find(&Clause::new().with_entity(EntityPattern::Id(entity)));
+
+        assert!(read_result.is_ok());
+        assert_eq!(datoms, read_result.unwrap().collect::<Vec<Datom>>());
+    }
+
+    #[test]
+    fn find_multiple_datoms_by_attribute() {
+        let mut storage = create_storage();
+
+        let entity1 = 100;
+        let entity2 = 101;
+        let attribute1 = 102;
+        let attribute2 = 103;
+        let datoms = vec![
+            Datom::add(entity1, attribute1, 1u64, 1000),
+            Datom::retract(entity1, attribute1, 1u64, 1001),
+            Datom::add(entity1, attribute1, 2u64, 1001),
+            Datom::add(entity2, attribute1, 1u64, 1002),
+            Datom::add(entity2, attribute2, 2u64, 1002),
+            Datom::add(entity2, attribute2, 3u64, 1002),
+        ];
+        assert!(storage.save(&datoms).is_ok());
+
+        let read_result =
+            storage.find(&Clause::new().with_attribute(AttributePattern::Id(attribute1)));
+
+        assert!(read_result.is_ok());
+
+        let read_result = read_result.unwrap().collect::<Vec<Datom>>();
+        let expected = vec![
+            Datom::add(entity1, attribute1, 2u64, 1001),
+            Datom::add(entity2, attribute1, 1u64, 1002),
+        ];
+        assert_eq!(2, read_result.len());
+        assert!(expected.iter().all(|datom| read_result.contains(datom)));
+    }
+
+    #[test]
+    fn ignore_datoms_of_other_entities() {
+        let mut storage = create_storage();
+
+        let entity1 = 100;
+        let entity2 = 101;
+        let attribute = 102;
+        let tx = 1000;
+        let datoms = vec![
+            Datom::add(entity1, attribute, 1u64, tx),
+            Datom::add(entity2, attribute, 2u64, tx),
+        ];
+        assert!(storage.save(&datoms).is_ok());
+
+        let read_result = storage.find(&Clause::new().with_entity(EntityPattern::Id(entity1)));
+
+        assert!(read_result.is_ok());
+        assert_eq!(datoms[0..1], read_result.unwrap().collect::<Vec<Datom>>());
+    }
+
+    #[test]
+    fn ignore_retracted_values() {
+        let mut storage = create_storage();
+
+        let entity = 100;
+        let attribute = 101;
+        let datoms = vec![
+            // Add value 1 in tx 1000
+            Datom::add(entity, attribute, 1u64, 1000),
+            // Retract value 1 in tx 1001
+            Datom::retract(entity, attribute, 1u64, 1001),
+        ];
+        assert!(storage.save(&datoms).is_ok());
+
+        let read_result = storage.find(
+            &Clause::new()
+                .with_entity(EntityPattern::Id(entity))
+                .with_attribute(AttributePattern::Id(attribute)),
+        );
+
+        assert!(read_result.is_ok());
+        assert!(read_result.unwrap().collect::<Vec<Datom>>().is_empty());
+    }
+
+    #[test]
+    fn fetch_only_latest_value_for_attribute() {
+        let mut storage = create_storage();
+
+        let entity = 100;
+        let attribute = 101;
+        let datoms = vec![
+            // Add value 1 in tx 1000
+            Datom::add(entity, attribute, 1u64, 1000),
+            // Replace value 1 with 2 in tx 1001
+            Datom::retract(entity, attribute, 1u64, 1001),
+            Datom::add(entity, attribute, 2u64, 1001),
+        ];
+        assert!(storage.save(&datoms).is_ok());
+
+        let read_result = storage.find(
+            &Clause::new()
+                .with_entity(EntityPattern::Id(entity))
+                .with_attribute(AttributePattern::Id(attribute)),
+        );
+
+        assert!(read_result.is_ok());
+        assert_eq!(datoms[2..], read_result.unwrap().collect::<Vec<Datom>>());
     }
 }

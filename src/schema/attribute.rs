@@ -1,3 +1,5 @@
+use std::rc::Rc;
+
 use crate::datom::Value;
 use crate::schema::*;
 use crate::tx;
@@ -104,18 +106,18 @@ impl Cardinality {
 }
 
 #[derive(Debug)]
-pub struct Attribute<'a> {
-    pub ident: &'a str,
+pub struct Attribute {
+    pub ident: Rc<str>,
     pub value_type: ValueType,
     pub cardinality: Cardinality,
-    pub doc: Option<&'a str>,
+    pub doc: Option<Rc<str>>,
     pub unique: bool,
 }
 
-impl<'a> Attribute<'a> {
-    pub fn new(ident: &'a str, value_type: ValueType) -> Self {
+impl Attribute {
+    pub fn new(ident: &str, value_type: ValueType) -> Self {
         Attribute {
-            ident,
+            ident: Rc::from(ident),
             value_type,
             cardinality: Cardinality::One,
             doc: None,
@@ -123,8 +125,8 @@ impl<'a> Attribute<'a> {
         }
     }
 
-    pub fn with_doc(mut self, doc: &'a str) -> Self {
-        self.doc = Some(doc);
+    pub fn with_doc(mut self, doc: &str) -> Self {
+        self.doc = Some(Rc::from(doc));
         self
     }
 
@@ -139,17 +141,17 @@ impl<'a> Attribute<'a> {
     }
 }
 
-impl<'a> From<Attribute<'a>> for tx::Operation {
-    fn from(val: Attribute<'a>) -> Self {
+impl From<Attribute> for tx::Operation {
+    fn from(val: Attribute) -> Self {
         let mut operation = Self::on_new()
             .set(DB_ATTR_IDENT_IDENT, val.ident)
             .set(DB_ATTR_CARDINALITY_IDENT, val.cardinality as u64)
             .set(DB_ATTR_TYPE_IDENT, val.value_type as u64);
         if let Some(doc) = val.doc {
-            operation.set_mut(DB_ATTR_DOC_IDENT, doc);
+            operation = operation.set(DB_ATTR_DOC_IDENT, doc);
         }
         if val.unique {
-            operation.set_mut(DB_ATTR_UNIQUE_IDENT, 1u64);
+            operation = operation.set(DB_ATTR_UNIQUE_IDENT, 1u64);
         }
         operation
     }

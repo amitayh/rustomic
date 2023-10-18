@@ -87,7 +87,7 @@ impl<'a> FooIter<'a> {
     }
 }
 
-impl<'a> Iterator for FooIter<'a> {
+impl Iterator for FooIter<'_> {
     type Item = Datom;
 
     fn next(&mut self) -> Option<Self::Item> {

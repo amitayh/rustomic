@@ -55,3 +55,43 @@ impl CachingAttributeResolver {
         self.by_id.insert(attribute.id, attribute.clone());
     }
 }
+
+#[cfg(test)]
+mod tests {
+    mod resolve_ident {
+        use crate::clock::Instant;
+        use crate::schema::attribute::{Attribute, ValueType};
+        use crate::storage::memory::InMemoryStorage;
+        use crate::storage::{attribute_resolver::*, WriteStorage};
+        use crate::tx::transactor::Transactor;
+        use crate::tx::Transaction;
+
+        #[test]
+        fn returns_none_when_attribute_does_not_exist() {
+            let storage = InMemoryStorage::new();
+            let mut resolver = CachingAttributeResolver::new();
+            let result = resolver.resolve_ident(&storage, "foo/bar");
+            assert!(result.is_ok());
+            assert!(result.unwrap().is_none());
+        }
+
+        #[test]
+        fn resolves_existing_attribute() {
+            let mut storage = InMemoryStorage::new();
+            let mut transactor = Transactor::new();
+
+            let attribute = Attribute::new("foo/bar", ValueType::U64);
+            let transaction = Transaction::new().with(attribute);
+            let tx_result = transactor.transact(&storage, Instant(0), transaction);
+            assert!(tx_result.is_ok());
+            assert!(storage.save(&tx_result.unwrap().tx_data).is_ok());
+
+            let mut resolver = CachingAttributeResolver::new();
+            let result = resolver.resolve_ident(&storage, "foo/bar");
+            assert!(result.is_ok());
+            //assert_eq!(Some(attribute), result.unwrap());
+        }
+    }
+
+    mod reolve_id {}
+}

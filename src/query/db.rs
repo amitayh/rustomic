@@ -41,17 +41,14 @@ impl Db {
         query: Query,
     ) -> Result<Query, QueryError<S::Error>> {
         let mut wher = Vec::with_capacity(query.wher.len());
-        for clause in query.wher {
+        for mut clause in query.wher {
             if let AttributePattern::Ident(ident) = &clause.attribute {
                 let attribute = self.attribute_resolver.resolve_ident(storage, &ident)?;
                 let attribute =
                     attribute.ok_or_else(|| QueryError::IdentNotFound(Rc::clone(ident)))?;
-                let mut clause = clause.clone();
                 clause.attribute = AttributePattern::Id(attribute.id);
-                wher.push(clause);
-            } else {
-                wher.push(clause);
             }
+            wher.push(clause);
         }
         Ok(Query { wher })
     }

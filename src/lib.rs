@@ -84,7 +84,7 @@ mod tests {
                 .with(Operation::on_new().set("person/name", "Bob")),
         );
 
-        let db = Db::new(tx_result.tx_id);
+        let mut db = Db::new(tx_result.tx_id);
         let query_result = db.query(
             &storage,
             Query::new().wher(
@@ -114,7 +114,7 @@ mod tests {
             Transaction::new().with(Operation::on_temp_id("joe").set("person/name", "Joe")),
         );
 
-        let db = Db::new(tx_id);
+        let mut db = Db::new(tx_id);
         let query_result = db.query(
             &storage,
             Query::new().wher(

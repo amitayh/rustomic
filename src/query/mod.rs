@@ -36,4 +36,6 @@ pub enum QueryError<S> {
     Error,
     #[error("storage error")]
     StorageError(#[from] S),
+    #[error("ident `{0}` not found")]
+    IdentNotFound(Rc<str>),
 }

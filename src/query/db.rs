@@ -4,28 +4,56 @@ use crate::datom::Value;
 use crate::query::assignment::*;
 use crate::query::clause::*;
 use crate::query::*;
+use crate::storage::attribute_resolver::*;
 use crate::storage::*;
 
+use super::pattern::AttributePattern;
 use super::pattern::TxPattern;
 
 pub struct Db {
     tx: u64,
+    attribute_resolver: CachingAttributeResolver,
 }
 
 impl Db {
     pub fn new(tx: u64) -> Self {
-        Self { tx }
+        Self {
+            tx,
+            attribute_resolver: CachingAttributeResolver::new(),
+        }
     }
 
     pub fn query<'a, S: ReadStorage<'a>>(
-        &self,
+        &mut self,
         storage: &'a S,
         query: Query,
     ) -> Result<QueryResult, QueryError<S::Error>> {
         let mut results = Vec::new();
+        let query = self.resolve_idents(storage, query)?;
         let assignment = Assignment::from_query(&query);
         self.resolve(storage, &query.wher, assignment, &mut results)?;
         Ok(QueryResult { results })
+    }
+
+    fn resolve_idents<'a, S: ReadStorage<'a>>(
+        &mut self,
+        storage: &'a S,
+        query: Query,
+    ) -> Result<Query, QueryError<S::Error>> {
+        let mut wher = Vec::with_capacity(query.wher.len());
+        for clause in query.wher {
+            if let AttributePattern::Ident(ident) = &clause.attribute {
+                let attribute = self.attribute_resolver.resolve_ident(storage, &ident)?;
+                let attribute =
+                    attribute.ok_or_else(|| QueryError::IdentNotFound(Rc::clone(ident)))?;
+                let mut clause = clause.clone();
+                clause.attribute = AttributePattern::Id(attribute.id);
+                wher.push(clause);
+            } else {
+                wher.push(clause);
+            }
+        }
+        Ok(Query { wher })
     }
 
     fn resolve<'a, S: ReadStorage<'a>>(

@@ -111,7 +111,5 @@ impl Builder {
 // ------------------------------------------------------------------------------------------------
 
 #[derive(Debug, Error)]
-pub enum StorageError {
-    #[error("ident `{0}` not found")]
-    IdentNotFound(String),
-}
+#[error("storage error")]
+pub struct StorageError;

@@ -1,5 +1,6 @@
 use std::collections::btree_set::Range;
 use std::collections::BTreeSet;
+use std::fmt::Debug;
 
 use crate::storage::*;
 
@@ -62,6 +63,37 @@ pub struct InMemoryStorage {
     index: BTreeSet<Vec<u8>>,
 }
 
+impl Debug for InMemoryStorage {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let mut list = f.debug_list();
+        for datom_bytes in &self.index {
+            let datom = serde::datom::deserialize(datom_bytes).or(Err(std::fmt::Error))?;
+            match datom_bytes.first() {
+                Some(&serde::index::TAG_EAVT) => {
+                    list.entry(&format!(
+                        "EAVT {{ e: {:?}, a: {:?}, v: {:?}, t: {:?}, op: {:?} }}",
+                        datom.entity, datom.attribute, datom.value, datom.tx, datom.op
+                    ));
+                }
+                Some(&serde::index::TAG_AEVT) => {
+                    list.entry(&format!(
+                        "AEVT {{ a: {:?}, e: {:?}, v: {:?}, t: {:?}, op: {:?} }}",
+                        datom.attribute, datom.entity, datom.value, datom.tx, datom.op
+                    ));
+                }
+                Some(&serde::index::TAG_AVET) => {
+                    list.entry(&format!(
+                        "AVET {{ a: {:?}, v: {:?}, e: {:?}, t: {:?}, op: {:?} }}",
+                        datom.attribute, datom.value, datom.entity, datom.tx, datom.op
+                    ));
+                }
+                _ => (),
+            }
+        }
+        list.finish()
+    }
+}
+
 impl InMemoryStorage {
     pub fn new() -> Self {
         Self {
@@ -72,7 +104,10 @@ impl InMemoryStorage {
 
 #[derive(Debug, Error)]
 #[error("error")]
-pub struct InMemoryStorageError;
+pub enum InMemoryStorageError {
+    #[error("read error")]
+    ReadError(#[from] serde::ReadError),
+}
 
 //-------------------------------------------------------------------------------------------------
 
@@ -97,8 +132,8 @@ impl<'a> ReadStorage<'a> for InMemoryStorage {
 
     type Iter = InMemoryStorageIter<'a>;
 
-    fn find(&'a self, clause: &Clause) -> Result<Self::Iter, Self::Error> {
-        Ok(InMemoryStorageIter::new(&self.index, clause))
+    fn find(&'a self, clause: &Clause) -> Self::Iter {
+        InMemoryStorageIter::new(&self.index, clause)
     }
 }
 
@@ -121,22 +156,23 @@ impl<'a> InMemoryStorageIter<'a> {
 }
 
 impl<'a> Iterator for InMemoryStorageIter<'a> {
-    type Item = Datom;
+    type Item = Result<Datom, InMemoryStorageError>;
 
     fn next(&mut self) -> Option<Self::Item> {
         let datom_bytes = self.range.next()?;
         if datom_bytes >= &self.end {
             return None;
         }
-
-        let datom = serde::datom::deserialize(datom_bytes).unwrap(); // TODO
-        if datom.op == Op::Retracted {
-            let seek_key_size = serde::index::seek_key_size(&datom);
-            let seek_key = serde::index::next_prefix(&datom_bytes[..seek_key_size]);
-            self.range = self.index.range(seek_key..);
-            return self.next();
+        match serde::datom::deserialize(datom_bytes) {
+            Ok(datom) if datom.op == Op::Retracted => {
+                let seek_key_size = serde::index::seek_key_size(&datom);
+                let seek_key = serde::index::next_prefix(&datom_bytes[..seek_key_size]);
+                self.range = self.index.range(seek_key..);
+                self.next()
+            }
+            Ok(datom) => Some(Ok(datom)),
+            Err(err) => Some(Err(InMemoryStorageError::ReadError(err))),
         }
-        Some(datom)
     }
 }
 
@@ -147,8 +183,7 @@ mod tests {
     use crate::datom::*;
     use crate::query::clause::*;
     use crate::query::pattern::*;
-    use crate::storage::memory2::InMemoryStorage;
-    use crate::storage::*;
+    use crate::storage::memory2::*;
 
     fn create_storage() -> InMemoryStorage {
         InMemoryStorage::new()
@@ -162,8 +197,7 @@ mod tests {
         let clause = Clause::new().with_entity(EntityPattern::Id(entity));
         let read_result = storage.find(&clause);
 
-        assert!(read_result.is_ok());
-        assert!(read_result.unwrap().collect::<Vec<Datom>>().is_empty());
+        assert!(read_result.collect::<Vec<_>>().is_empty());
     }
 
     #[test]
@@ -185,8 +219,12 @@ mod tests {
                 .with_value(ValuePattern::Constant(Value::U64(value))),
         );
 
-        assert!(read_result.is_ok());
-        assert_eq!(datoms, read_result.unwrap().collect::<Vec<Datom>>());
+        assert_eq!(
+            datoms,
+            read_result
+                .map(|result| result.unwrap())
+                .collect::<Vec<_>>()
+        );
     }
 
     #[test]
@@ -203,12 +241,16 @@ mod tests {
 
         let read_result = storage.find(&Clause::new().with_entity(EntityPattern::Id(entity)));
 
-        assert!(read_result.is_ok());
-        assert_eq!(datoms, read_result.unwrap().collect::<Vec<Datom>>());
+        assert_eq!(
+            datoms,
+            read_result
+                .map(|result| result.unwrap())
+                .collect::<Vec<_>>()
+        );
     }
 
     #[test]
-    fn find_multiple_datoms_by_attribute() {
+    fn find_multiple_datoms_by_attribute_for_different_entity() {
         let mut storage = create_storage();
 
         let entity1 = 100;
@@ -228,9 +270,9 @@ mod tests {
         let read_result =
             storage.find(&Clause::new().with_attribute(AttributePattern::Id(attribute1)));
 
-        assert!(read_result.is_ok());
-
-        let read_result = read_result.unwrap().collect::<Vec<Datom>>();
+        let read_result = read_result
+            .map(|result| result.unwrap())
+            .collect::<Vec<_>>();
         let expected = vec![
             Datom::add(entity1, attribute1, 2u64, 1001),
             Datom::add(entity2, attribute1, 1u64, 1002),
@@ -238,6 +280,31 @@ mod tests {
         assert_eq!(2, read_result.len());
         assert!(expected.iter().all(|datom| read_result.contains(datom)));
     }
+
+    //#[test]
+    //fn find_multiple_datoms_by_attribute_for_same_entity() {
+    //    let mut storage = create_storage();
+
+    //    let entity = 100;
+    //    let attribute1 = 101;
+    //    let attribute2 = 102;
+    //    let attribute3 = 103;
+    //    let datoms = vec![
+    //        Datom::add(entity, attribute1, 1u64, 1000),
+    //        Datom::add(entity, attribute2, 2u64, 1000),
+    //        Datom::add(entity, attribute3, 3u64, 1001),
+    //    ];
+    //    assert!(storage.save(&datoms).is_ok());
+
+    //    let read_result =
+    //        storage.find(&Clause::new().with_entity(EntityPattern::Id(entity)));
+
+    //    assert_eq!(
+    //        datoms,
+    //        read_result
+    //            .map(|result| result.unwrap())
+    //            .collect::<Vec<_>>());
+    //}
 
     #[test]
     fn ignore_datoms_of_other_entities() {
@@ -255,8 +322,12 @@ mod tests {
 
         let read_result = storage.find(&Clause::new().with_entity(EntityPattern::Id(entity1)));
 
-        assert!(read_result.is_ok());
-        assert_eq!(datoms[0..1], read_result.unwrap().collect::<Vec<Datom>>());
+        assert_eq!(
+            datoms[0..1],
+            read_result
+                .map(|result| result.unwrap())
+                .collect::<Vec<_>>()
+        );
     }
 
     #[test]
@@ -279,8 +350,7 @@ mod tests {
                 .with_attribute(AttributePattern::Id(attribute)),
         );
 
-        assert!(read_result.is_ok());
-        assert!(read_result.unwrap().collect::<Vec<Datom>>().is_empty());
+        assert!(read_result.collect::<Vec<_>>().is_empty());
     }
 
     #[test]
@@ -304,7 +374,11 @@ mod tests {
                 .with_attribute(AttributePattern::Id(attribute)),
         );
 
-        assert!(read_result.is_ok());
-        assert_eq!(datoms[2..], read_result.unwrap().collect::<Vec<Datom>>());
+        assert_eq!(
+            datoms[2..],
+            read_result
+                .map(|result| result.unwrap())
+                .collect::<Vec<_>>()
+        );
     }
 }

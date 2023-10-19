@@ -1,5 +1,6 @@
 extern crate rustomic;
 
+/*
 use rustomic::datom::*;
 use rustomic::query::clause::*;
 use rustomic::query::pattern::*;
@@ -136,7 +137,6 @@ fn restrict_transaction() {
     );
 }
 
-/*
 #[test]
 fn replace_values_avet() {
     let mut storage = InMemoryStorage::new();

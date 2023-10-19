@@ -11,7 +11,8 @@ mod tests {
     use std::time::SystemTime;
 
     use crate::clock::Instant;
-    use crate::storage::memory::InMemoryStorage;
+    use crate::schema::default::default_datoms;
+    use crate::storage::memory2::InMemoryStorage;
     use crate::storage::WriteStorage;
 
     use super::datom::*;
@@ -41,6 +42,7 @@ mod tests {
 
     fn create_db() -> (Transactor, InMemoryStorage) {
         let mut storage = InMemoryStorage::new();
+        storage.save(&default_datoms()).unwrap();
         let mut transactor = Transactor::new();
         transact(&mut transactor, &mut storage, create_schema());
         (transactor, storage)
@@ -124,6 +126,7 @@ mod tests {
         );
 
         assert!(query_result.is_ok());
+        //dbg!(&storage);
         let joe_id = temp_ids.get("joe");
         assert!(joe_id.is_some());
         assert_eq!(

@@ -24,8 +24,10 @@ fn return_empty_result_if_no_datoms_match_search_criteria() {
     let clause = Clause::new().with_entity(EntityPattern::Id(entity));
     let read_result = storage.find(&clause);
 
-    assert!(read_result.is_ok());
-    assert!(read_result.unwrap().collect::<Vec<Datom>>().is_empty());
+    assert!(read_result
+        .map(|result| result.unwrap())
+        .collect::<Vec<Datom>>()
+        .is_empty());
 }
 
 #[test]
@@ -47,8 +49,12 @@ fn find_single_datom_by_entity_attribute_and_value() {
             .with_value(ValuePattern::Constant(Value::U64(value))),
     );
 
-    assert!(read_result.is_ok());
-    assert_eq!(datoms, read_result.unwrap().collect::<Vec<Datom>>());
+    assert_eq!(
+        datoms,
+        read_result
+            .map(|result| result.unwrap())
+            .collect::<Vec<Datom>>()
+    );
 }
 
 #[test]
@@ -65,8 +71,12 @@ fn find_multiple_datoms_by_entity() {
 
     let read_result = storage.find(&Clause::new().with_entity(EntityPattern::Id(entity)));
 
-    assert!(read_result.is_ok());
-    assert_eq!(datoms, read_result.unwrap().collect::<Vec<Datom>>());
+    assert_eq!(
+        datoms,
+        read_result
+            .map(|result| result.unwrap())
+            .collect::<Vec<Datom>>()
+    );
 }
 
 #[test]
@@ -89,9 +99,9 @@ fn find_multiple_datoms_by_attribute() {
 
     let read_result = storage.find(&Clause::new().with_attribute(AttributePattern::Id(attribute1)));
 
-    assert!(read_result.is_ok());
-
-    let read_result = read_result.unwrap().collect::<Vec<Datom>>();
+    let read_result = read_result
+        .map(|result| result.unwrap())
+        .collect::<Vec<Datom>>();
     let expected = vec![
         Datom::add(entity1, attribute1, 2u64, 1001),
         Datom::add(entity2, attribute1, 1u64, 1002),
@@ -116,8 +126,12 @@ fn ignore_datoms_of_other_entities() {
 
     let read_result = storage.find(&Clause::new().with_entity(EntityPattern::Id(entity1)));
 
-    assert!(read_result.is_ok());
-    assert_eq!(datoms[0..1], read_result.unwrap().collect::<Vec<Datom>>());
+    assert_eq!(
+        datoms[0..1],
+        read_result
+            .map(|result| result.unwrap())
+            .collect::<Vec<Datom>>()
+    );
 }
 
 #[test]
@@ -140,8 +154,10 @@ fn ignore_retracted_values() {
             .with_attribute(AttributePattern::Id(attribute)),
     );
 
-    assert!(read_result.is_ok());
-    assert!(read_result.unwrap().collect::<Vec<Datom>>().is_empty());
+    assert!(read_result
+        .map(|result| result.unwrap())
+        .collect::<Vec<Datom>>()
+        .is_empty());
 }
 
 #[test]
@@ -165,8 +181,12 @@ fn fetch_only_latest_value_for_attribute() {
             .with_attribute(AttributePattern::Id(attribute)),
     );
 
-    assert!(read_result.is_ok());
-    assert_eq!(datoms[2..], read_result.unwrap().collect::<Vec<Datom>>());
+    assert_eq!(
+        datoms[2..],
+        read_result
+            .map(|result| result.unwrap())
+            .collect::<Vec<Datom>>()
+    );
 }
 
 /*
@@ -253,12 +273,6 @@ seek [100 foo/baz]
 | 101     | foo/baz     | 1    | 1002 | add     |
 | foo/bar | cardinality | many | 0    | add     |
 +---------+-------------+------+------+---------+
-
-# fetch_only_latest_value_for_attribute
-
-# find_multiple_datoms_by_entity
-
-# find_multiple_datoms_by_entity
 
 ---------------------------------------------------------------------------------------------------
 

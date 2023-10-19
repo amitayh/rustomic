@@ -61,14 +61,22 @@ mod tests {
     mod resolve_ident {
         use crate::clock::Instant;
         use crate::schema::attribute::{Attribute, ValueType};
-        use crate::storage::memory::InMemoryStorage;
-        use crate::storage::{attribute_resolver::*, WriteStorage};
+        use crate::schema::default::default_datoms;
+        use crate::storage::attribute_resolver::*;
+        use crate::storage::memory2::InMemoryStorage;
+        use crate::storage::*;
         use crate::tx::transactor::Transactor;
         use crate::tx::Transaction;
 
+        fn create_storage() -> InMemoryStorage {
+            let mut storage = InMemoryStorage::new();
+            storage.save(&default_datoms()).unwrap();
+            storage
+        }
+
         #[test]
         fn returns_none_when_attribute_does_not_exist() {
-            let storage = InMemoryStorage::new();
+            let storage = create_storage();
             let mut resolver = CachingAttributeResolver::new();
             let result = resolver.resolve_ident(&storage, "foo/bar");
             assert!(result.is_ok());
@@ -77,7 +85,7 @@ mod tests {
 
         #[test]
         fn resolves_existing_attribute() {
-            let mut storage = InMemoryStorage::new();
+            let mut storage = create_storage();
             let mut transactor = Transactor::new();
 
             let attribute = Attribute::new("foo/bar", ValueType::U64);

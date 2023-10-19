@@ -150,8 +150,8 @@ impl Transactor {
         let clause = Clause::new()
             .with_entity(EntityPattern::Id(entity))
             .with_attribute(AttributePattern::Id(attribute));
-        for datom in storage.find(&clause)? {
-            datoms.push(Datom::retract(entity, attribute, datom.value, tx));
+        for datom in storage.find(&clause) {
+            datoms.push(Datom::retract(entity, attribute, datom?.value, tx));
         }
         Ok(datoms)
     }

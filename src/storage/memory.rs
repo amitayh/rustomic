@@ -142,11 +142,15 @@ pub struct ReadError;
 
 impl<'a> ReadStorage<'a> for InMemoryStorage {
     type Error = ReadError;
-    type Iter = std::vec::IntoIter<Datom>;
+    type Iter = std::vec::IntoIter<Result<Datom, ReadError>>;
 
-    fn find(&'a self, clause: &Clause) -> Result<Self::Iter, Self::Error> {
-        let datoms = self.find_datoms(clause, u64::MAX).map_err(|_| ReadError)?;
-        Ok(datoms.into_iter())
+    fn find(&'a self, clause: &Clause) -> Self::Iter {
+        let datoms = self.find_datoms(clause, u64::MAX).unwrap();
+        datoms
+            .into_iter()
+            .map(|datom| Ok(datom))
+            .collect::<Vec<Result<Datom, ReadError>>>()
+            .into_iter()
     }
 }
 

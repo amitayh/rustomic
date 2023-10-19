@@ -13,19 +13,25 @@ use crate::schema::attribute::*;
 use crate::schema::*;
 use thiserror::Error;
 
+pub struct FindRequest {
+    entity: Option<u64>,
+    attribute: Option<u64>,
+    value: Option<Value>,
+}
+
 pub trait ReadStorage<'a> {
     type Error: std::error::Error;
-    type Iter: Iterator<Item = Datom>;
+    type Iter: Iterator<Item = Result<Datom, Self::Error>>;
 
-    fn find(&'a self, clause: &Clause) -> Result<Self::Iter, Self::Error>;
+    fn find(&'a self, clause: &Clause) -> Self::Iter;
 
     fn resolve_ident(&'a self, ident: &str) -> Result<Option<Attribute>, Self::Error> {
         // [?attribute :db/attr/ident ?ident]
         let clause = Clause::new()
             .with_attribute(AttributePattern::Id(DB_ATTR_IDENT_ID))
             .with_value(ValuePattern::constant(ident.into()));
-        if let Some(datom) = self.find(&clause)?.next() {
-            return self.resolve_id(datom.entity);
+        if let Some(datom) = self.find(&clause).next() {
+            return self.resolve_id(datom?.entity);
         }
         Ok(None)
     }
@@ -34,8 +40,8 @@ pub trait ReadStorage<'a> {
         let mut builder = Builder::new(attribute_id);
         // [?attribute _ _]
         let clause = Clause::new().with_entity(EntityPattern::Id(attribute_id));
-        for datom in self.find(&clause)? {
-            builder.consume(&datom);
+        for datom in self.find(&clause) {
+            builder.consume(&datom?);
         }
         Ok(builder.build())
     }

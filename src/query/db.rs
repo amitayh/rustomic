@@ -45,14 +45,12 @@ impl Db {
             if assigned_clause.tx == TxPattern::Blank {
                 assigned_clause.with_tx2(tx_pattern);
             }
-            let datoms = storage.find(&assigned_clause)?;
-
             // TODO can this be parallelized?
-            for datom in datoms {
+            for datom in storage.find(&assigned_clause) {
                 self.resolve(
                     storage,
                     rest,
-                    assignment.update_with(&assigned_clause, datom),
+                    assignment.update_with(&assigned_clause, datom?),
                     results,
                 )?;
             }

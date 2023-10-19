@@ -66,8 +66,8 @@ impl<'a> ReadStorage<'a> for DiskStorage {
     //type Iter = std::vec::IntoIter<Datom>;
     type Iter = FooIter<'a>;
 
-    fn find(&'a self, clause: &Clause) -> Result<Self::Iter, Self::Error> {
-        Ok(FooIter::new(clause, &self.db))
+    fn find(&'a self, clause: &Clause) -> Self::Iter {
+        FooIter::new(clause, &self.db)
     }
 }
 
@@ -88,7 +88,7 @@ impl<'a> FooIter<'a> {
 }
 
 impl Iterator for FooIter<'_> {
-    type Item = Datom;
+    type Item = Result<Datom, DiskStorageError>;
 
     fn next(&mut self) -> Option<Self::Item> {
         if !self.iterator.valid() {
@@ -100,16 +100,19 @@ impl Iterator for FooIter<'_> {
             return None;
         }
 
-        let datom = serde::datom::deserialize(datom_bytes).unwrap();
-        if datom.op == Op::Retracted {
-            let seek_key_size = serde::index::seek_key_size(&datom);
-            let seek_key = serde::index::next_prefix(&datom_bytes[..seek_key_size]);
-            self.iterator.seek(seek_key);
-            return self.next();
+        match serde::datom::deserialize(datom_bytes) {
+            Ok(datom) if datom.op == Op::Retracted => {
+                let seek_key_size = serde::index::seek_key_size(&datom);
+                let seek_key = serde::index::next_prefix(&datom_bytes[..seek_key_size]);
+                self.iterator.seek(seek_key);
+                self.next()
+            }
+            Ok(datom) => {
+                self.iterator.next();
+                Some(Ok(datom))
+            }
+            Err(err) => Some(Err(DiskStorageError::ReadError(err))),
         }
-
-        self.iterator.next();
-        Some(datom)
     }
 }
 

@@ -26,10 +26,10 @@ impl Db {
     pub fn query<'a, S: ReadStorage<'a>>(
         &mut self,
         storage: &'a S,
-        query: Query,
+        mut query: Query,
     ) -> Result<QueryResult, QueryError<S::Error>> {
         let mut results = Vec::new();
-        let query = self.resolve_idents(storage, query)?;
+        self.resolve_idents(storage, &mut query)?;
         let assignment = Assignment::from_query(&query);
         self.resolve(storage, &query.wher, assignment, &mut results)?;
         Ok(QueryResult { results })
@@ -38,19 +38,17 @@ impl Db {
     fn resolve_idents<'a, S: ReadStorage<'a>>(
         &mut self,
         storage: &'a S,
-        query: Query,
-    ) -> Result<Query, QueryError<S::Error>> {
-        let mut wher = Vec::with_capacity(query.wher.len());
-        for mut clause in query.wher {
+        query: &mut Query,
+    ) -> Result<(), QueryError<S::Error>> {
+        for clause in &mut query.wher {
             if let AttributePattern::Ident(ident) = &clause.attribute {
                 let attribute = self.attribute_resolver.resolve_ident(storage, &ident)?;
                 let attribute =
                     attribute.ok_or_else(|| QueryError::IdentNotFound(Rc::clone(ident)))?;
                 clause.attribute = AttributePattern::Id(attribute.id);
             }
-            wher.push(clause);
         }
-        Ok(Query { wher })
+        Ok(())
     }
 
     fn resolve<'a, S: ReadStorage<'a>>(

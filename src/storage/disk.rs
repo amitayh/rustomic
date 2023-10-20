@@ -1,4 +1,4 @@
-use std::collections::{HashMap, HashSet};
+use std::collections::HashMap;
 
 use rocksdb::*;
 
@@ -24,24 +24,6 @@ impl DiskStorage {
         let init_datoms = default_datoms();
         storage.save(&init_datoms).unwrap();
         storage
-    }
-
-    pub fn find_datoms2(&self, clause: &Clause) -> Result<Vec<Datom>, StorageError> {
-        let mut result = Vec::new();
-        // TODO: `retracted_values` should contain entity and attribute
-        let mut retracted_values = HashSet::new();
-        for item in self.db.prefix_iterator(serde::index::key(clause)) {
-            let (key, _) = item.unwrap();
-            let datom = serde::datom::deserialize(&key).unwrap();
-            if datom.op == Op::Retracted {
-                retracted_values.insert(datom.value.clone());
-            } else if !retracted_values.contains(&datom.value) {
-                result.push(datom);
-            } else {
-                retracted_values.remove(&datom.value);
-            }
-        }
-        Ok(result)
     }
 }
 

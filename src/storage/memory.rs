@@ -134,6 +134,10 @@ impl InMemoryStorage {
     }
 }
 
+#[derive(Debug, Error)]
+#[error("storage error")]
+pub struct StorageError;
+
 //-------------------------------------------------------------------------------------------------
 
 #[derive(Debug, Error)]

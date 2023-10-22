@@ -14,12 +14,74 @@ macro_rules! write_to_vec {
     }};
 }
 
+// +-------+---------------------------------+--------------------------------+
+// | Index | Sort order                      | Contains                       |
+// +-------+---------------------------------+--------------------------------+
+// | EAVT  | entity / attribute / value / tx | All datoms                     |
+// | AEVT  | attribute / entity / value / tx | All datoms                     |
+// | AVET  | attribute / value / entity / tx | Datoms with indexed attributes |
+// +-------+---------------------------------+--------------------------------+
+//
+// https://docs.datomic.com/pro/query/indexes.html
 pub mod index {
     use super::*;
     use crate::query::pattern::{AttributePattern, EntityPattern, TxPattern, ValuePattern};
 
+    // The EAVT index provides efficient access to everything about a given entity. Conceptually
+    // this is very similar to row access style in a SQL database, except that entities can possess
+    // arbitrary attributes rather than being limited to a predefined set of columns.
+    //
+    // The example below shows all of the facts about entity 42 grouped together:
+    //
+    //   +----+----------------+------------------------+------+--------+
+    //   | E  | A              | V                      | Tx   | Op    |
+    //   +----+----------------+------------------------+------+--------+
+    //   | 41 | release/name   | "Abbey Road"           | 1100 | Added |
+    // * | 42 | release/name   | "Magical Mystery Tour" | 1007 | Added |
+    // * | 42 | release/year   | 1967                   | 1007 | Added |
+    // * | 42 | release/artist | "The Beatles"          | 1007 | Added |
+    //   | 43 | release/name   | "Let It Be"            | 1234 | Added |
+    //   +----+----------------+------------------------+------+--------+
+    //
+    // EAVT is also useful in master or detail lookups, since the references to detail entities are
+    // just ordinary versus alongside the scalar attributes of the master entity. Better still,
+    // Datomic assigns entity ids so that when master and detail records are created in the same
+    // transaction, they are colocated in EAVT.
     pub const TAG_EAVT: u8 = 0x00;
+
+    // The AEVT index provides efficient access to all values for a given attribute, comparable to
+    // the traditional column access style. In the table below, notice how all release/name
+    // attributes are grouped together. This allows Datomic to efficiently query for all values of
+    // the release/name attribute, because they reside next to one another in this index.
+    //
+    //   +----------------+----+------------------------+------+--------+
+    //   | A              | E  | V                      | Tx   | Op    |
+    //   +----------------+----+------------------------+------+--------+
+    //   | release/artist | 42 | "The Beatles"          | 1007 | Added |
+    // * | release/name   | 41 | "Abbey Road"           | 1100 | Added |
+    // * | release/name   | 42 | "Magical Mystery Tour" | 1007 | Added |
+    // * | release/name   | 43 | "Let It Be"            | 1234 | Added |
+    //   | release/year   | 42 | 1967                   | 1007 | Added |
+    //   +----------------+----+------------------------+------+--------+
     pub const TAG_AEVT: u8 = 0x01;
+
+    // The AVET index provides efficient access to particular combinations of attribute and value.
+    // The example below shows a portion of the AVET index allowing lookup by release/names.
+    //
+    // The AVET index is more expensive to maintain than other indexes, and as such it is the only
+    // index that is not enabled by default. To maintain AVET for an attribute, specify db/index
+    // true (or some value for db/unique) when installing or altering the attribute.
+    //
+    //   +----------------+------------------------+----+------+--------+
+    //   | A              | V                      | E  | Tx   | Op    |
+    //   +----------------+------------------------+----+------+--------+
+    //   | release/name   | "Abbey Road"           | 41 | 1100 | Added |
+    // * | release/name   | "Let It Be"            | 43 | 1234 | Added |
+    // * | release/name   | "Let It Be"            | 55 | 2367 | Added |
+    //   | release/name   | "Magical Mystery Tour" | 42 | 1007 | Added |
+    //   | release/year   | 1967                   | 42 | 1007 | Added |
+    //   | release/year   | 1984                   | 55 | 2367 | Added |
+    //   +----------------+------------------------+----+------+--------+
     pub const TAG_AVET: u8 = 0x02;
 
     pub fn key(clause: &Clause) -> Vec<u8> {

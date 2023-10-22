@@ -7,12 +7,6 @@ pub mod serde;
 use crate::datom::*;
 use crate::query::clause::Clause;
 
-pub struct FindRequest {
-    entity: Option<u64>,
-    attribute: Option<u64>,
-    value: Option<Value>,
-}
-
 pub trait ReadStorage<'a> {
     type Error: std::error::Error;
     type Iter: Iterator<Item = Result<Datom, Self::Error>>;

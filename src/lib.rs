@@ -25,16 +25,22 @@ mod tests {
     use super::tx::transactor::*;
     use super::tx::*;
 
+    fn now() -> Instant {
+        Instant(
+            SystemTime::now()
+                .duration_since(SystemTime::UNIX_EPOCH)
+                .expect("time went backwards")
+                .as_secs(),
+        )
+    }
+
     fn transact(
         transactor: &mut Transactor,
         storage: &mut InMemoryStorage,
         transaction: Transaction,
     ) -> TransctionResult {
-        let now = SystemTime::now()
-            .duration_since(SystemTime::UNIX_EPOCH)
-            .expect("time went backwards");
         let result = transactor
-            .transact(storage, Instant(now.as_secs()), transaction)
+            .transact(storage, now(), transaction)
             .expect("unable to transact");
         storage.save(&result.tx_data).expect("unable to save");
         result
@@ -135,36 +141,38 @@ mod tests {
         );
     }
 
-    /*
     #[test]
     fn reject_transaction_with_invalid_attribute_type() {
-        let (mut transactor, _) = create_db();
+        let (mut transactor, mut storage) = create_db();
 
         // This transaction should fail: "person/name" is of type `ValueType::Str`.
-        let tx_result = transactor
-            .transact(Transaction::new().with(Operation::on_new().set("person/name", 42)));
+        let tx = Transaction::new().with(Operation::on_new().set("person/name", 42));
+        let tx_result = transactor.transact(&mut storage, now(), tx);
+
         assert!(tx_result.is_err());
     }
 
     #[test]
     fn reject_transaction_with_duplicate_temp_ids() {
-        let (mut transactor, _) = create_db();
+        let (mut transactor, mut storage) = create_db();
 
         // This transaction should fail: temp ID "duplicate" should only be used once.
-        let tx_result = transactor.transact(
-            Transaction::new()
-                .with(Operation::on_temp_id("duplicate").set("person/name", "Alice"))
-                .with(Operation::on_temp_id("duplicate").set("person/name", "Bob")),
-        );
+        let tx = Transaction::new()
+            .with(Operation::on_temp_id("duplicate").set("person/name", "Alice"))
+            .with(Operation::on_temp_id("duplicate").set("person/name", "Bob"));
+        let tx_result = transactor.transact(&mut storage, now(), tx);
+
         assert!(tx_result.is_err());
     }
 
     #[test]
     fn reference_temp_id_in_transaction() {
-        let (mut transactor, storage) = create_db();
+        let (mut transactor, mut storage) = create_db();
 
         // Insert data
-        let tx_result = transactor.transact(
+        let tx_result = transact(
+            &mut transactor,
+            &mut storage,
             Transaction::new()
                 .with(Operation::on_temp_id("john").set("artist/name", "John Lenon"))
                 .with(Operation::on_temp_id("paul").set("artist/name", "Paul McCartney"))
@@ -176,10 +184,10 @@ mod tests {
                         .set("release/artists", "paul"),
                 ),
         );
-        assert!(tx_result.is_ok());
 
-        let db = Db::new(storage, tx_result.unwrap().tx_id);
+        let mut db = Db::new(tx_result.tx_id);
         let query_result = db.query(
+            &storage,
             Query::new()
                 .wher(
                     Clause::new()
@@ -208,6 +216,7 @@ mod tests {
         );
     }
 
+    /*
     #[test]
     fn support_range_queries() {
         let (mut transactor, storage) = create_db();

@@ -84,8 +84,8 @@ pub mod index {
     //   +----------------+------------------------+----+------+--------+
     pub const TAG_AVET: u8 = 0x02;
 
-    pub fn key(clause: &Clause) -> Vec<u8> {
-        match clause {
+    pub fn key_range(clause: &Clause) -> (Vec<u8>, Vec<u8>) {
+        let start = match clause {
             Clause {
                 entity: EntityPattern::Id(entity),
                 attribute: AttributePattern::Id(attribute),
@@ -123,11 +123,20 @@ pub mod index {
                 tx: _,
             } => write_to_vec!(&TAG_AEVT, attribute),
             _ => write_to_vec!(&TAG_AEVT),
-        }
+        };
+        let end = next_prefix(&start);
+        (start, end)
     }
 
-    pub fn seek_key_size(datom: &Datom) -> usize {
-        TAG_EAVT.size() + datom.entity.size() + datom.attribute.size() + datom.value.size()
+    pub fn seek_key(datom: &Datom, datom_bytes: &[u8]) -> Vec<u8> {
+        next_prefix(&datom_bytes[..key_size(datom)])
+    }
+
+    fn key_size(datom: &Datom) -> usize {
+        std::mem::size_of::<u8>() // Index tag
+            + datom.entity.size()
+            + datom.attribute.size()
+            + datom.value.size()
     }
 
     /// Returns lowest value following largest value with given prefix.
@@ -138,7 +147,7 @@ pub mod index {
     /// range.
     ///
     /// For example, for prefix `foo` the function returns `fop`.
-    pub fn next_prefix(prefix: &[u8]) -> Vec<u8> {
+    fn next_prefix(prefix: &[u8]) -> Vec<u8> {
         let ffs = prefix
             .iter()
             .rev()
@@ -310,7 +319,7 @@ impl Writable for i64 {
     }
 }
 
-// TODO: how to handle longer strings?
+// TODO: handle longer strings?
 impl Writable for str {
     fn size(&self) -> usize {
         std::mem::size_of::<u16>() + // Length
@@ -332,7 +341,7 @@ impl Writable for Value {
             Self::U64(value) => value.size(),
             Self::I64(value) => value.size(),
             Self::Str(value) => value.size(),
-            _ => 0,
+            _ => unimplemented!(),
         }
     }
 
@@ -350,7 +359,7 @@ impl Writable for Value {
                 value::TAG_STR.write(buffer);
                 value.write(buffer);
             }
-            _ => (),
+            _ => unimplemented!(),
         }
     }
 }

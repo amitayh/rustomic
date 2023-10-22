@@ -11,6 +11,9 @@ pub trait ReadStorage<'a> {
     type Error: std::error::Error;
     type Iter: Iterator<Item = Result<Datom, Self::Error>>;
 
+    /// Returns an iterator that yields all *non-retracted* datoms that match the search clause.
+    /// Iterator might fail with `Self::Error` during iteration.
+    /// Ordering of datoms is not guaranteed.
     fn find(&'a self, clause: &Clause) -> Self::Iter;
 }
 

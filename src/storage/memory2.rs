@@ -1,7 +1,6 @@
 use std::collections::btree_set::Range;
 use std::collections::BTreeSet;
 use std::convert::Infallible;
-use std::fmt::Debug;
 
 use crate::storage::serde::*;
 use crate::storage::*;
@@ -37,7 +36,6 @@ impl WriteStorage for InMemoryStorage {
 
 impl<'a> ReadStorage<'a> for InMemoryStorage {
     type Error = ReadError;
-
     type Iter = InMemoryStorageIter<'a>;
 
     fn find(&'a self, clause: &Clause) -> Self::Iter {
@@ -53,11 +51,10 @@ pub struct InMemoryStorageIter<'a> {
 
 impl<'a> InMemoryStorageIter<'a> {
     fn new(index: &'a BTreeSet<Vec<u8>>, clause: &Clause) -> Self {
-        let start = index::key(clause);
-        let end = index::next_prefix(&start);
+        let (start, end) = index::key_range(clause);
         Self {
             index: &index,
-            range: index.range(start..),
+            range: index.range(start..end.clone()),
             end,
         }
     }
@@ -68,14 +65,10 @@ impl<'a> Iterator for InMemoryStorageIter<'a> {
 
     fn next(&mut self) -> Option<Self::Item> {
         let datom_bytes = self.range.next()?;
-        if datom_bytes >= &self.end {
-            return None;
-        }
         match datom::deserialize(datom_bytes) {
             Ok(datom) if datom.op == Op::Retracted => {
-                let seek_key_size = index::seek_key_size(&datom);
-                let seek_key = index::next_prefix(&datom_bytes[..seek_key_size]);
-                self.range = self.index.range(seek_key..);
+                let seek_key = index::seek_key(&datom, datom_bytes);
+                self.range = self.index.range(seek_key..self.end.clone());
                 self.next()
             }
             Ok(datom) => Some(Ok(datom)),
@@ -86,41 +79,10 @@ impl<'a> Iterator for InMemoryStorageIter<'a> {
 
 //-------------------------------------------------------------------------------------------------
 
-impl Debug for InMemoryStorage {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let mut list = f.debug_list();
-        for datom_bytes in &self.index {
-            let datom = datom::deserialize(datom_bytes).or(Err(std::fmt::Error))?;
-            match datom_bytes.first() {
-                Some(&index::TAG_EAVT) => {
-                    list.entry(&format!(
-                        "EAVT {{ e: {:?}, a: {:?}, v: {:?}, t: {:?}, op: {:?} }}",
-                        datom.entity, datom.attribute, datom.value, datom.tx, datom.op
-                    ));
-                }
-                Some(&index::TAG_AEVT) => {
-                    list.entry(&format!(
-                        "AEVT {{ a: {:?}, e: {:?}, v: {:?}, t: {:?}, op: {:?} }}",
-                        datom.attribute, datom.entity, datom.value, datom.tx, datom.op
-                    ));
-                }
-                Some(&index::TAG_AVET) => {
-                    list.entry(&format!(
-                        "AVET {{ a: {:?}, v: {:?}, e: {:?}, t: {:?}, op: {:?} }}",
-                        datom.attribute, datom.value, datom.entity, datom.tx, datom.op
-                    ));
-                }
-                _ => (),
-            }
-        }
-        list.finish()
-    }
-}
-
-//-------------------------------------------------------------------------------------------------
-
 #[cfg(test)]
 mod tests {
+    use std::fmt::Debug;
+
     use crate::datom::*;
     use crate::query::clause::*;
     use crate::query::pattern::*;
@@ -237,14 +199,14 @@ mod tests {
         ];
         assert!(storage.save(&datoms).is_ok());
 
-        let read_result =
-            storage.find(&Clause::new().with_entity(EntityPattern::Id(entity)));
+        let read_result = storage.find(&Clause::new().with_entity(EntityPattern::Id(entity)));
 
         assert_eq!(
             datoms,
             read_result
                 .map(|result| result.unwrap())
-                .collect::<Vec<_>>());
+                .collect::<Vec<_>>()
+        );
     }
 
     #[test]
@@ -321,5 +283,36 @@ mod tests {
                 .map(|result| result.unwrap())
                 .collect::<Vec<_>>()
         );
+    }
+
+    impl Debug for InMemoryStorage {
+        fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+            let mut list = f.debug_list();
+            for datom_bytes in &self.index {
+                let datom = datom::deserialize(datom_bytes).or(Err(std::fmt::Error))?;
+                match datom_bytes.first() {
+                    Some(&index::TAG_EAVT) => {
+                        list.entry(&format!(
+                            "EAVT {{ e: {:?}, a: {:?}, v: {:?}, t: {:?}, op: {:?} }}",
+                            datom.entity, datom.attribute, datom.value, datom.tx, datom.op
+                        ));
+                    }
+                    Some(&index::TAG_AEVT) => {
+                        list.entry(&format!(
+                            "AEVT {{ a: {:?}, e: {:?}, v: {:?}, t: {:?}, op: {:?} }}",
+                            datom.attribute, datom.entity, datom.value, datom.tx, datom.op
+                        ));
+                    }
+                    Some(&index::TAG_AVET) => {
+                        list.entry(&format!(
+                            "AVET {{ a: {:?}, v: {:?}, e: {:?}, t: {:?}, op: {:?} }}",
+                            datom.attribute, datom.value, datom.entity, datom.tx, datom.op
+                        ));
+                    }
+                    _ => (),
+                }
+            }
+            list.finish()
+        }
     }
 }

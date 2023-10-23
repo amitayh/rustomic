@@ -1,4 +1,4 @@
-<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `src/query/assignment.rs`."><title>assignment.rs - source</title><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/SourceSerif4-Regular-46f98efaafac5295.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/FiraSans-Regular-018c141bf0843ffd.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/FiraSans-Medium-8f9a781e4970d388.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/SourceCodePro-Regular-562dcc5011b6de7d.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/SourceSerif4-Bold-a2c9cd1067f8b328.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/SourceCodePro-Semibold-d899c5a5c4aeb14a.ttf.woff2"><link rel="stylesheet" href="../../../static.files/normalize-76eba96aa4d2e634.css"><link rel="stylesheet" href="../../../static.files/rustdoc-f3501f0f5ae15dfb.css" id="mainThemeStyle"><div id="rustdoc-vars" data-root-path="../../../" data-static-root-path="../../../static.files/" data-current-crate="rustomic" data-themes="" data-resource-suffix="" data-rustdoc-version="1.71.0 (8ede3aae2 2023-07-12)" data-search-js="search-4926e5fc22a5646a.js" data-settings-js="settings-de11bff964e9d4e5.js" data-settings-css="settings-8c76f75bfb6bd192.css" data-theme-light-css="light-0f8c037637f9eb3e.css" data-theme-dark-css="dark-1097f8e92a01e3cf.css" data-theme-ayu-css="ayu-614652228113ac93.css" ></div><script src="../../../static.files/storage-62ce34ea385b278a.js"></script><script defer src="../../../static.files/source-script-11255107d0a65077.js"></script><script defer src="../../../source-files.js"></script><script defer src="../../../static.files/main-f0540c1d82cde29b.js"></script><noscript><link rel="stylesheet" media="(prefers-color-scheme:light)" href="../../../static.files/light-0f8c037637f9eb3e.css"><link rel="stylesheet" media="(prefers-color-scheme:dark)" href="../../../static.files/dark-1097f8e92a01e3cf.css"><link rel="stylesheet" href="../../../static.files/noscript-13285aec31fa243e.css"></noscript><link rel="alternate icon" type="image/png" href="../../../static.files/favicon-16x16-8b506e7a72182f1c.png"><link rel="alternate icon" type="image/png" href="../../../static.files/favicon-32x32-422f7d1d52889060.png"><link rel="icon" type="image/svg+xml" href="../../../static.files/favicon-2c020d218678b618.svg"></head><body class="rustdoc source"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"></nav><main><nav class="sub"><a class="sub-logo-container" href="../../../rustomic/index.html"><img class="rust-logo" src="../../../static.files/rust-logo-151179464ae7ed46.svg" alt="logo"></a><form class="search-form"><span></span><input class="search-input" name="search" aria-label="Run search in the documentation" autocomplete="off" spellcheck="false" placeholder="Click or press ‘S’ to search, ‘?’ for more options…" type="search"><div id="help-button" title="help" tabindex="-1"><a href="../../../help.html">?</a></div><div id="settings-menu" tabindex="-1"><a href="../../../settings.html" title="settings"><img width="22" height="22" alt="Change settings" src="../../../static.files/wheel-7b819b6101059cd0.svg"></a></div></form></nav><section id="main-content" class="content"><div class="example-wrap"><div data-nosnippet><pre class="src-line-numbers"><a href="#1" id="1">1</a>
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `src/query/assignment.rs`."><title>assignment.rs - source</title><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/SourceSerif4-Regular-46f98efaafac5295.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/FiraSans-Regular-018c141bf0843ffd.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/FiraSans-Medium-8f9a781e4970d388.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/SourceCodePro-Regular-562dcc5011b6de7d.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/SourceSerif4-Bold-a2c9cd1067f8b328.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/SourceCodePro-Semibold-d899c5a5c4aeb14a.ttf.woff2"><link rel="stylesheet" href="../../../static.files/normalize-76eba96aa4d2e634.css"><link rel="stylesheet" href="../../../static.files/rustdoc-cb6f1f67f1bcd037.css" id="mainThemeStyle"><meta name="rustdoc-vars" data-root-path="../../../" data-static-root-path="../../../static.files/" data-current-crate="rustomic" data-themes="" data-resource-suffix="" data-rustdoc-version="1.73.0 (cc66ad468 2023-10-03)" data-channel="1.73.0" data-search-js="search-6dfdfced5eff6596.js" data-settings-js="settings-de11bff964e9d4e5.js" data-settings-css="settings-8c76f75bfb6bd192.css" data-theme-light-css="light-1596385f77d47ef2.css" data-theme-dark-css="dark-0a43001d3fc2282c.css" data-theme-ayu-css="ayu-fd19013d6ce078bf.css" ><script src="../../../static.files/storage-db41da1a38ea3cb8.js"></script><script defer src="../../../static.files/src-script-3280b574d94e47b4.js"></script><script defer src="../../../src-files.js"></script><script defer src="../../../static.files/main-0795b7d26be81095.js"></script><noscript><link rel="stylesheet" media="(prefers-color-scheme:light)" href="../../../static.files/light-1596385f77d47ef2.css"><link rel="stylesheet" media="(prefers-color-scheme:dark)" href="../../../static.files/dark-0a43001d3fc2282c.css"><link rel="stylesheet" href="../../../static.files/noscript-cffde32267a19fd6.css"></noscript><link rel="alternate icon" type="image/png" href="../../../static.files/favicon-16x16-8b506e7a72182f1c.png"><link rel="alternate icon" type="image/png" href="../../../static.files/favicon-32x32-422f7d1d52889060.png"><link rel="icon" type="image/svg+xml" href="../../../static.files/favicon-2c020d218678b618.svg"></head><body class="rustdoc src"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"></nav><main><nav class="sub"><a class="sub-logo-container" href="../../../rustomic/index.html"><img class="rust-logo" src="../../../static.files/rust-logo-151179464ae7ed46.svg" alt="logo"></a><form class="search-form"><span></span><input class="search-input" name="search" aria-label="Run search in the documentation" autocomplete="off" spellcheck="false" placeholder="Click or press ‘S’ to search, ‘?’ for more options…" type="search"><div id="help-button" title="help" tabindex="-1"><a href="../../../help.html">?</a></div><div id="settings-menu" tabindex="-1"><a href="../../../settings.html" title="settings"><img width="22" height="22" alt="Change settings" src="../../../static.files/wheel-7b819b6101059cd0.svg"></a></div></form></nav><section id="main-content" class="content"><div class="example-wrap"><div data-nosnippet><pre class="src-line-numbers"><a href="#1" id="1">1</a>
 <a href="#2" id="2">2</a>
 <a href="#3" id="3">3</a>
 <a href="#4" id="4">4</a>
@@ -132,8 +132,12 @@
 <a href="#132" id="132">132</a>
 <a href="#133" id="133">133</a>
 <a href="#134" id="134">134</a>
+<a href="#135" id="135">135</a>
+<a href="#136" id="136">136</a>
+<a href="#137" id="137">137</a>
 </pre></div><pre class="rust"><code><span class="kw">use </span>std::collections::HashMap;
 <span class="kw">use </span>std::collections::HashSet;
+<span class="kw">use </span>std::rc::Rc;
 
 <span class="kw">use </span><span class="kw">crate</span>::datom::<span class="kw-2">*</span>;
 <span class="kw">use </span><span class="kw">crate</span>::query::pattern::<span class="kw-2">*</span>;
@@ -142,13 +146,13 @@
 <span class="comment">// TODO PartialAssignment / CompleteAssignment?
 </span><span class="attr">#[derive(Debug, Eq, PartialEq, Clone)]
 </span><span class="kw">pub struct </span>Assignment {
-    <span class="kw">pub </span>assigned: HashMap&lt;String, Value&gt;,
-    unassigned: HashSet&lt;String&gt;,
+    <span class="kw">pub </span>assigned: HashMap&lt;Rc&lt;str&gt;, Value&gt;,
+    unassigned: HashSet&lt;Rc&lt;str&gt;&gt;,
 }
 
 <span class="kw">impl </span>Assignment {
-    <span class="kw">pub fn </span>new(variables: HashSet&lt;String&gt;) -&gt; <span class="self">Self </span>{
-        Assignment {
+    <span class="kw">pub fn </span>new(variables: HashSet&lt;Rc&lt;str&gt;&gt;) -&gt; <span class="self">Self </span>{
+        <span class="self">Self </span>{
             assigned: HashMap::new(),
             unassigned: variables,
         }
@@ -178,22 +182,24 @@
     /// assert_eq!(Value::U64(3), assignment.assigned[&quot;baz&quot;]);
     /// ```
     </span><span class="kw">pub fn </span>from_query(query: <span class="kw-2">&amp;</span>Query) -&gt; <span class="self">Self </span>{
-        Assignment::new(
+        <span class="self">Self</span>::new(
             query
                 .wher
                 .iter()
                 .flat_map(|clause| clause.free_variables())
-                .map(String::from)
+                <span class="comment">// TODO don&#39;t construct the `Rc` here, get from `free_variables`
+                </span>.map(Rc::from)
                 .collect(),
         )
     }
 
     <span class="doccomment">/// ```
+    /// use std::rc::Rc;
     /// use std::collections::HashSet;
     /// use rustomic::query::assignment::*;
     ///
     /// let mut variables = HashSet::new();
-    /// variables.insert(String::from(&quot;?foo&quot;));
+    /// variables.insert(Rc::from(&quot;?foo&quot;));
     /// let mut assignment = Assignment::new(variables);
     /// assert!(!assignment.is_complete());
     ///
@@ -206,23 +212,24 @@
 
     <span class="doccomment">/// ```
     /// use std::collections::HashSet;
+    /// use std::rc::Rc;
     /// use rustomic::query::assignment::*;
     /// use rustomic::query::clause::*;
     /// use rustomic::query::pattern::*;
     /// use rustomic::datom::*;
     ///
     /// let mut variables = HashSet::new();
-    /// variables.insert(String::from(&quot;?entity&quot;));
-    /// variables.insert(String::from(&quot;?attribute&quot;));
-    /// variables.insert(String::from(&quot;?value&quot;));
-    /// variables.insert(String::from(&quot;?tx&quot;));
+    /// variables.insert(Rc::from(&quot;?entity&quot;));
+    /// variables.insert(Rc::from(&quot;?attribute&quot;));
+    /// variables.insert(Rc::from(&quot;?value&quot;));
+    /// variables.insert(Rc::from(&quot;?tx&quot;));
     /// let assignment = Assignment::new(variables);
     ///
     /// let clause = Clause::new()
-    ///     .with_entity(EntityPattern::Variable(&quot;?entity&quot;))
-    ///     .with_attribute(AttributePattern::Variable(&quot;?attribute&quot;))
-    ///     .with_value(ValuePattern::Variable(&quot;?value&quot;))
-    ///     .with_tx(TxPattern::Variable(&quot;?tx&quot;));
+    ///     .with_entity(EntityPattern::variable(&quot;?entity&quot;))
+    ///     .with_attribute(AttributePattern::variable(&quot;?attribute&quot;))
+    ///     .with_value(ValuePattern::variable(&quot;?value&quot;))
+    ///     .with_tx(TxPattern::variable(&quot;?tx&quot;));
     ///
     /// let entity = 1u64;
     /// let attribute = 2u64;
@@ -238,8 +245,7 @@
     /// ```
     </span><span class="kw">pub fn </span>update_with(<span class="kw-2">&amp;</span><span class="self">self</span>, clause: <span class="kw-2">&amp;</span>Clause, datom: Datom) -&gt; <span class="self">Self </span>{
         <span class="kw">let </span><span class="kw-2">mut </span>assignment = <span class="self">self</span>.clone();
-        <span class="comment">//dbg!(&amp;clause);
-        </span><span class="kw">if let </span><span class="prelude-val">Some</span>(entity_variable) = clause.entity.variable_name() {
+        <span class="kw">if let </span><span class="prelude-val">Some</span>(entity_variable) = clause.entity.variable_name() {
             assignment.assign(entity_variable, datom.entity);
         }
         <span class="kw">if let </span><span class="prelude-val">Some</span>(attribute_variable) = clause.attribute.variable_name() {

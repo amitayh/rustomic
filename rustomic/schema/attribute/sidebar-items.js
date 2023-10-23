@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"enum":["Cardinality","ValueType"],"struct":["Attribute"]};
+window.SIDEBAR_ITEMS = {"enum":["Cardinality","ValueType"],"struct":["Attribute","InvalidValue"]};

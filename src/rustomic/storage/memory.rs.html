@@ -1,4 +1,4 @@
-<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `src/storage/memory.rs`."><title>memory.rs - source</title><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/SourceSerif4-Regular-46f98efaafac5295.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/FiraSans-Regular-018c141bf0843ffd.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/FiraSans-Medium-8f9a781e4970d388.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/SourceCodePro-Regular-562dcc5011b6de7d.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/SourceSerif4-Bold-a2c9cd1067f8b328.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/SourceCodePro-Semibold-d899c5a5c4aeb14a.ttf.woff2"><link rel="stylesheet" href="../../../static.files/normalize-76eba96aa4d2e634.css"><link rel="stylesheet" href="../../../static.files/rustdoc-f3501f0f5ae15dfb.css" id="mainThemeStyle"><div id="rustdoc-vars" data-root-path="../../../" data-static-root-path="../../../static.files/" data-current-crate="rustomic" data-themes="" data-resource-suffix="" data-rustdoc-version="1.71.0 (8ede3aae2 2023-07-12)" data-search-js="search-4926e5fc22a5646a.js" data-settings-js="settings-de11bff964e9d4e5.js" data-settings-css="settings-8c76f75bfb6bd192.css" data-theme-light-css="light-0f8c037637f9eb3e.css" data-theme-dark-css="dark-1097f8e92a01e3cf.css" data-theme-ayu-css="ayu-614652228113ac93.css" ></div><script src="../../../static.files/storage-62ce34ea385b278a.js"></script><script defer src="../../../static.files/source-script-11255107d0a65077.js"></script><script defer src="../../../source-files.js"></script><script defer src="../../../static.files/main-f0540c1d82cde29b.js"></script><noscript><link rel="stylesheet" media="(prefers-color-scheme:light)" href="../../../static.files/light-0f8c037637f9eb3e.css"><link rel="stylesheet" media="(prefers-color-scheme:dark)" href="../../../static.files/dark-1097f8e92a01e3cf.css"><link rel="stylesheet" href="../../../static.files/noscript-13285aec31fa243e.css"></noscript><link rel="alternate icon" type="image/png" href="../../../static.files/favicon-16x16-8b506e7a72182f1c.png"><link rel="alternate icon" type="image/png" href="../../../static.files/favicon-32x32-422f7d1d52889060.png"><link rel="icon" type="image/svg+xml" href="../../../static.files/favicon-2c020d218678b618.svg"></head><body class="rustdoc source"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"></nav><main><nav class="sub"><a class="sub-logo-container" href="../../../rustomic/index.html"><img class="rust-logo" src="../../../static.files/rust-logo-151179464ae7ed46.svg" alt="logo"></a><form class="search-form"><span></span><input class="search-input" name="search" aria-label="Run search in the documentation" autocomplete="off" spellcheck="false" placeholder="Click or press ‘S’ to search, ‘?’ for more options…" type="search"><div id="help-button" title="help" tabindex="-1"><a href="../../../help.html">?</a></div><div id="settings-menu" tabindex="-1"><a href="../../../settings.html" title="settings"><img width="22" height="22" alt="Change settings" src="../../../static.files/wheel-7b819b6101059cd0.svg"></a></div></form></nav><section id="main-content" class="content"><div class="example-wrap"><div data-nosnippet><pre class="src-line-numbers"><a href="#1" id="1">1</a>
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `src/storage/memory.rs`."><title>memory.rs - source</title><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/SourceSerif4-Regular-46f98efaafac5295.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/FiraSans-Regular-018c141bf0843ffd.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/FiraSans-Medium-8f9a781e4970d388.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/SourceCodePro-Regular-562dcc5011b6de7d.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/SourceSerif4-Bold-a2c9cd1067f8b328.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/SourceCodePro-Semibold-d899c5a5c4aeb14a.ttf.woff2"><link rel="stylesheet" href="../../../static.files/normalize-76eba96aa4d2e634.css"><link rel="stylesheet" href="../../../static.files/rustdoc-cb6f1f67f1bcd037.css" id="mainThemeStyle"><meta name="rustdoc-vars" data-root-path="../../../" data-static-root-path="../../../static.files/" data-current-crate="rustomic" data-themes="" data-resource-suffix="" data-rustdoc-version="1.73.0 (cc66ad468 2023-10-03)" data-channel="1.73.0" data-search-js="search-6dfdfced5eff6596.js" data-settings-js="settings-de11bff964e9d4e5.js" data-settings-css="settings-8c76f75bfb6bd192.css" data-theme-light-css="light-1596385f77d47ef2.css" data-theme-dark-css="dark-0a43001d3fc2282c.css" data-theme-ayu-css="ayu-fd19013d6ce078bf.css" ><script src="../../../static.files/storage-db41da1a38ea3cb8.js"></script><script defer src="../../../static.files/src-script-3280b574d94e47b4.js"></script><script defer src="../../../src-files.js"></script><script defer src="../../../static.files/main-0795b7d26be81095.js"></script><noscript><link rel="stylesheet" media="(prefers-color-scheme:light)" href="../../../static.files/light-1596385f77d47ef2.css"><link rel="stylesheet" media="(prefers-color-scheme:dark)" href="../../../static.files/dark-0a43001d3fc2282c.css"><link rel="stylesheet" href="../../../static.files/noscript-cffde32267a19fd6.css"></noscript><link rel="alternate icon" type="image/png" href="../../../static.files/favicon-16x16-8b506e7a72182f1c.png"><link rel="alternate icon" type="image/png" href="../../../static.files/favicon-32x32-422f7d1d52889060.png"><link rel="icon" type="image/svg+xml" href="../../../static.files/favicon-2c020d218678b618.svg"></head><body class="rustdoc src"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"></nav><main><nav class="sub"><a class="sub-logo-container" href="../../../rustomic/index.html"><img class="rust-logo" src="../../../static.files/rust-logo-151179464ae7ed46.svg" alt="logo"></a><form class="search-form"><span></span><input class="search-input" name="search" aria-label="Run search in the documentation" autocomplete="off" spellcheck="false" placeholder="Click or press ‘S’ to search, ‘?’ for more options…" type="search"><div id="help-button" title="help" tabindex="-1"><a href="../../../help.html">?</a></div><div id="settings-menu" tabindex="-1"><a href="../../../settings.html" title="settings"><img width="22" height="22" alt="Change settings" src="../../../static.files/wheel-7b819b6101059cd0.svg"></a></div></form></nav><section id="main-content" class="content"><div class="example-wrap"><div data-nosnippet><pre class="src-line-numbers"><a href="#1" id="1">1</a>
 <a href="#2" id="2">2</a>
 <a href="#3" id="3">3</a>
 <a href="#4" id="4">4</a>
@@ -312,339 +312,317 @@
 <a href="#312" id="312">312</a>
 <a href="#313" id="313">313</a>
 <a href="#314" id="314">314</a>
-<a href="#315" id="315">315</a>
-<a href="#316" id="316">316</a>
-<a href="#317" id="317">317</a>
-<a href="#318" id="318">318</a>
-<a href="#319" id="319">319</a>
-<a href="#320" id="320">320</a>
-<a href="#321" id="321">321</a>
-<a href="#322" id="322">322</a>
-<a href="#323" id="323">323</a>
-<a href="#324" id="324">324</a>
-<a href="#325" id="325">325</a>
-</pre></div><pre class="rust"><code><span class="kw">use </span>std::collections::btree_map;
-<span class="kw">use </span>std::collections::btree_map::Range;
-<span class="kw">use </span>std::collections::BTreeMap;
-<span class="kw">use </span>std::collections::HashMap;
+</pre></div><pre class="rust"><code><span class="kw">use </span>std::collections::btree_set::Range;
+<span class="kw">use </span>std::collections::BTreeSet;
+<span class="kw">use </span>std::convert::Infallible;
 
-<span class="kw">use </span><span class="kw">crate</span>::datom::<span class="kw-2">*</span>;
-<span class="kw">use </span><span class="kw">crate</span>::query::clause::Clause;
-<span class="kw">use </span><span class="kw">crate</span>::query::pattern::<span class="kw-2">*</span>;
-<span class="kw">use </span><span class="kw">crate</span>::schema::default::<span class="kw-2">*</span>;
-<span class="kw">use </span><span class="kw">crate</span>::schema::<span class="kw-2">*</span>;
+<span class="kw">use </span><span class="kw">crate</span>::storage::serde::<span class="kw-2">*</span>;
 <span class="kw">use </span><span class="kw">crate</span>::storage::<span class="kw-2">*</span>;
 
-<span class="kw">type </span>TxOp = BTreeMap&lt;TransactionId, Op&gt;;
-<span class="kw">type </span>Index&lt;A, B, C&gt; = BTreeMap&lt;A, BTreeMap&lt;B, BTreeMap&lt;C, TxOp&gt;&gt;&gt;;
-
-<span class="comment">// +-------+---------------------------------+--------------------------------+
-// | Index | Sort order                      | Contains                       |
-// +-------+---------------------------------+--------------------------------+
-// | EAVT  | entity / attribute / value / tx | All datoms                     |
-// | AEVT  | attribute / entity / value / tx | All datoms                     |
-// | AVET  | attribute / value / entity / tx | Datoms with indexed attributes |
-// +-------+---------------------------------+--------------------------------+
-//
-// https://docs.datomic.com/pro/query/indexes.html
-</span><span class="attr">#[derive(Default, Debug)]
-</span><span class="kw">pub struct </span>InMemoryStorage {
-    <span class="comment">// The EAVT index provides efficient access to everything about a given entity. Conceptually
-    // this is very similar to row access style in a SQL database, except that entities can possess
-    // arbitrary attributes rather than being limited to a predefined set of columns.
-    //
-    // The example below shows all of the facts about entity 42 grouped together:
-    //
-    //   +----+----------------+------------------------+------+--------+
-    //   | E  | A              | V                      | Tx   | Op    |
-    //   +----+----------------+------------------------+------+--------+
-    //   | 41 | release/name   | &quot;Abbey Road&quot;           | 1100 | Added |
-    // * | 42 | release/name   | &quot;Magical Mystery Tour&quot; | 1007 | Added |
-    // * | 42 | release/year   | 1967                   | 1007 | Added |
-    // * | 42 | release/artist | &quot;The Beatles&quot;          | 1007 | Added |
-    //   | 43 | release/name   | &quot;Let It Be&quot;            | 1234 | Added |
-    //   +----+----------------+------------------------+------+--------+
-    //
-    // EAVT is also useful in master or detail lookups, since the references to detail entities are
-    // just ordinary versus alongside the scalar attributes of the master entity. Better still,
-    // Datomic assigns entity ids so that when master and detail records are created in the same
-    // transaction, they are colocated in EAVT.
-    </span>eavt: Index&lt;EntityId, AttributeId, Value&gt;,
-
-    <span class="comment">// The AEVT index provides efficient access to all values for a given attribute, comparable to
-    // the traditional column access style. In the table below, notice how all release/name
-    // attributes are grouped together. This allows Datomic to efficiently query for all values of
-    // the release/name attribute, because they reside next to one another in this index.
-    //
-    //   +----------------+----+------------------------+------+--------+
-    //   | A              | E  | V                      | Tx   | Op    |
-    //   +----------------+----+------------------------+------+--------+
-    //   | release/artist | 42 | &quot;The Beatles&quot;          | 1007 | Added |
-    // * | release/name   | 41 | &quot;Abbey Road&quot;           | 1100 | Added |
-    // * | release/name   | 42 | &quot;Magical Mystery Tour&quot; | 1007 | Added |
-    // * | release/name   | 43 | &quot;Let It Be&quot;            | 1234 | Added |
-    //   | release/year   | 42 | 1967                   | 1007 | Added |
-    //   +----------------+----+------------------------+------+--------+
-    </span>aevt: Index&lt;AttributeId, EntityId, Value&gt;,
-
-    <span class="comment">// The AVET index provides efficient access to particular combinations of attribute and value.
-    // The example below shows a portion of the AVET index allowing lookup by release/names.
-    //
-    // The AVET index is more expensive to maintain than other indexes, and as such it is the only
-    // index that is not enabled by default. To maintain AVET for an attribute, specify db/index
-    // true (or some value for db/unique) when installing or altering the attribute.
-    //
-    //   +----------------+------------------------+----+------+--------+
-    //   | A              | V                      | E  | Tx   | Op    |
-    //   +----------------+------------------------+----+------+--------+
-    //   | release/name   | &quot;Abbey Road&quot;           | 41 | 1100 | Added |
-    // * | release/name   | &quot;Let It Be&quot;            | 43 | 1234 | Added |
-    // * | release/name   | &quot;Let It Be&quot;            | 55 | 2367 | Added |
-    //   | release/name   | &quot;Magical Mystery Tour&quot; | 42 | 1007 | Added |
-    //   | release/year   | 1967                   | 42 | 1007 | Added |
-    //   | release/year   | 1984                   | 55 | 2367 | Added |
-    //   +----------------+------------------------+----+------+--------+
-    </span>avet: Index&lt;AttributeId, Value, EntityId&gt;,
-
-    <span class="comment">// Lookup entity ID by ident
-    </span>ident_to_entity: HashMap&lt;String, EntityId&gt;,
+<span class="kw">pub struct </span>InMemoryStorage {
+    index: BTreeSet&lt;Vec&lt;u8&gt;&gt;,
 }
 
 <span class="kw">impl </span>InMemoryStorage {
     <span class="kw">pub fn </span>new() -&gt; <span class="self">Self </span>{
-        <span class="kw">let </span><span class="kw-2">mut </span>storage = InMemoryStorage {
-            eavt: BTreeMap::new(),
-            aevt: BTreeMap::new(),
-            avet: BTreeMap::new(),
-            ident_to_entity: HashMap::new(),
-        };
-        <span class="kw">let </span>init_datoms = default_datoms();
-        storage.save(<span class="kw-2">&amp;</span>init_datoms).unwrap();
-        storage
+        <span class="self">Self </span>{
+            index: BTreeSet::new(),
+        }
     }
 }
 
-<span class="kw">impl </span>Storage <span class="kw">for </span>InMemoryStorage {
-    <span class="comment">//type Iter = std::slice::Iter&lt;&#39;a, Datom&gt;;
+<span class="kw">impl </span>WriteStorage <span class="kw">for </span>InMemoryStorage {
+    <span class="kw">type </span>Error = Infallible;
 
-    </span><span class="kw">fn </span>save(<span class="kw-2">&amp;mut </span><span class="self">self</span>, datoms: <span class="kw-2">&amp;</span>[Datom]) -&gt; <span class="prelude-ty">Result</span>&lt;(), StorageError&gt; {
+    <span class="kw">fn </span>save(<span class="kw-2">&amp;mut </span><span class="self">self</span>, datoms: <span class="kw-2">&amp;</span>[Datom]) -&gt; <span class="prelude-ty">Result</span>&lt;(), <span class="self">Self</span>::Error&gt; {
         <span class="kw">for </span>datom <span class="kw">in </span>datoms {
-            <span class="self">self</span>.update_eavt(datom);
-            <span class="self">self</span>.update_aevt(datom);
-            <span class="self">self</span>.update_avet(datom);
-            <span class="self">self</span>.update_ident_to_entity_id(datom);
+            <span class="self">self</span>.index.insert(datom::serialize::eavt(datom));
+            <span class="self">self</span>.index.insert(datom::serialize::aevt(datom));
+            <span class="self">self</span>.index.insert(datom::serialize::avet(datom));
         }
         <span class="prelude-val">Ok</span>(())
     }
+}
 
-    <span class="kw">fn </span>resolve_ident(<span class="kw-2">&amp;</span><span class="self">self</span>, ident: <span class="kw-2">&amp;</span>str) -&gt; <span class="prelude-ty">Result</span>&lt;EntityId, StorageError&gt; {
-        <span class="self">self</span>.ident_to_entity
-            .get(ident)
-            .copied()
-            .ok_or_else(|| StorageError::IdentNotFound(String::from(ident)))
+<span class="kw">impl</span>&lt;<span class="lifetime">&#39;a</span>&gt; ReadStorage&lt;<span class="lifetime">&#39;a</span>&gt; <span class="kw">for </span>InMemoryStorage {
+    <span class="kw">type </span>Error = ReadError;
+    <span class="kw">type </span>Iter = InMemoryStorageIter&lt;<span class="lifetime">&#39;a</span>&gt;;
+
+    <span class="kw">fn </span>find(<span class="kw-2">&amp;</span><span class="lifetime">&#39;a </span><span class="self">self</span>, clause: <span class="kw-2">&amp;</span>Clause) -&gt; <span class="self">Self</span>::Iter {
+        InMemoryStorageIter::new(<span class="kw-2">&amp;</span><span class="self">self</span>.index, clause)
     }
+}
 
-    <span class="kw">fn </span>find_datoms(<span class="kw-2">&amp;</span><span class="self">self</span>, clause: <span class="kw-2">&amp;</span>Clause, tx_range: u64) -&gt; <span class="prelude-ty">Result</span>&lt;Vec&lt;Datom&gt;, StorageError&gt; {
-        <span class="kw">match </span>clause {
-            Clause {
-                entity: EntityPattern::Id(<span class="kw">_</span>),
-                attribute: AttributePattern::Id(<span class="kw">_</span>) | AttributePattern::Ident(<span class="kw">_</span>),
-                value: <span class="kw">_</span>,
-                tx: <span class="kw">_</span>,
-            } =&gt; <span class="self">self</span>.find_datoms_eavt(clause),
-            Clause {
-                entity: <span class="kw">_</span>,
-                attribute: AttributePattern::Id(<span class="kw">_</span>) | AttributePattern::Ident(<span class="kw">_</span>),
-                value: ValuePattern::Constant(<span class="kw">_</span>) | ValuePattern::Range(<span class="kw">_</span>, <span class="kw">_</span>),
-                tx: <span class="kw">_</span>,
-            } =&gt; <span class="self">self</span>.find_datoms_avet(clause, tx_range),
-            <span class="kw">_ </span>=&gt; <span class="self">self</span>.find_datoms_aevt(clause),
+<span class="kw">pub struct </span>InMemoryStorageIter&lt;<span class="lifetime">&#39;a</span>&gt; {
+    index: <span class="kw-2">&amp;</span><span class="lifetime">&#39;a </span>BTreeSet&lt;Vec&lt;u8&gt;&gt;,
+    range: Range&lt;<span class="lifetime">&#39;a</span>, Vec&lt;u8&gt;&gt;,
+    end: Vec&lt;u8&gt;,
+}
+
+<span class="kw">impl</span>&lt;<span class="lifetime">&#39;a</span>&gt; InMemoryStorageIter&lt;<span class="lifetime">&#39;a</span>&gt; {
+    <span class="kw">fn </span>new(index: <span class="kw-2">&amp;</span><span class="lifetime">&#39;a </span>BTreeSet&lt;Vec&lt;u8&gt;&gt;, clause: <span class="kw-2">&amp;</span>Clause) -&gt; <span class="self">Self </span>{
+        <span class="kw">let </span>(start, end) = index::key_range(clause);
+        <span class="self">Self </span>{
+            index,
+            range: index.range(start..end.clone()),
+            end,
         }
     }
 }
 
-<span class="kw">impl</span>&lt;<span class="lifetime">&#39;a</span>&gt; InMemoryStorage {
-    <span class="kw">fn </span>update_eavt(<span class="kw-2">&amp;mut </span><span class="self">self</span>, datom: <span class="kw-2">&amp;</span>Datom) {
-        <span class="kw">let </span>avt = <span class="self">self</span>.eavt.entry(datom.entity).or_default();
-        <span class="kw">let </span>vt = avt.entry(datom.attribute).or_default();
-        <span class="kw">let </span>t = vt.entry(datom.value.clone()).or_default();
-        t.insert(datom.tx, datom.op);
-    }
-
-    <span class="kw">fn </span>update_aevt(<span class="kw-2">&amp;mut </span><span class="self">self</span>, datom: <span class="kw-2">&amp;</span>Datom) {
-        <span class="kw">let </span>evt = <span class="self">self</span>.aevt.entry(datom.attribute).or_default();
-        <span class="kw">let </span>vt = evt.entry(datom.entity).or_default();
-        <span class="kw">let </span>t = vt.entry(datom.value.clone()).or_default();
-        t.insert(datom.tx, datom.op);
-    }
-
-    <span class="kw">fn </span>update_avet(<span class="kw-2">&amp;mut </span><span class="self">self</span>, datom: <span class="kw-2">&amp;</span>Datom) {
-        <span class="kw">let </span>vet = <span class="self">self</span>.avet.entry(datom.attribute).or_default();
-        <span class="kw">let </span>et = vet.entry(datom.value.clone()).or_default();
-        <span class="kw">let </span>t = et.entry(datom.entity).or_default();
-        t.insert(datom.tx, datom.op);
-    }
-
-    <span class="kw">fn </span>update_ident_to_entity_id(<span class="kw-2">&amp;mut </span><span class="self">self</span>, datom: <span class="kw-2">&amp;</span>Datom) {
-        <span class="kw">if let </span>Datom {
-            entity,
-            attribute: DB_ATTR_IDENT_ID,
-            value: Value::Str(ident),
-            tx: <span class="kw">_</span>,
-            op: <span class="kw">_</span>,
-        } = datom
-        {
-            <span class="self">self</span>.ident_to_entity.insert(ident.clone(), <span class="kw-2">*</span>entity);
-        }
-    }
-
-    <span class="kw">fn </span>find_datoms_eavt(<span class="kw-2">&amp;</span><span class="self">self</span>, clause: <span class="kw-2">&amp;</span>Clause) -&gt; <span class="prelude-ty">Result</span>&lt;Vec&lt;Datom&gt;, StorageError&gt; {
-        <span class="kw">let </span><span class="kw-2">mut </span>datoms = Vec::new();
-        <span class="kw">for </span>(entity, avt) <span class="kw">in </span><span class="self">self</span>.e_iter(<span class="kw-2">&amp;</span><span class="self">self</span>.eavt, <span class="kw-2">&amp;</span>clause.entity) {
-            <span class="kw">for </span>(attribute, vt) <span class="kw">in </span><span class="self">self</span>.a_iter(avt, <span class="kw-2">&amp;</span>clause.attribute) {
-                <span class="kw">let </span>v_iter = <span class="self">self</span>.v_iter(vt, <span class="kw-2">&amp;</span>clause.value);
-                <span class="kw">for </span>(value, tx) <span class="kw">in </span><span class="self">self</span>.latest_values(v_iter, <span class="kw-2">&amp;</span>clause.tx) {
-                    datoms.push(Datom::add(<span class="kw-2">*</span>entity, <span class="kw-2">*</span>attribute, value.clone(), tx));
-                }
-            }
-        }
-        <span class="prelude-val">Ok</span>(datoms)
-    }
-
-    <span class="kw">fn </span>find_datoms_aevt(<span class="kw-2">&amp;</span><span class="self">self</span>, clause: <span class="kw-2">&amp;</span>Clause) -&gt; <span class="prelude-ty">Result</span>&lt;Vec&lt;Datom&gt;, StorageError&gt; {
-        <span class="kw">let </span><span class="kw-2">mut </span>datoms = Vec::new();
-        <span class="kw">for </span>(attribute, evt) <span class="kw">in </span><span class="self">self</span>.a_iter(<span class="kw-2">&amp;</span><span class="self">self</span>.aevt, <span class="kw-2">&amp;</span>clause.attribute) {
-            <span class="kw">for </span>(entity, vt) <span class="kw">in </span><span class="self">self</span>.e_iter(evt, <span class="kw-2">&amp;</span>clause.entity) {
-                <span class="kw">let </span>v_iter = <span class="self">self</span>.v_iter(vt, <span class="kw-2">&amp;</span>clause.value);
-                <span class="kw">for </span>(value, tx) <span class="kw">in </span><span class="self">self</span>.latest_values(v_iter, <span class="kw-2">&amp;</span>clause.tx) {
-                    datoms.push(Datom::add(<span class="kw-2">*</span>entity, <span class="kw-2">*</span>attribute, value.clone(), tx))
-                }
-            }
-        }
-        <span class="prelude-val">Ok</span>(datoms)
-    }
-
-    <span class="kw">fn </span>find_datoms_avet(
-        <span class="kw-2">&amp;</span><span class="lifetime">&#39;a </span><span class="self">self</span>,
-        clause: <span class="kw-2">&amp;</span><span class="lifetime">&#39;a </span>Clause,
-        tx_range: u64,
-    ) -&gt; <span class="prelude-ty">Result</span>&lt;Vec&lt;Datom&gt;, StorageError&gt; {
-        <span class="kw">let </span><span class="kw-2">mut </span>datoms = Vec::new();
-        <span class="kw">for </span>(attribute, vet) <span class="kw">in </span><span class="self">self</span>.a_iter(<span class="kw-2">&amp;</span><span class="self">self</span>.avet, <span class="kw-2">&amp;</span>clause.attribute) {
-            <span class="kw">for </span>(value, et) <span class="kw">in </span><span class="self">self</span>.v_iter(vet, <span class="kw-2">&amp;</span>clause.value) {
-                <span class="kw">for </span>(entity, t) <span class="kw">in </span><span class="self">self</span>.e_iter(et, <span class="kw-2">&amp;</span>clause.entity) {
-                    <span class="kw">let </span><span class="kw-2">mut </span>latest_value_tx = <span class="prelude-val">None</span>;
-                    <span class="kw">for </span>(tx, op) <span class="kw">in </span>t.range(..=tx_range) {
-                        latest_value_tx = <span class="kw">match </span>op {
-                            Op::Added =&gt; <span class="prelude-val">Some</span>(tx),
-                            Op::Retracted =&gt; <span class="prelude-val">None</span>,
-                        };
-                    }
-                    <span class="kw">if let </span><span class="prelude-val">Some</span>(tx) = latest_value_tx {
-                        datoms.push(Datom::add(<span class="kw-2">*</span>entity, <span class="kw-2">*</span>attribute, value.clone(), <span class="kw-2">*</span>tx));
-                    }
-                }
-            }
-        }
-        <span class="prelude-val">Ok</span>(datoms)
-    }
-
-    <span class="kw">fn </span>e_iter&lt;V&gt;(
-        <span class="kw-2">&amp;</span><span class="self">self</span>,
-        map: <span class="kw-2">&amp;</span><span class="lifetime">&#39;a </span>BTreeMap&lt;EntityId, V&gt;,
-        entity: <span class="kw-2">&amp;</span><span class="lifetime">&#39;a </span>EntityPattern,
-    ) -&gt; Iter&lt;<span class="lifetime">&#39;a</span>, EntityId, V&gt; {
-        <span class="kw">match </span>entity {
-            EntityPattern::Id(id) =&gt; <span class="self">self</span>.kv_iter(map, id),
-            <span class="kw">_ </span>=&gt; Iter::Many(map.iter()),
-        }
-    }
-
-    <span class="kw">fn </span>a_iter&lt;V&gt;(
-        <span class="kw-2">&amp;</span><span class="self">self</span>,
-        map: <span class="kw-2">&amp;</span><span class="lifetime">&#39;a </span>BTreeMap&lt;AttributeId, V&gt;,
-        attribute: <span class="kw-2">&amp;</span><span class="lifetime">&#39;a </span>AttributePattern,
-    ) -&gt; Iter&lt;<span class="lifetime">&#39;a</span>, AttributeId, V&gt; {
-        <span class="kw">match </span>attribute {
-            AttributePattern::Id(id) =&gt; <span class="self">self</span>.kv_iter(map, id),
-            AttributePattern::Ident(ident) =&gt; Iter::One(
-                <span class="self">self</span>.ident_to_entity
-                    .get(<span class="kw-2">*</span>ident)
-                    .and_then(|attribute| map.get_key_value(attribute)),
-            ),
-            <span class="kw">_ </span>=&gt; Iter::Many(map.iter()),
-        }
-    }
-
-    <span class="kw">fn </span>v_iter&lt;V&gt;(
-        <span class="kw-2">&amp;</span><span class="self">self</span>,
-        map: <span class="kw-2">&amp;</span><span class="lifetime">&#39;a </span>BTreeMap&lt;Value, V&gt;,
-        value: <span class="kw-2">&amp;</span><span class="lifetime">&#39;a </span>ValuePattern,
-    ) -&gt; Iter&lt;<span class="lifetime">&#39;a</span>, Value, V&gt; {
-        <span class="kw">match </span><span class="kw-2">*</span>value {
-            ValuePattern::Constant(value) =&gt; <span class="self">self</span>.kv_iter(map, value),
-            ValuePattern::Range(start, end) =&gt; Iter::Range(map.range((start, end))),
-            <span class="kw">_ </span>=&gt; Iter::Many(map.iter()),
-        }
-    }
-
-    <span class="kw">fn </span>kv_iter&lt;K: Ord, V&gt;(<span class="kw-2">&amp;</span><span class="self">self</span>, map: <span class="kw-2">&amp;</span><span class="lifetime">&#39;a </span>BTreeMap&lt;K, V&gt;, key: <span class="kw-2">&amp;</span><span class="lifetime">&#39;a </span>K) -&gt; Iter&lt;<span class="lifetime">&#39;a</span>, K, V&gt; {
-        map.get(key)
-            .map(|value| Iter::One(<span class="prelude-val">Some</span>((key, value))))
-            .unwrap_or(Iter::Zero)
-    }
-
-    <span class="kw">fn </span>tx_iter(<span class="kw-2">&amp;</span><span class="self">self</span>, map: <span class="kw-2">&amp;</span><span class="lifetime">&#39;a </span>TxOp, tx: <span class="kw-2">&amp;</span><span class="lifetime">&#39;a </span>TxPattern) -&gt; Iter&lt;<span class="lifetime">&#39;a</span>, TransactionId, Op&gt; {
-        <span class="kw">match </span><span class="kw-2">*</span>tx {
-            TxPattern::Range(start, end) =&gt; Iter::Range(map.range((start, end))),
-            <span class="kw">_ </span>=&gt; Iter::Many(map.iter()),
-        }
-    }
-
-    <span class="kw">fn </span>latest_values&lt;In: Iterator&lt;Item = (<span class="kw-2">&amp;</span><span class="lifetime">&#39;a </span>Value, <span class="kw-2">&amp;</span><span class="lifetime">&#39;a </span>TxOp)&gt;&gt;(
-        <span class="kw-2">&amp;</span><span class="self">self</span>,
-        v_iter: In,
-        tx: <span class="kw-2">&amp;</span><span class="lifetime">&#39;a </span>TxPattern,
-    ) -&gt; HashMap&lt;<span class="kw-2">&amp;</span><span class="lifetime">&#39;a </span>Value, u64&gt; {
-        <span class="kw">let </span><span class="kw-2">mut </span>latest = HashMap::new();
-        <span class="kw">for </span>(value, t) <span class="kw">in </span>v_iter {
-            <span class="kw">for </span>(tx, op) <span class="kw">in </span><span class="self">self</span>.tx_iter(t, tx) {
-                <span class="kw">match </span>(latest.get_mut(value), op) {
-                    (<span class="prelude-val">Some</span>(prev_tx), Op::Added) <span class="kw">if </span>tx &gt; prev_tx =&gt; <span class="kw-2">*</span>prev_tx = <span class="kw-2">*</span>tx,
-                    (<span class="prelude-val">Some</span>(prev_tx), Op::Retracted) <span class="kw">if </span>tx &gt; prev_tx =&gt; {
-                        latest.remove(value);
-                    }
-                    (<span class="prelude-val">None</span>, Op::Added) =&gt; {
-                        latest.insert(value, <span class="kw-2">*</span>tx);
-                    }
-                    <span class="kw">_ </span>=&gt; {}
-                }
-            }
-        }
-        latest
-    }
-}
-
-<span class="kw">enum </span>Iter&lt;<span class="lifetime">&#39;a</span>, K, V&gt; {
-    Zero,
-    One(<span class="prelude-ty">Option</span>&lt;(<span class="kw-2">&amp;</span><span class="lifetime">&#39;a </span>K, <span class="kw-2">&amp;</span><span class="lifetime">&#39;a </span>V)&gt;),
-    Range(Range&lt;<span class="lifetime">&#39;a</span>, K, V&gt;),
-    Many(btree_map::Iter&lt;<span class="lifetime">&#39;a</span>, K, V&gt;),
-}
-
-<span class="kw">impl</span>&lt;<span class="lifetime">&#39;a</span>, K, V&gt; Iterator <span class="kw">for </span>Iter&lt;<span class="lifetime">&#39;a</span>, K, V&gt; {
-    <span class="kw">type </span>Item = (<span class="kw-2">&amp;</span><span class="lifetime">&#39;a </span>K, <span class="kw-2">&amp;</span><span class="lifetime">&#39;a </span>V);
+<span class="kw">impl</span>&lt;<span class="lifetime">&#39;a</span>&gt; Iterator <span class="kw">for </span>InMemoryStorageIter&lt;<span class="lifetime">&#39;a</span>&gt; {
+    <span class="kw">type </span>Item = <span class="prelude-ty">Result</span>&lt;Datom, ReadError&gt;;
 
     <span class="kw">fn </span>next(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; <span class="prelude-ty">Option</span>&lt;<span class="self">Self</span>::Item&gt; {
-        <span class="kw">match </span><span class="self">self </span>{
-            Iter::Zero =&gt; <span class="prelude-val">None</span>,
-            Iter::One(item) =&gt; {
-                <span class="kw">let </span>result = <span class="kw-2">*</span>item;
-                <span class="kw-2">*</span>item = <span class="prelude-val">None</span>;
-                result
+        <span class="kw">let </span>datom_bytes = <span class="self">self</span>.range.next()<span class="question-mark">?</span>;
+        <span class="kw">match </span>datom::deserialize(datom_bytes) {
+            <span class="prelude-val">Ok</span>(datom) <span class="kw">if </span>datom.op == Op::Retracted =&gt; {
+                <span class="kw">let </span>seek_key = index::seek_key(<span class="kw-2">&amp;</span>datom, datom_bytes);
+                <span class="self">self</span>.range = <span class="self">self</span>.index.range(seek_key..<span class="self">self</span>.end.clone());
+                <span class="self">self</span>.next()
             }
-            Iter::Range(range) =&gt; range.next(),
-            Iter::Many(iter) =&gt; iter.next(),
+            <span class="prelude-val">Ok</span>(datom) =&gt; <span class="prelude-val">Some</span>(<span class="prelude-val">Ok</span>(datom)),
+            <span class="prelude-val">Err</span>(err) =&gt; <span class="prelude-val">Some</span>(<span class="prelude-val">Err</span>(err)),
+        }
+    }
+}
+
+<span class="comment">//-------------------------------------------------------------------------------------------------
+
+</span><span class="attr">#[cfg(test)]
+</span><span class="kw">mod </span>tests {
+    <span class="kw">use </span>std::fmt::Debug;
+
+    <span class="kw">use </span><span class="kw">crate</span>::datom::<span class="kw-2">*</span>;
+    <span class="kw">use </span><span class="kw">crate</span>::query::clause::<span class="kw-2">*</span>;
+    <span class="kw">use </span><span class="kw">crate</span>::query::pattern::<span class="kw-2">*</span>;
+    <span class="kw">use </span><span class="kw">crate</span>::storage::memory::<span class="kw-2">*</span>;
+
+    <span class="kw">fn </span>create_storage() -&gt; InMemoryStorage {
+        InMemoryStorage::new()
+    }
+
+    <span class="attr">#[test]
+    </span><span class="kw">fn </span>return_empty_result_if_no_datoms_match_search_criteria() {
+        <span class="kw">let </span>storage = create_storage();
+
+        <span class="kw">let </span>entity = <span class="number">100</span>;
+        <span class="kw">let </span>clause = Clause::new().with_entity(EntityPattern::Id(entity));
+        <span class="kw">let </span>read_result = storage.find(<span class="kw-2">&amp;</span>clause);
+
+        <span class="macro">assert!</span>(read_result.collect::&lt;Vec&lt;<span class="kw">_</span>&gt;&gt;().is_empty());
+    }
+
+    <span class="attr">#[test]
+    </span><span class="kw">fn </span>find_single_datom_by_entity_attribute_and_value() {
+        <span class="kw">let </span><span class="kw-2">mut </span>storage = create_storage();
+
+        <span class="kw">let </span>entity = <span class="number">100</span>;
+        <span class="kw">let </span>attribute = <span class="number">101</span>;
+        <span class="kw">let </span>value = <span class="number">102</span>;
+        <span class="kw">let </span>tx = <span class="number">103</span>;
+
+        <span class="kw">let </span>datoms = <span class="macro">vec!</span>[Datom::add(entity, attribute, value, tx)];
+        <span class="macro">assert!</span>(storage.save(<span class="kw-2">&amp;</span>datoms).is_ok());
+
+        <span class="kw">let </span>read_result = storage.find(
+            <span class="kw-2">&amp;</span>Clause::new()
+                .with_entity(EntityPattern::Id(entity))
+                .with_attribute(AttributePattern::Id(attribute))
+                .with_value(ValuePattern::Constant(Value::U64(value))),
+        );
+
+        <span class="macro">assert_eq!</span>(
+            datoms,
+            read_result
+                .map(|result| result.unwrap())
+                .collect::&lt;Vec&lt;<span class="kw">_</span>&gt;&gt;()
+        );
+    }
+
+    <span class="attr">#[test]
+    </span><span class="kw">fn </span>find_multiple_datoms_by_entity() {
+        <span class="kw">let </span><span class="kw-2">mut </span>storage = create_storage();
+
+        <span class="kw">let </span>entity = <span class="number">100</span>;
+        <span class="kw">let </span>tx = <span class="number">1000</span>;
+        <span class="kw">let </span>datoms = <span class="macro">vec!</span>[
+            Datom::add(entity, <span class="number">101</span>, <span class="number">1u64</span>, tx),
+            Datom::add(entity, <span class="number">102</span>, <span class="number">2u64</span>, tx),
+        ];
+        <span class="macro">assert!</span>(storage.save(<span class="kw-2">&amp;</span>datoms).is_ok());
+
+        <span class="kw">let </span>read_result = storage.find(<span class="kw-2">&amp;</span>Clause::new().with_entity(EntityPattern::Id(entity)));
+
+        <span class="macro">assert_eq!</span>(
+            datoms,
+            read_result
+                .map(|result| result.unwrap())
+                .collect::&lt;Vec&lt;<span class="kw">_</span>&gt;&gt;()
+        );
+    }
+
+    <span class="attr">#[test]
+    </span><span class="kw">fn </span>find_multiple_datoms_by_attribute_for_different_entity() {
+        <span class="kw">let </span><span class="kw-2">mut </span>storage = create_storage();
+
+        <span class="kw">let </span>entity1 = <span class="number">100</span>;
+        <span class="kw">let </span>entity2 = <span class="number">101</span>;
+        <span class="kw">let </span>attribute1 = <span class="number">102</span>;
+        <span class="kw">let </span>attribute2 = <span class="number">103</span>;
+        <span class="kw">let </span>datoms = <span class="macro">vec!</span>[
+            Datom::add(entity1, attribute1, <span class="number">1u64</span>, <span class="number">1000</span>),
+            Datom::retract(entity1, attribute1, <span class="number">1u64</span>, <span class="number">1001</span>),
+            Datom::add(entity1, attribute1, <span class="number">2u64</span>, <span class="number">1001</span>),
+            Datom::add(entity2, attribute1, <span class="number">1u64</span>, <span class="number">1002</span>),
+            Datom::add(entity2, attribute2, <span class="number">2u64</span>, <span class="number">1002</span>),
+            Datom::add(entity2, attribute2, <span class="number">3u64</span>, <span class="number">1002</span>),
+        ];
+        <span class="macro">assert!</span>(storage.save(<span class="kw-2">&amp;</span>datoms).is_ok());
+
+        <span class="kw">let </span>read_result =
+            storage.find(<span class="kw-2">&amp;</span>Clause::new().with_attribute(AttributePattern::Id(attribute1)));
+
+        <span class="kw">let </span>read_result = read_result
+            .map(|result| result.unwrap())
+            .collect::&lt;Vec&lt;<span class="kw">_</span>&gt;&gt;();
+        <span class="kw">let </span>expected = <span class="macro">vec!</span>[
+            Datom::add(entity1, attribute1, <span class="number">2u64</span>, <span class="number">1001</span>),
+            Datom::add(entity2, attribute1, <span class="number">1u64</span>, <span class="number">1002</span>),
+        ];
+        <span class="macro">assert_eq!</span>(<span class="number">2</span>, read_result.len());
+        <span class="macro">assert!</span>(expected.iter().all(|datom| read_result.contains(datom)));
+    }
+
+    <span class="attr">#[test]
+    </span><span class="kw">fn </span>find_multiple_datoms_by_attribute_for_same_entity() {
+        <span class="kw">let </span><span class="kw-2">mut </span>storage = create_storage();
+
+        <span class="kw">let </span>entity = <span class="number">100</span>;
+        <span class="kw">let </span>attribute1 = <span class="number">101</span>;
+        <span class="kw">let </span>attribute2 = <span class="number">102</span>;
+        <span class="kw">let </span>attribute3 = <span class="number">103</span>;
+        <span class="kw">let </span>datoms = <span class="macro">vec!</span>[
+            Datom::add(entity, attribute1, <span class="number">1u64</span>, <span class="number">1000</span>),
+            Datom::add(entity, attribute2, <span class="number">2u64</span>, <span class="number">1000</span>),
+            Datom::add(entity, attribute3, <span class="number">3u64</span>, <span class="number">1001</span>),
+        ];
+        <span class="macro">assert!</span>(storage.save(<span class="kw-2">&amp;</span>datoms).is_ok());
+
+        <span class="kw">let </span>read_result = storage.find(<span class="kw-2">&amp;</span>Clause::new().with_entity(EntityPattern::Id(entity)));
+
+        <span class="macro">assert_eq!</span>(
+            datoms,
+            read_result
+                .map(|result| result.unwrap())
+                .collect::&lt;Vec&lt;<span class="kw">_</span>&gt;&gt;()
+        );
+    }
+
+    <span class="attr">#[test]
+    </span><span class="kw">fn </span>ignore_datoms_of_other_entities() {
+        <span class="kw">let </span><span class="kw-2">mut </span>storage = create_storage();
+
+        <span class="kw">let </span>entity1 = <span class="number">100</span>;
+        <span class="kw">let </span>entity2 = <span class="number">101</span>;
+        <span class="kw">let </span>attribute = <span class="number">102</span>;
+        <span class="kw">let </span>tx = <span class="number">1000</span>;
+        <span class="kw">let </span>datoms = <span class="macro">vec!</span>[
+            Datom::add(entity1, attribute, <span class="number">1u64</span>, tx),
+            Datom::add(entity2, attribute, <span class="number">2u64</span>, tx),
+        ];
+        <span class="macro">assert!</span>(storage.save(<span class="kw-2">&amp;</span>datoms).is_ok());
+
+        <span class="kw">let </span>read_result = storage.find(<span class="kw-2">&amp;</span>Clause::new().with_entity(EntityPattern::Id(entity1)));
+
+        <span class="macro">assert_eq!</span>(
+            datoms[<span class="number">0</span>..<span class="number">1</span>],
+            read_result
+                .map(|result| result.unwrap())
+                .collect::&lt;Vec&lt;<span class="kw">_</span>&gt;&gt;()
+        );
+    }
+
+    <span class="attr">#[test]
+    </span><span class="kw">fn </span>ignore_retracted_values() {
+        <span class="kw">let </span><span class="kw-2">mut </span>storage = create_storage();
+
+        <span class="kw">let </span>entity = <span class="number">100</span>;
+        <span class="kw">let </span>attribute = <span class="number">101</span>;
+        <span class="kw">let </span>datoms = <span class="macro">vec!</span>[
+            <span class="comment">// Add value 1 in tx 1000
+            </span>Datom::add(entity, attribute, <span class="number">1u64</span>, <span class="number">1000</span>),
+            <span class="comment">// Retract value 1 in tx 1001
+            </span>Datom::retract(entity, attribute, <span class="number">1u64</span>, <span class="number">1001</span>),
+        ];
+        <span class="macro">assert!</span>(storage.save(<span class="kw-2">&amp;</span>datoms).is_ok());
+
+        <span class="kw">let </span>read_result = storage.find(
+            <span class="kw-2">&amp;</span>Clause::new()
+                .with_entity(EntityPattern::Id(entity))
+                .with_attribute(AttributePattern::Id(attribute)),
+        );
+
+        <span class="macro">assert!</span>(read_result.collect::&lt;Vec&lt;<span class="kw">_</span>&gt;&gt;().is_empty());
+    }
+
+    <span class="attr">#[test]
+    </span><span class="kw">fn </span>fetch_only_latest_value_for_attribute() {
+        <span class="kw">let </span><span class="kw-2">mut </span>storage = create_storage();
+
+        <span class="kw">let </span>entity = <span class="number">100</span>;
+        <span class="kw">let </span>attribute = <span class="number">101</span>;
+        <span class="kw">let </span>datoms = <span class="macro">vec!</span>[
+            <span class="comment">// Add value 1 in tx 1000
+            </span>Datom::add(entity, attribute, <span class="number">1u64</span>, <span class="number">1000</span>),
+            <span class="comment">// Replace value 1 with 2 in tx 1001
+            </span>Datom::retract(entity, attribute, <span class="number">1u64</span>, <span class="number">1001</span>),
+            Datom::add(entity, attribute, <span class="number">2u64</span>, <span class="number">1001</span>),
+        ];
+        <span class="macro">assert!</span>(storage.save(<span class="kw-2">&amp;</span>datoms).is_ok());
+
+        <span class="kw">let </span>read_result = storage.find(
+            <span class="kw-2">&amp;</span>Clause::new()
+                .with_entity(EntityPattern::Id(entity))
+                .with_attribute(AttributePattern::Id(attribute)),
+        );
+
+        <span class="macro">assert_eq!</span>(
+            datoms[<span class="number">2</span>..],
+            read_result
+                .map(|result| result.unwrap())
+                .collect::&lt;Vec&lt;<span class="kw">_</span>&gt;&gt;()
+        );
+    }
+
+    <span class="kw">impl </span>Debug <span class="kw">for </span>InMemoryStorage {
+        <span class="kw">fn </span>fmt(<span class="kw-2">&amp;</span><span class="self">self</span>, f: <span class="kw-2">&amp;mut </span>std::fmt::Formatter&lt;<span class="lifetime">&#39;_</span>&gt;) -&gt; std::fmt::Result {
+            <span class="kw">let </span><span class="kw-2">mut </span>list = f.debug_list();
+            <span class="kw">for </span>datom_bytes <span class="kw">in </span><span class="kw-2">&amp;</span><span class="self">self</span>.index {
+                <span class="kw">let </span>datom = datom::deserialize(datom_bytes).or(<span class="prelude-val">Err</span>(std::fmt::Error))<span class="question-mark">?</span>;
+                <span class="kw">match </span>datom_bytes.first() {
+                    <span class="prelude-val">Some</span>(<span class="kw-2">&amp;</span>index::TAG_EAVT) =&gt; {
+                        list.entry(<span class="kw-2">&amp;</span><span class="macro">format!</span>(
+                            <span class="string">&quot;EAVT {{ e: {:?}, a: {:?}, v: {:?}, t: {:?}, op: {:?} }}&quot;</span>,
+                            datom.entity, datom.attribute, datom.value, datom.tx, datom.op
+                        ));
+                    }
+                    <span class="prelude-val">Some</span>(<span class="kw-2">&amp;</span>index::TAG_AEVT) =&gt; {
+                        list.entry(<span class="kw-2">&amp;</span><span class="macro">format!</span>(
+                            <span class="string">&quot;AEVT {{ a: {:?}, e: {:?}, v: {:?}, t: {:?}, op: {:?} }}&quot;</span>,
+                            datom.attribute, datom.entity, datom.value, datom.tx, datom.op
+                        ));
+                    }
+                    <span class="prelude-val">Some</span>(<span class="kw-2">&amp;</span>index::TAG_AVET) =&gt; {
+                        list.entry(<span class="kw-2">&amp;</span><span class="macro">format!</span>(
+                            <span class="string">&quot;AVET {{ a: {:?}, v: {:?}, e: {:?}, t: {:?}, op: {:?} }}&quot;</span>,
+                            datom.attribute, datom.value, datom.entity, datom.tx, datom.op
+                        ));
+                    }
+                    <span class="kw">_ </span>=&gt; (),
+                }
+            }
+            list.finish()
         }
     }
 }

@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"struct":["MockClock"],"trait":["Clock"]};
+window.SIDEBAR_ITEMS = {"struct":["Instant","MockClock"],"trait":["Clock"]};

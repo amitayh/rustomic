@@ -1,4 +1,4 @@
-<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `src/lib.rs`."><title>lib.rs - source</title><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/SourceSerif4-Regular-46f98efaafac5295.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/FiraSans-Regular-018c141bf0843ffd.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/FiraSans-Medium-8f9a781e4970d388.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/SourceCodePro-Regular-562dcc5011b6de7d.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/SourceSerif4-Bold-a2c9cd1067f8b328.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/SourceCodePro-Semibold-d899c5a5c4aeb14a.ttf.woff2"><link rel="stylesheet" href="../../static.files/normalize-76eba96aa4d2e634.css"><link rel="stylesheet" href="../../static.files/rustdoc-f3501f0f5ae15dfb.css" id="mainThemeStyle"><div id="rustdoc-vars" data-root-path="../../" data-static-root-path="../../static.files/" data-current-crate="rustomic" data-themes="" data-resource-suffix="" data-rustdoc-version="1.71.0 (8ede3aae2 2023-07-12)" data-search-js="search-4926e5fc22a5646a.js" data-settings-js="settings-de11bff964e9d4e5.js" data-settings-css="settings-8c76f75bfb6bd192.css" data-theme-light-css="light-0f8c037637f9eb3e.css" data-theme-dark-css="dark-1097f8e92a01e3cf.css" data-theme-ayu-css="ayu-614652228113ac93.css" ></div><script src="../../static.files/storage-62ce34ea385b278a.js"></script><script defer src="../../static.files/source-script-11255107d0a65077.js"></script><script defer src="../../source-files.js"></script><script defer src="../../static.files/main-f0540c1d82cde29b.js"></script><noscript><link rel="stylesheet" media="(prefers-color-scheme:light)" href="../../static.files/light-0f8c037637f9eb3e.css"><link rel="stylesheet" media="(prefers-color-scheme:dark)" href="../../static.files/dark-1097f8e92a01e3cf.css"><link rel="stylesheet" href="../../static.files/noscript-13285aec31fa243e.css"></noscript><link rel="alternate icon" type="image/png" href="../../static.files/favicon-16x16-8b506e7a72182f1c.png"><link rel="alternate icon" type="image/png" href="../../static.files/favicon-32x32-422f7d1d52889060.png"><link rel="icon" type="image/svg+xml" href="../../static.files/favicon-2c020d218678b618.svg"></head><body class="rustdoc source"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"></nav><main><nav class="sub"><a class="sub-logo-container" href="../../rustomic/index.html"><img class="rust-logo" src="../../static.files/rust-logo-151179464ae7ed46.svg" alt="logo"></a><form class="search-form"><span></span><input class="search-input" name="search" aria-label="Run search in the documentation" autocomplete="off" spellcheck="false" placeholder="Click or press ‘S’ to search, ‘?’ for more options…" type="search"><div id="help-button" title="help" tabindex="-1"><a href="../../help.html">?</a></div><div id="settings-menu" tabindex="-1"><a href="../../settings.html" title="settings"><img width="22" height="22" alt="Change settings" src="../../static.files/wheel-7b819b6101059cd0.svg"></a></div></form></nav><section id="main-content" class="content"><div class="example-wrap"><div data-nosnippet><pre class="src-line-numbers"><a href="#1" id="1">1</a>
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `src/lib.rs`."><title>lib.rs - source</title><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/SourceSerif4-Regular-46f98efaafac5295.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/FiraSans-Regular-018c141bf0843ffd.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/FiraSans-Medium-8f9a781e4970d388.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/SourceCodePro-Regular-562dcc5011b6de7d.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/SourceSerif4-Bold-a2c9cd1067f8b328.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/SourceCodePro-Semibold-d899c5a5c4aeb14a.ttf.woff2"><link rel="stylesheet" href="../../static.files/normalize-76eba96aa4d2e634.css"><link rel="stylesheet" href="../../static.files/rustdoc-cb6f1f67f1bcd037.css" id="mainThemeStyle"><meta name="rustdoc-vars" data-root-path="../../" data-static-root-path="../../static.files/" data-current-crate="rustomic" data-themes="" data-resource-suffix="" data-rustdoc-version="1.73.0 (cc66ad468 2023-10-03)" data-channel="1.73.0" data-search-js="search-6dfdfced5eff6596.js" data-settings-js="settings-de11bff964e9d4e5.js" data-settings-css="settings-8c76f75bfb6bd192.css" data-theme-light-css="light-1596385f77d47ef2.css" data-theme-dark-css="dark-0a43001d3fc2282c.css" data-theme-ayu-css="ayu-fd19013d6ce078bf.css" ><script src="../../static.files/storage-db41da1a38ea3cb8.js"></script><script defer src="../../static.files/src-script-3280b574d94e47b4.js"></script><script defer src="../../src-files.js"></script><script defer src="../../static.files/main-0795b7d26be81095.js"></script><noscript><link rel="stylesheet" media="(prefers-color-scheme:light)" href="../../static.files/light-1596385f77d47ef2.css"><link rel="stylesheet" media="(prefers-color-scheme:dark)" href="../../static.files/dark-0a43001d3fc2282c.css"><link rel="stylesheet" href="../../static.files/noscript-cffde32267a19fd6.css"></noscript><link rel="alternate icon" type="image/png" href="../../static.files/favicon-16x16-8b506e7a72182f1c.png"><link rel="alternate icon" type="image/png" href="../../static.files/favicon-32x32-422f7d1d52889060.png"><link rel="icon" type="image/svg+xml" href="../../static.files/favicon-2c020d218678b618.svg"></head><body class="rustdoc src"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"></nav><main><nav class="sub"><a class="sub-logo-container" href="../../rustomic/index.html"><img class="rust-logo" src="../../static.files/rust-logo-151179464ae7ed46.svg" alt="logo"></a><form class="search-form"><span></span><input class="search-input" name="search" aria-label="Run search in the documentation" autocomplete="off" spellcheck="false" placeholder="Click or press ‘S’ to search, ‘?’ for more options…" type="search"><div id="help-button" title="help" tabindex="-1"><a href="../../help.html">?</a></div><div id="settings-menu" tabindex="-1"><a href="../../settings.html" title="settings"><img width="22" height="22" alt="Change settings" src="../../static.files/wheel-7b819b6101059cd0.svg"></a></div></form></nav><section id="main-content" class="content"><div class="example-wrap"><div data-nosnippet><pre class="src-line-numbers"><a href="#1" id="1">1</a>
 <a href="#2" id="2">2</a>
 <a href="#3" id="3">3</a>
 <a href="#4" id="4">4</a>
@@ -467,6 +467,20 @@
 <a href="#467" id="467">467</a>
 <a href="#468" id="468">468</a>
 <a href="#469" id="469">469</a>
+<a href="#470" id="470">470</a>
+<a href="#471" id="471">471</a>
+<a href="#472" id="472">472</a>
+<a href="#473" id="473">473</a>
+<a href="#474" id="474">474</a>
+<a href="#475" id="475">475</a>
+<a href="#476" id="476">476</a>
+<a href="#477" id="477">477</a>
+<a href="#478" id="478">478</a>
+<a href="#479" id="479">479</a>
+<a href="#480" id="480">480</a>
+<a href="#481" id="481">481</a>
+<a href="#482" id="482">482</a>
+<a href="#483" id="483">483</a>
 </pre></div><pre class="rust"><code><span class="kw">pub mod </span>clock;
 <span class="kw">pub mod </span>datom;
 <span class="kw">pub mod </span>query;
@@ -476,12 +490,15 @@
 
 <span class="attr">#[cfg(test)]
 </span><span class="kw">mod </span>tests {
-    <span class="kw">use </span>std::collections::HashSet;
-    <span class="kw">use </span>std::sync::Arc;
-    <span class="kw">use </span>std::sync::RwLock;
 
-    <span class="kw">use </span><span class="kw">crate</span>::clock::MockClock;
+    <span class="kw">use </span>std::collections::HashSet;
+    <span class="kw">use </span>std::time::SystemTime;
+
+    <span class="kw">use </span><span class="kw">crate</span>::clock::Instant;
+    <span class="kw">use </span><span class="kw">crate</span>::schema::default::default_datoms;
+    <span class="kw">use </span><span class="kw">crate</span>::schema::DB_TX_TIME_ID;
     <span class="kw">use </span><span class="kw">crate</span>::storage::memory::InMemoryStorage;
+    <span class="kw">use </span><span class="kw">crate</span>::storage::WriteStorage;
 
     <span class="kw">use </span><span class="kw">super</span>::datom::<span class="kw-2">*</span>;
     <span class="kw">use </span><span class="kw">super</span>::query::clause::Clause;
@@ -489,45 +506,89 @@
     <span class="kw">use </span><span class="kw">super</span>::query::pattern::<span class="kw-2">*</span>;
     <span class="kw">use </span><span class="kw">super</span>::query::<span class="kw-2">*</span>;
     <span class="kw">use </span><span class="kw">super</span>::schema::attribute::<span class="kw-2">*</span>;
-    <span class="kw">use </span><span class="kw">super</span>::schema::<span class="kw-2">*</span>;
+
     <span class="kw">use </span><span class="kw">super</span>::tx::transactor::<span class="kw-2">*</span>;
     <span class="kw">use </span><span class="kw">super</span>::tx::<span class="kw-2">*</span>;
 
-    <span class="kw">fn </span>create_db() -&gt; (
-        Transactor&lt;InMemoryStorage, MockClock&gt;,
-        Arc&lt;RwLock&lt;InMemoryStorage&gt;&gt;,
-    ) {
-        <span class="kw">let </span>storage = Arc::new(RwLock::new(InMemoryStorage::new()));
-        <span class="kw">let </span>transactor = Transactor::new(storage.clone(), MockClock::new());
+    <span class="kw">fn </span>now() -&gt; Instant {
+        Instant(
+            SystemTime::now()
+                .duration_since(SystemTime::UNIX_EPOCH)
+                .expect(<span class="string">&quot;time went backwards&quot;</span>)
+                .as_secs(),
+        )
+    }
+
+    <span class="kw">fn </span>transact(
+        transactor: <span class="kw-2">&amp;mut </span>Transactor,
+        storage: <span class="kw-2">&amp;mut </span>InMemoryStorage,
+        transaction: Transaction,
+    ) -&gt; TransctionResult {
+        <span class="kw">let </span>result = transactor
+            .transact(storage, now(), transaction)
+            .expect(<span class="string">&quot;unable to transact&quot;</span>);
+        storage.save(<span class="kw-2">&amp;</span>result.tx_data).expect(<span class="string">&quot;unable to save&quot;</span>);
+        result
+    }
+
+    <span class="kw">fn </span>create_db() -&gt; (Transactor, InMemoryStorage) {
+        <span class="kw">let </span>(<span class="kw-2">mut </span>transactor, <span class="kw-2">mut </span>storage) = create_empty_db();
+        transact(<span class="kw-2">&amp;mut </span>transactor, <span class="kw-2">&amp;mut </span>storage, create_schema());
         (transactor, storage)
+    }
+
+    <span class="kw">fn </span>create_empty_db() -&gt; (Transactor, InMemoryStorage) {
+        <span class="kw">let </span><span class="kw-2">mut </span>storage = InMemoryStorage::new();
+        storage
+            .save(<span class="kw-2">&amp;</span>default_datoms())
+            .expect(<span class="string">&quot;unable to save default datoms&quot;</span>);
+        (Transactor::new(), storage)
+    }
+
+    <span class="kw">fn </span>create_schema() -&gt; Transaction {
+        Transaction::new()
+            .with(Attribute::new(<span class="string">&quot;movie/name&quot;</span>, ValueType::Str))
+            .with(Attribute::new(<span class="string">&quot;movie/year&quot;</span>, ValueType::U64))
+            .with(Attribute::new(<span class="string">&quot;movie/director&quot;</span>, ValueType::Ref).many())
+            .with(Attribute::new(<span class="string">&quot;movie/cast&quot;</span>, ValueType::Ref).many())
+            .with(Attribute::new(<span class="string">&quot;actor/name&quot;</span>, ValueType::Str))
+            .with(Attribute::new(<span class="string">&quot;person/name&quot;</span>, ValueType::Str).with_doc(<span class="string">&quot;A person&#39;s name&quot;</span>))
+            .with(Attribute::new(<span class="string">&quot;person/age&quot;</span>, ValueType::I64).with_doc(<span class="string">&quot;A person&#39;s age&quot;</span>))
+            .with(
+                Attribute::new(<span class="string">&quot;person/likes&quot;</span>, ValueType::Str)
+                    .with_doc(<span class="string">&quot;Things a person likes&quot;</span>)
+                    .many(),
+            )
+            .with(Attribute::new(<span class="string">&quot;artist/name&quot;</span>, ValueType::Str).with_doc(<span class="string">&quot;An artist&#39;s name&quot;</span>))
+            .with(Attribute::new(<span class="string">&quot;release/name&quot;</span>, ValueType::Str).with_doc(<span class="string">&quot;A release&#39;s name&quot;</span>))
+            .with(
+                Attribute::new(<span class="string">&quot;release/artists&quot;</span>, ValueType::Ref)
+                    .with_doc(<span class="string">&quot;Artists of release&quot;</span>)
+                    .many(),
+            )
     }
 
     <span class="attr">#[test]
     </span><span class="kw">fn </span>return_empty_result() {
-        <span class="kw">let </span>(<span class="kw-2">mut </span>transactor, storage) = create_db();
-
-        <span class="comment">// Create the schema
-        </span><span class="kw">let </span>schema_result = transactor.transact(
-            Transaction::new()
-                .with(Attribute::new(<span class="string">&quot;person/name&quot;</span>, ValueType::Str).with_doc(<span class="string">&quot;A person&#39;s name&quot;</span>)),
-        );
-        <span class="macro">assert!</span>(schema_result.is_ok());
+        <span class="kw">let </span>(<span class="kw-2">mut </span>transactor, <span class="kw-2">mut </span>storage) = create_db();
 
         <span class="comment">// Insert data
-        </span><span class="kw">let </span>tx_result = transactor.transact(
+        </span><span class="kw">let </span>tx_result = transact(
+            <span class="kw-2">&amp;mut </span>transactor,
+            <span class="kw-2">&amp;mut </span>storage,
             Transaction::new()
                 .with(Operation::on_new().set(<span class="string">&quot;person/name&quot;</span>, <span class="string">&quot;Alice&quot;</span>))
                 .with(Operation::on_new().set(<span class="string">&quot;person/name&quot;</span>, <span class="string">&quot;Bob&quot;</span>)),
         );
-        <span class="macro">assert!</span>(tx_result.is_ok());
 
-        <span class="kw">let </span>db = Db::new(storage, tx_result.unwrap().tx_id);
+        <span class="kw">let </span><span class="kw-2">mut </span>db = Db::new(tx_result.tx_id);
         <span class="kw">let </span>query_result = db.query(
+            <span class="kw-2">&amp;</span>storage,
             Query::new().wher(
                 Clause::new()
                     .with_entity(EntityPattern::variable(<span class="string">&quot;?name&quot;</span>))
                     .with_attribute(AttributePattern::ident(<span class="string">&quot;person/name&quot;</span>))
-                    .with_value(ValuePattern::constant(<span class="kw-2">&amp;</span>Value::str(<span class="string">&quot;Eve&quot;</span>))),
+                    .with_value(ValuePattern::constant(Value::str(<span class="string">&quot;Eve&quot;</span>))),
             ),
         );
 
@@ -537,38 +598,33 @@
 
     <span class="attr">#[test]
     </span><span class="kw">fn </span>create_entity_by_temp_id() {
-        <span class="kw">let </span>(<span class="kw-2">mut </span>transactor, storage) = create_db();
-
-        <span class="comment">// Create the schema
-        </span><span class="kw">let </span>schema_result = transactor.transact(
-            Transaction::new()
-                .with(Attribute::new(<span class="string">&quot;person/name&quot;</span>, ValueType::Str).with_doc(<span class="string">&quot;A person&#39;s name&quot;</span>)),
-        );
-        <span class="macro">assert!</span>(schema_result.is_ok());
+        <span class="kw">let </span>(<span class="kw-2">mut </span>transactor, <span class="kw-2">mut </span>storage) = create_db();
 
         <span class="comment">// Insert data
-        </span><span class="kw">let </span>tx_result = transactor.transact(
-            Transaction::new().with(Operation::on_temp_id(<span class="string">&quot;joe&quot;</span>).set(<span class="string">&quot;person/name&quot;</span>, <span class="string">&quot;Joe&quot;</span>)),
-        );
-        <span class="macro">assert!</span>(tx_result.is_ok());
-        <span class="kw">let </span>TransctionResult {
+        </span><span class="kw">let </span>TransctionResult {
             tx_id,
             tx_data: <span class="kw">_</span>,
             temp_ids,
-        } = tx_result.unwrap();
+        } = transact(
+            <span class="kw-2">&amp;mut </span>transactor,
+            <span class="kw-2">&amp;mut </span>storage,
+            Transaction::new().with(Operation::on_temp_id(<span class="string">&quot;joe&quot;</span>).set(<span class="string">&quot;person/name&quot;</span>, <span class="string">&quot;Joe&quot;</span>)),
+        );
 
-        <span class="kw">let </span>db = Db::new(storage, tx_id);
+        <span class="kw">let </span><span class="kw-2">mut </span>db = Db::new(tx_id);
         <span class="kw">let </span>query_result = db.query(
+            <span class="kw-2">&amp;</span>storage,
             Query::new().wher(
                 Clause::new()
                     .with_entity(EntityPattern::variable(<span class="string">&quot;?joe&quot;</span>))
                     .with_attribute(AttributePattern::ident(<span class="string">&quot;person/name&quot;</span>))
-                    .with_value(ValuePattern::constant(<span class="kw-2">&amp;</span>Value::str(<span class="string">&quot;Joe&quot;</span>))),
+                    .with_value(ValuePattern::constant(Value::str(<span class="string">&quot;Joe&quot;</span>))),
             ),
         );
 
         <span class="macro">assert!</span>(query_result.is_ok());
-        <span class="kw">let </span>joe_id = temp_ids.get(<span class="string">&quot;joe&quot;</span>);
+        <span class="comment">//dbg!(&amp;storage);
+        </span><span class="kw">let </span>joe_id = temp_ids.get(<span class="string">&quot;joe&quot;</span>);
         <span class="macro">assert!</span>(joe_id.is_some());
         <span class="macro">assert_eq!</span>(
             joe_id.copied(),
@@ -578,60 +634,36 @@
 
     <span class="attr">#[test]
     </span><span class="kw">fn </span>reject_transaction_with_invalid_attribute_type() {
-        <span class="kw">let </span>(<span class="kw-2">mut </span>transactor, <span class="kw">_</span>) = create_db();
-
-        <span class="comment">// Create the schema
-        </span><span class="kw">let </span>schema_result = transactor.transact(
-            Transaction::new()
-                .with(Attribute::new(<span class="string">&quot;person/name&quot;</span>, ValueType::Str).with_doc(<span class="string">&quot;A person&#39;s name&quot;</span>)),
-        );
-        <span class="macro">assert!</span>(schema_result.is_ok());
+        <span class="kw">let </span>(<span class="kw-2">mut </span>transactor, <span class="kw-2">mut </span>storage) = create_db();
 
         <span class="comment">// This transaction should fail: &quot;person/name&quot; is of type `ValueType::Str`.
-        </span><span class="kw">let </span>tx_result = transactor
-            .transact(Transaction::new().with(Operation::on_new().set(<span class="string">&quot;person/name&quot;</span>, <span class="number">42</span>)));
+        </span><span class="kw">let </span>tx = Transaction::new().with(Operation::on_new().set(<span class="string">&quot;person/name&quot;</span>, <span class="number">42</span>));
+        <span class="kw">let </span>tx_result = transactor.transact(<span class="kw-2">&amp;mut </span>storage, now(), tx);
+
         <span class="macro">assert!</span>(tx_result.is_err());
     }
 
     <span class="attr">#[test]
     </span><span class="kw">fn </span>reject_transaction_with_duplicate_temp_ids() {
-        <span class="kw">let </span>(<span class="kw-2">mut </span>transactor, <span class="kw">_</span>) = create_db();
-
-        <span class="comment">// Create the schema
-        </span><span class="kw">let </span>schema_result = transactor.transact(
-            Transaction::new()
-                .with(Attribute::new(<span class="string">&quot;person/name&quot;</span>, ValueType::Str).with_doc(<span class="string">&quot;A person&#39;s name&quot;</span>)),
-        );
-        <span class="macro">assert!</span>(schema_result.is_ok());
+        <span class="kw">let </span>(<span class="kw-2">mut </span>transactor, <span class="kw-2">mut </span>storage) = create_db();
 
         <span class="comment">// This transaction should fail: temp ID &quot;duplicate&quot; should only be used once.
-        </span><span class="kw">let </span>tx_result = transactor.transact(
-            Transaction::new()
-                .with(Operation::on_temp_id(<span class="string">&quot;duplicate&quot;</span>).set(<span class="string">&quot;person/name&quot;</span>, <span class="string">&quot;Alice&quot;</span>))
-                .with(Operation::on_temp_id(<span class="string">&quot;duplicate&quot;</span>).set(<span class="string">&quot;person/name&quot;</span>, <span class="string">&quot;Bob&quot;</span>)),
-        );
+        </span><span class="kw">let </span>tx = Transaction::new()
+            .with(Operation::on_temp_id(<span class="string">&quot;duplicate&quot;</span>).set(<span class="string">&quot;person/name&quot;</span>, <span class="string">&quot;Alice&quot;</span>))
+            .with(Operation::on_temp_id(<span class="string">&quot;duplicate&quot;</span>).set(<span class="string">&quot;person/name&quot;</span>, <span class="string">&quot;Bob&quot;</span>));
+        <span class="kw">let </span>tx_result = transactor.transact(<span class="kw-2">&amp;mut </span>storage, now(), tx);
+
         <span class="macro">assert!</span>(tx_result.is_err());
     }
 
     <span class="attr">#[test]
     </span><span class="kw">fn </span>reference_temp_id_in_transaction() {
-        <span class="kw">let </span>(<span class="kw-2">mut </span>transactor, storage) = create_db();
-
-        <span class="comment">// Create the schema
-        </span><span class="kw">let </span>schema_result = transactor.transact(
-            Transaction::new()
-                .with(Attribute::new(<span class="string">&quot;artist/name&quot;</span>, ValueType::Str).with_doc(<span class="string">&quot;An artist&#39;s name&quot;</span>))
-                .with(Attribute::new(<span class="string">&quot;release/name&quot;</span>, ValueType::Str).with_doc(<span class="string">&quot;An release&#39;s name&quot;</span>))
-                .with(
-                    Attribute::new(<span class="string">&quot;release/artists&quot;</span>, ValueType::Ref)
-                        .with_doc(<span class="string">&quot;Artists of release&quot;</span>)
-                        .many(),
-                ),
-        );
-        <span class="macro">assert!</span>(schema_result.is_ok());
+        <span class="kw">let </span>(<span class="kw-2">mut </span>transactor, <span class="kw-2">mut </span>storage) = create_db();
 
         <span class="comment">// Insert data
-        </span><span class="kw">let </span>tx_result = transactor.transact(
+        </span><span class="kw">let </span>tx_result = transact(
+            <span class="kw-2">&amp;mut </span>transactor,
+            <span class="kw-2">&amp;mut </span>storage,
             Transaction::new()
                 .with(Operation::on_temp_id(<span class="string">&quot;john&quot;</span>).set(<span class="string">&quot;artist/name&quot;</span>, <span class="string">&quot;John Lenon&quot;</span>))
                 .with(Operation::on_temp_id(<span class="string">&quot;paul&quot;</span>).set(<span class="string">&quot;artist/name&quot;</span>, <span class="string">&quot;Paul McCartney&quot;</span>))
@@ -643,16 +675,16 @@
                         .set(<span class="string">&quot;release/artists&quot;</span>, <span class="string">&quot;paul&quot;</span>),
                 ),
         );
-        <span class="macro">assert!</span>(tx_result.is_ok());
 
-        <span class="kw">let </span>db = Db::new(storage, tx_result.unwrap().tx_id);
+        <span class="kw">let </span><span class="kw-2">mut </span>db = Db::new(tx_result.tx_id);
         <span class="kw">let </span>query_result = db.query(
+            <span class="kw-2">&amp;</span>storage,
             Query::new()
                 .wher(
                     Clause::new()
                         .with_entity(EntityPattern::variable(<span class="string">&quot;?artist&quot;</span>))
                         .with_attribute(AttributePattern::ident(<span class="string">&quot;artist/name&quot;</span>))
-                        .with_value(ValuePattern::constant(<span class="kw-2">&amp;</span>Value::str(<span class="string">&quot;John Lenon&quot;</span>))),
+                        .with_value(ValuePattern::constant(Value::str(<span class="string">&quot;John Lenon&quot;</span>))),
                 )
                 .wher(
                     Clause::new()
@@ -676,95 +708,47 @@
     }
 
     <span class="attr">#[test]
-    </span><span class="kw">fn </span>support_range_queries() {
-        <span class="kw">let </span>(<span class="kw-2">mut </span>transactor, storage) = create_db();
+    </span><span class="kw">fn </span>return_latest_value_with_cardinality_one() {
+        <span class="kw">let </span>(<span class="kw-2">mut </span>transactor, <span class="kw-2">mut </span>storage) = create_empty_db();
 
         <span class="comment">// Create the schema
-        </span><span class="kw">let </span>schema_result = transactor.transact(
+        </span>transact(
+            <span class="kw-2">&amp;mut </span>transactor,
+            <span class="kw-2">&amp;mut </span>storage,
             Transaction::new()
-                .with(Attribute::new(<span class="string">&quot;name&quot;</span>, ValueType::Str))
-                .with(Attribute::new(<span class="string">&quot;age&quot;</span>, ValueType::I64)),
-        );
-        <span class="macro">assert!</span>(schema_result.is_ok());
-
-        <span class="comment">// Insert data
-        </span><span class="kw">let </span>tx_result = transactor.transact(
-            Transaction::new()
-                .with(Operation::on_new().set(<span class="string">&quot;name&quot;</span>, <span class="string">&quot;John&quot;</span>).set(<span class="string">&quot;age&quot;</span>, <span class="number">33</span>))
-                .with(Operation::on_new().set(<span class="string">&quot;name&quot;</span>, <span class="string">&quot;Paul&quot;</span>).set(<span class="string">&quot;age&quot;</span>, <span class="number">31</span>))
-                .with(Operation::on_new().set(<span class="string">&quot;name&quot;</span>, <span class="string">&quot;George&quot;</span>).set(<span class="string">&quot;age&quot;</span>, <span class="number">30</span>))
-                .with(Operation::on_new().set(<span class="string">&quot;name&quot;</span>, <span class="string">&quot;Ringo&quot;</span>).set(<span class="string">&quot;age&quot;</span>, <span class="number">32</span>)),
-        );
-        <span class="macro">assert!</span>(tx_result.is_ok());
-
-        <span class="kw">let </span>db = Db::new(storage, tx_result.unwrap().tx_id);
-        <span class="kw">let </span>query_result = db.query(
-            Query::new()
-                .wher(
-                    Clause::new()
-                        .with_entity(EntityPattern::variable(<span class="string">&quot;?person&quot;</span>))
-                        .with_attribute(AttributePattern::ident(<span class="string">&quot;age&quot;</span>))
-                        .with_value(ValuePattern::range(<span class="kw-2">&amp;</span>(Value::I64(<span class="number">32</span>)..))),
-                )
-                .wher(
-                    Clause::new()
-                        .with_entity(EntityPattern::variable(<span class="string">&quot;?person&quot;</span>))
-                        .with_attribute(AttributePattern::ident(<span class="string">&quot;name&quot;</span>))
-                        .with_value(ValuePattern::variable(<span class="string">&quot;?name&quot;</span>)),
+                .with(Attribute::new(<span class="string">&quot;person/name&quot;</span>, ValueType::Str).with_doc(<span class="string">&quot;A person&#39;s name&quot;</span>))
+                .with(
+                    Attribute::new(<span class="string">&quot;person/likes&quot;</span>, ValueType::Str)
+                        .with_doc(<span class="string">&quot;Things a person likes&quot;</span>),
                 ),
         );
 
-        <span class="macro">assert!</span>(query_result.is_ok());
-        <span class="kw">let </span>results = query_result.unwrap().results;
-        <span class="kw">let </span>names: Vec&lt;<span class="kw-2">&amp;</span>str&gt; = results
-            .iter()
-            .flat_map(|assignment| assignment[<span class="string">&quot;?name&quot;</span>].as_str().into_iter())
-            .collect();
-
-        <span class="macro">assert_eq!</span>(<span class="number">2</span>, names.len());
-        <span class="macro">assert!</span>(names.contains(<span class="kw-2">&amp;</span><span class="string">&quot;John&quot;</span>));
-        <span class="macro">assert!</span>(names.contains(<span class="kw-2">&amp;</span><span class="string">&quot;Ringo&quot;</span>));
-    }
-
-    <span class="attr">#[test]
-    </span><span class="kw">fn </span>return_latest_value_with_cardinality_one() {
-        <span class="kw">let </span>(<span class="kw-2">mut </span>transactor, storage) = create_db();
-
-        <span class="comment">// Create the schema
-        </span><span class="kw">let </span>schema_result = transactor.transact(
-            Transaction::new()
-                .with(Attribute::new(<span class="string">&quot;name&quot;</span>, ValueType::Str))
-                .with(Attribute::new(<span class="string">&quot;likes&quot;</span>, ValueType::Str)),
-        );
-        <span class="macro">assert!</span>(schema_result.is_ok());
-
         <span class="comment">// Insert initial data
-        </span><span class="kw">let </span>tx_result1 = transactor.transact(
+        </span><span class="kw">let </span>tx_result1 = transact(
+            <span class="kw-2">&amp;mut </span>transactor,
+            <span class="kw-2">&amp;mut </span>storage,
             Transaction::new().with(
                 Operation::on_temp_id(<span class="string">&quot;joe&quot;</span>)
-                    .set(<span class="string">&quot;name&quot;</span>, <span class="string">&quot;Joe&quot;</span>)
-                    .set(<span class="string">&quot;likes&quot;</span>, <span class="string">&quot;Pizza&quot;</span>),
+                    .set(<span class="string">&quot;person/name&quot;</span>, <span class="string">&quot;Joe&quot;</span>)
+                    .set(<span class="string">&quot;person/likes&quot;</span>, <span class="string">&quot;Pizza&quot;</span>),
             ),
         );
-        <span class="macro">assert!</span>(tx_result1.is_ok());
-        <span class="kw">let </span>joe_id = tx_result1.unwrap().temp_ids[<span class="string">&quot;joe&quot;</span>];
+        <span class="kw">let </span>joe_id = tx_result1.temp_ids[<span class="string">&quot;joe&quot;</span>];
 
         <span class="comment">// Update what Joe likes
-        </span><span class="kw">let </span>tx_result2 = transactor.transact(
-            Transaction::new().with(
-                Operation::on_id(joe_id)
-                    .set(<span class="string">&quot;name&quot;</span>, <span class="string">&quot;Joe&quot;</span>)
-                    .set(<span class="string">&quot;likes&quot;</span>, <span class="string">&quot;Ice cream&quot;</span>),
-            ),
+        </span><span class="kw">let </span>tx_result2 = transact(
+            <span class="kw-2">&amp;mut </span>transactor,
+            <span class="kw-2">&amp;mut </span>storage,
+            Transaction::new().with(Operation::on_id(joe_id).set(<span class="string">&quot;person/likes&quot;</span>, <span class="string">&quot;Ice cream&quot;</span>)),
         );
-        <span class="macro">assert!</span>(tx_result2.is_ok());
 
-        <span class="kw">let </span>db = Db::new(storage, tx_result2.unwrap().tx_id);
+        <span class="kw">let </span><span class="kw-2">mut </span>db = Db::new(tx_result2.tx_id);
         <span class="kw">let </span>query_result = db.query(
+            <span class="kw-2">&amp;</span>storage,
             Query::new().wher(
                 Clause::new()
                     .with_entity(EntityPattern::Id(joe_id))
-                    .with_attribute(AttributePattern::ident(<span class="string">&quot;likes&quot;</span>))
+                    .with_attribute(AttributePattern::ident(<span class="string">&quot;person/likes&quot;</span>))
                     .with_value(ValuePattern::variable(<span class="string">&quot;?likes&quot;</span>)),
             ),
         );
@@ -782,43 +766,34 @@
 
     <span class="attr">#[test]
     </span><span class="kw">fn </span>return_all_values_with_cardinality_many() {
-        <span class="kw">let </span>(<span class="kw-2">mut </span>transactor, storage) = create_db();
-
-        <span class="comment">// Create the schema
-        </span><span class="kw">let </span>schema_result = transactor.transact(
-            Transaction::new()
-                .with(Attribute::new(<span class="string">&quot;name&quot;</span>, ValueType::Str))
-                .with(Attribute::new(<span class="string">&quot;likes&quot;</span>, ValueType::Str).many()),
-        );
-        <span class="macro">assert!</span>(schema_result.is_ok());
+        <span class="kw">let </span>(<span class="kw-2">mut </span>transactor, <span class="kw-2">mut </span>storage) = create_db();
 
         <span class="comment">// Insert initial data
-        </span><span class="kw">let </span>tx_result1 = transactor.transact(
+        </span><span class="kw">let </span>tx_result1 = transact(
+            <span class="kw-2">&amp;mut </span>transactor,
+            <span class="kw-2">&amp;mut </span>storage,
             Transaction::new().with(
                 Operation::on_temp_id(<span class="string">&quot;joe&quot;</span>)
-                    .set(<span class="string">&quot;name&quot;</span>, <span class="string">&quot;Joe&quot;</span>)
-                    .set(<span class="string">&quot;likes&quot;</span>, <span class="string">&quot;Pizza&quot;</span>),
+                    .set(<span class="string">&quot;person/name&quot;</span>, <span class="string">&quot;Joe&quot;</span>)
+                    .set(<span class="string">&quot;person/likes&quot;</span>, <span class="string">&quot;Pizza&quot;</span>),
             ),
         );
-        <span class="macro">assert!</span>(tx_result1.is_ok());
-        <span class="kw">let </span>joe_id = tx_result1.unwrap().temp_ids[<span class="string">&quot;joe&quot;</span>];
+        <span class="kw">let </span>joe_id = tx_result1.temp_ids[<span class="string">&quot;joe&quot;</span>];
 
         <span class="comment">// Update what Joe likes
-        </span><span class="kw">let </span>tx_result2 = transactor.transact(
-            Transaction::new().with(
-                Operation::on_id(joe_id)
-                    .set(<span class="string">&quot;name&quot;</span>, <span class="string">&quot;Joe&quot;</span>)
-                    .set(<span class="string">&quot;likes&quot;</span>, <span class="string">&quot;Ice cream&quot;</span>),
-            ),
+        </span><span class="kw">let </span>tx_result2 = transact(
+            <span class="kw-2">&amp;mut </span>transactor,
+            <span class="kw-2">&amp;mut </span>storage,
+            Transaction::new().with(Operation::on_id(joe_id).set(<span class="string">&quot;person/likes&quot;</span>, <span class="string">&quot;Ice cream&quot;</span>)),
         );
-        <span class="macro">assert!</span>(tx_result2.is_ok());
 
-        <span class="kw">let </span>db = Db::new(storage, tx_result2.unwrap().tx_id);
+        <span class="kw">let </span><span class="kw-2">mut </span>db = Db::new(tx_result2.tx_id);
         <span class="kw">let </span>query_result = db.query(
+            <span class="kw-2">&amp;</span>storage,
             Query::new().wher(
                 Clause::new()
                     .with_entity(EntityPattern::Id(joe_id))
-                    .with_attribute(AttributePattern::ident(<span class="string">&quot;likes&quot;</span>))
+                    .with_attribute(AttributePattern::ident(<span class="string">&quot;person/likes&quot;</span>))
                     .with_value(ValuePattern::variable(<span class="string">&quot;?likes&quot;</span>)),
             ),
         );
@@ -837,48 +812,42 @@
 
     <span class="attr">#[test]
     </span><span class="kw">fn </span>return_correct_value_for_database_snapshot() {
-        <span class="kw">let </span>(<span class="kw-2">mut </span>transactor, storage) = create_db();
-
-        <span class="comment">// Create the schema
-        </span><span class="kw">let </span>schema_result = transactor.transact(
-            Transaction::new()
-                .with(Attribute::new(<span class="string">&quot;name&quot;</span>, ValueType::Str))
-                .with(Attribute::new(<span class="string">&quot;likes&quot;</span>, ValueType::Str)),
-        );
-        <span class="macro">assert!</span>(schema_result.is_ok());
+        <span class="kw">let </span>(<span class="kw-2">mut </span>transactor, <span class="kw-2">mut </span>storage) = create_db();
 
         <span class="comment">// Insert initial data
-        </span><span class="kw">let </span>tx_result1 = transactor.transact(
-            Transaction::new().with(
-                Operation::on_temp_id(<span class="string">&quot;joe&quot;</span>)
-                    .set(<span class="string">&quot;name&quot;</span>, <span class="string">&quot;Joe&quot;</span>)
-                    .set(<span class="string">&quot;likes&quot;</span>, <span class="string">&quot;Pizza&quot;</span>),
-            ),
-        );
-        <span class="macro">assert!</span>(tx_result1.is_ok());
-        <span class="kw">let </span>TransctionResult {
-            tx_id,
+        </span><span class="kw">let </span>TransctionResult {
+            tx_id: first_tx_id,
             tx_data: <span class="kw">_</span>,
             temp_ids,
-        } = tx_result1.unwrap();
+        } = transact(
+            <span class="kw-2">&amp;mut </span>transactor,
+            <span class="kw-2">&amp;mut </span>storage,
+            Transaction::new().with(
+                Operation::on_temp_id(<span class="string">&quot;joe&quot;</span>)
+                    .set(<span class="string">&quot;person/name&quot;</span>, <span class="string">&quot;Joe&quot;</span>)
+                    .set(<span class="string">&quot;person/likes&quot;</span>, <span class="string">&quot;Pizza&quot;</span>),
+            ),
+        );
         <span class="kw">let </span>joe_id = temp_ids[<span class="string">&quot;joe&quot;</span>];
 
         <span class="comment">// Update what Joe likes
-        </span><span class="kw">let </span>tx_result2 = transactor.transact(
+        </span>transact(
+            <span class="kw-2">&amp;mut </span>transactor,
+            <span class="kw-2">&amp;mut </span>storage,
             Transaction::new().with(
                 Operation::on_id(joe_id)
-                    .set(<span class="string">&quot;name&quot;</span>, <span class="string">&quot;Joe&quot;</span>)
-                    .set(<span class="string">&quot;likes&quot;</span>, <span class="string">&quot;Ice cream&quot;</span>),
+                    .set(<span class="string">&quot;person/name&quot;</span>, <span class="string">&quot;Joe&quot;</span>)
+                    .set(<span class="string">&quot;person/likes&quot;</span>, <span class="string">&quot;Ice cream&quot;</span>),
             ),
         );
-        <span class="macro">assert!</span>(tx_result2.is_ok());
 
-        <span class="kw">let </span>db = Db::new(storage, tx_id);
+        <span class="kw">let </span><span class="kw-2">mut </span>db = Db::new(first_tx_id);
         <span class="kw">let </span>query_result = db.query(
+            <span class="kw-2">&amp;</span>storage,
             Query::new().wher(
                 Clause::new()
                     .with_entity(EntityPattern::Id(joe_id))
-                    .with_attribute(AttributePattern::ident(<span class="string">&quot;likes&quot;</span>))
+                    .with_attribute(AttributePattern::ident(<span class="string">&quot;person/likes&quot;</span>))
                     .with_value(ValuePattern::variable(<span class="string">&quot;?likes&quot;</span>)),
             ),
         );
@@ -895,29 +864,25 @@
     }
 
     <span class="attr">#[test]
-    </span><span class="comment">//#[ignore]
     </span><span class="kw">fn </span>search_for_tx_pattern() {
-        <span class="kw">let </span>(<span class="kw-2">mut </span>transactor, storage) = create_db();
-
-        <span class="comment">// Create the schema
-        </span><span class="kw">let </span>schema_result =
-            transactor.transact(Transaction::new().with(Attribute::new(<span class="string">&quot;name&quot;</span>, ValueType::Str)));
-        <span class="macro">assert!</span>(schema_result.is_ok());
+        <span class="kw">let </span>(<span class="kw-2">mut </span>transactor, <span class="kw-2">mut </span>storage) = create_db();
 
         <span class="comment">// Insert initial data
-        </span><span class="kw">let </span>tx_result =
-            transactor.transact(Transaction::new().with(Operation::on_new().set(<span class="string">&quot;name&quot;</span>, <span class="string">&quot;Joe&quot;</span>)));
-        <span class="macro">assert!</span>(tx_result.is_ok());
+        </span><span class="kw">let </span>tx_result = transact(
+            <span class="kw-2">&amp;mut </span>transactor,
+            <span class="kw-2">&amp;mut </span>storage,
+            Transaction::new().with(Operation::on_new().set(<span class="string">&quot;person/name&quot;</span>, <span class="string">&quot;Joe&quot;</span>)),
+        );
 
-        <span class="kw">let </span>tx_id = tx_result.unwrap().tx_id;
-        <span class="kw">let </span>db = Db::new(storage, tx_id);
+        <span class="kw">let </span><span class="kw-2">mut </span>db = Db::new(tx_result.tx_id);
         <span class="kw">let </span>query_result = db.query(
+            <span class="kw-2">&amp;</span>storage,
             Query::new()
                 .wher(
                     Clause::new()
                         .with_entity(EntityPattern::Blank)
-                        .with_attribute(AttributePattern::ident(<span class="string">&quot;name&quot;</span>))
-                        .with_value(ValuePattern::constant(<span class="kw-2">&amp;</span>Value::str(<span class="string">&quot;Joe&quot;</span>)))
+                        .with_attribute(AttributePattern::ident(<span class="string">&quot;person/name&quot;</span>))
+                        .with_value(ValuePattern::constant(Value::str(<span class="string">&quot;Joe&quot;</span>)))
                         .with_tx(TxPattern::variable(<span class="string">&quot;?tx&quot;</span>)),
                 )
                 .wher(
@@ -931,9 +896,72 @@
         <span class="macro">assert!</span>(query_result.is_ok());
         <span class="kw">let </span>results = query_result.unwrap().results;
         <span class="macro">assert_eq!</span>(<span class="number">1</span>, results.len());
-        <span class="macro">assert_eq!</span>(<span class="prelude-val">Some</span>(tx_id), results[<span class="number">0</span>][<span class="string">&quot;?tx&quot;</span>].as_u64());
+        <span class="kw">let </span>result = <span class="kw-2">&amp;</span>results[<span class="number">0</span>];
+        <span class="macro">assert_eq!</span>(<span class="prelude-val">Some</span>(tx_result.tx_id), result[<span class="string">&quot;?tx&quot;</span>].as_u64());
+        <span class="macro">assert!</span>(result[<span class="string">&quot;?tx_time&quot;</span>].as_u64().is_some_and(|time| time &gt; <span class="number">0</span>));
     }
 
-    <span class="comment">// TODO retract
+    <span class="comment">/*
+    #[test]
+    fn support_range_queries() {
+        let (mut transactor, storage) = create_db();
+
+        // Insert data
+        let tx_result = transactor.transact(
+            Transaction::new()
+                .with(
+                    Operation::on_new()
+                        .set(&quot;person/name&quot;, &quot;John&quot;)
+                        .set(&quot;person/age&quot;, 33),
+                )
+                .with(
+                    Operation::on_new()
+                        .set(&quot;person/name&quot;, &quot;Paul&quot;)
+                        .set(&quot;person/age&quot;, 31),
+                )
+                .with(
+                    Operation::on_new()
+                        .set(&quot;person/name&quot;, &quot;George&quot;)
+                        .set(&quot;person/age&quot;, 30),
+                )
+                .with(
+                    Operation::on_new()
+                        .set(&quot;person/name&quot;, &quot;Ringo&quot;)
+                        .set(&quot;person/age&quot;, 32),
+                ),
+        );
+        assert!(tx_result.is_ok());
+
+        let db = Db::new(storage, tx_result.unwrap().tx_id);
+        let query_result = db.query(
+            Query::new()
+                .wher(
+                    Clause::new()
+                        .with_entity(EntityPattern::variable(&quot;?person&quot;))
+                        .with_attribute(AttributePattern::ident(&quot;person/age&quot;))
+                        .with_value(ValuePattern::range(&amp;(Value::I64(32)..))),
+                )
+                .wher(
+                    Clause::new()
+                        .with_entity(EntityPattern::variable(&quot;?person&quot;))
+                        .with_attribute(AttributePattern::ident(&quot;person/name&quot;))
+                        .with_value(ValuePattern::variable(&quot;?name&quot;)),
+                ),
+        );
+
+        assert!(query_result.is_ok());
+        let results = query_result.unwrap().results;
+        let names: Vec&lt;&amp;str&gt; = results
+            .iter()
+            .flat_map(|assignment| assignment[&quot;?name&quot;].as_str().into_iter())
+            .collect();
+
+        assert_eq!(2, names.len());
+        assert!(names.contains(&amp;&quot;John&quot;));
+        assert!(names.contains(&amp;&quot;Ringo&quot;));
+    }
+    */
+
+    // TODO retract
 </span>}
 </code></pre></div></section></main></body></html>

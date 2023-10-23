@@ -1,4 +1,4 @@
-<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `src/tx/transactor.rs`."><title>transactor.rs - source</title><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/SourceSerif4-Regular-46f98efaafac5295.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/FiraSans-Regular-018c141bf0843ffd.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/FiraSans-Medium-8f9a781e4970d388.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/SourceCodePro-Regular-562dcc5011b6de7d.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/SourceSerif4-Bold-a2c9cd1067f8b328.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/SourceCodePro-Semibold-d899c5a5c4aeb14a.ttf.woff2"><link rel="stylesheet" href="../../../static.files/normalize-76eba96aa4d2e634.css"><link rel="stylesheet" href="../../../static.files/rustdoc-f3501f0f5ae15dfb.css" id="mainThemeStyle"><div id="rustdoc-vars" data-root-path="../../../" data-static-root-path="../../../static.files/" data-current-crate="rustomic" data-themes="" data-resource-suffix="" data-rustdoc-version="1.71.0 (8ede3aae2 2023-07-12)" data-search-js="search-4926e5fc22a5646a.js" data-settings-js="settings-de11bff964e9d4e5.js" data-settings-css="settings-8c76f75bfb6bd192.css" data-theme-light-css="light-0f8c037637f9eb3e.css" data-theme-dark-css="dark-1097f8e92a01e3cf.css" data-theme-ayu-css="ayu-614652228113ac93.css" ></div><script src="../../../static.files/storage-62ce34ea385b278a.js"></script><script defer src="../../../static.files/source-script-11255107d0a65077.js"></script><script defer src="../../../source-files.js"></script><script defer src="../../../static.files/main-f0540c1d82cde29b.js"></script><noscript><link rel="stylesheet" media="(prefers-color-scheme:light)" href="../../../static.files/light-0f8c037637f9eb3e.css"><link rel="stylesheet" media="(prefers-color-scheme:dark)" href="../../../static.files/dark-1097f8e92a01e3cf.css"><link rel="stylesheet" href="../../../static.files/noscript-13285aec31fa243e.css"></noscript><link rel="alternate icon" type="image/png" href="../../../static.files/favicon-16x16-8b506e7a72182f1c.png"><link rel="alternate icon" type="image/png" href="../../../static.files/favicon-32x32-422f7d1d52889060.png"><link rel="icon" type="image/svg+xml" href="../../../static.files/favicon-2c020d218678b618.svg"></head><body class="rustdoc source"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"></nav><main><nav class="sub"><a class="sub-logo-container" href="../../../rustomic/index.html"><img class="rust-logo" src="../../../static.files/rust-logo-151179464ae7ed46.svg" alt="logo"></a><form class="search-form"><span></span><input class="search-input" name="search" aria-label="Run search in the documentation" autocomplete="off" spellcheck="false" placeholder="Click or press ‘S’ to search, ‘?’ for more options…" type="search"><div id="help-button" title="help" tabindex="-1"><a href="../../../help.html">?</a></div><div id="settings-menu" tabindex="-1"><a href="../../../settings.html" title="settings"><img width="22" height="22" alt="Change settings" src="../../../static.files/wheel-7b819b6101059cd0.svg"></a></div></form></nav><section id="main-content" class="content"><div class="example-wrap"><div data-nosnippet><pre class="src-line-numbers"><a href="#1" id="1">1</a>
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `src/tx/transactor.rs`."><title>transactor.rs - source</title><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/SourceSerif4-Regular-46f98efaafac5295.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/FiraSans-Regular-018c141bf0843ffd.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/FiraSans-Medium-8f9a781e4970d388.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/SourceCodePro-Regular-562dcc5011b6de7d.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/SourceSerif4-Bold-a2c9cd1067f8b328.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/SourceCodePro-Semibold-d899c5a5c4aeb14a.ttf.woff2"><link rel="stylesheet" href="../../../static.files/normalize-76eba96aa4d2e634.css"><link rel="stylesheet" href="../../../static.files/rustdoc-cb6f1f67f1bcd037.css" id="mainThemeStyle"><meta name="rustdoc-vars" data-root-path="../../../" data-static-root-path="../../../static.files/" data-current-crate="rustomic" data-themes="" data-resource-suffix="" data-rustdoc-version="1.73.0 (cc66ad468 2023-10-03)" data-channel="1.73.0" data-search-js="search-6dfdfced5eff6596.js" data-settings-js="settings-de11bff964e9d4e5.js" data-settings-css="settings-8c76f75bfb6bd192.css" data-theme-light-css="light-1596385f77d47ef2.css" data-theme-dark-css="dark-0a43001d3fc2282c.css" data-theme-ayu-css="ayu-fd19013d6ce078bf.css" ><script src="../../../static.files/storage-db41da1a38ea3cb8.js"></script><script defer src="../../../static.files/src-script-3280b574d94e47b4.js"></script><script defer src="../../../src-files.js"></script><script defer src="../../../static.files/main-0795b7d26be81095.js"></script><noscript><link rel="stylesheet" media="(prefers-color-scheme:light)" href="../../../static.files/light-1596385f77d47ef2.css"><link rel="stylesheet" media="(prefers-color-scheme:dark)" href="../../../static.files/dark-0a43001d3fc2282c.css"><link rel="stylesheet" href="../../../static.files/noscript-cffde32267a19fd6.css"></noscript><link rel="alternate icon" type="image/png" href="../../../static.files/favicon-16x16-8b506e7a72182f1c.png"><link rel="alternate icon" type="image/png" href="../../../static.files/favicon-32x32-422f7d1d52889060.png"><link rel="icon" type="image/svg+xml" href="../../../static.files/favicon-2c020d218678b618.svg"></head><body class="rustdoc src"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"></nav><main><nav class="sub"><a class="sub-logo-container" href="../../../rustomic/index.html"><img class="rust-logo" src="../../../static.files/rust-logo-151179464ae7ed46.svg" alt="logo"></a><form class="search-form"><span></span><input class="search-input" name="search" aria-label="Run search in the documentation" autocomplete="off" spellcheck="false" placeholder="Click or press ‘S’ to search, ‘?’ for more options…" type="search"><div id="help-button" title="help" tabindex="-1"><a href="../../../help.html">?</a></div><div id="settings-menu" tabindex="-1"><a href="../../../settings.html" title="settings"><img width="22" height="22" alt="Change settings" src="../../../static.files/wheel-7b819b6101059cd0.svg"></a></div></form></nav><section id="main-content" class="content"><div class="example-wrap"><div data-nosnippet><pre class="src-line-numbers"><a href="#1" id="1">1</a>
 <a href="#2" id="2">2</a>
 <a href="#3" id="3">3</a>
 <a href="#4" id="4">4</a>
@@ -171,63 +171,49 @@
 <a href="#171" id="171">171</a>
 <a href="#172" id="172">172</a>
 <a href="#173" id="173">173</a>
-<a href="#174" id="174">174</a>
-<a href="#175" id="175">175</a>
-<a href="#176" id="176">176</a>
-<a href="#177" id="177">177</a>
-<a href="#178" id="178">178</a>
-<a href="#179" id="179">179</a>
-<a href="#180" id="180">180</a>
-<a href="#181" id="181">181</a>
-<a href="#182" id="182">182</a>
-<a href="#183" id="183">183</a>
-<a href="#184" id="184">184</a>
-<a href="#185" id="185">185</a>
-<a href="#186" id="186">186</a>
-<a href="#187" id="187">187</a>
-<a href="#188" id="188">188</a>
-<a href="#189" id="189">189</a>
-<a href="#190" id="190">190</a>
-<a href="#191" id="191">191</a>
-<a href="#192" id="192">192</a>
 </pre></div><pre class="rust"><code><span class="kw">use </span>std::collections::HashMap;
-<span class="kw">use </span>std::sync::Arc;
-<span class="kw">use </span>std::sync::RwLock;
-<span class="kw">use </span>std::sync::RwLockReadGuard;
-<span class="kw">use </span>std::sync::RwLockWriteGuard;
 
-<span class="kw">use </span><span class="kw">crate</span>::clock::Clock;
+<span class="kw">use </span><span class="kw">crate</span>::clock::Instant;
 <span class="kw">use </span><span class="kw">crate</span>::datom::<span class="kw-2">*</span>;
 <span class="kw">use </span><span class="kw">crate</span>::query::clause::Clause;
 <span class="kw">use </span><span class="kw">crate</span>::query::pattern::<span class="kw-2">*</span>;
 <span class="kw">use </span><span class="kw">crate</span>::schema::attribute::<span class="kw-2">*</span>;
 <span class="kw">use </span><span class="kw">crate</span>::schema::<span class="kw-2">*</span>;
+<span class="kw">use </span><span class="kw">crate</span>::storage::attribute_resolver::<span class="kw-2">*</span>;
 <span class="kw">use </span><span class="kw">crate</span>::storage::<span class="kw-2">*</span>;
 <span class="kw">use </span><span class="kw">crate</span>::tx::<span class="kw-2">*</span>;
 
-<span class="kw">pub struct </span>Transactor&lt;S: Storage, C: Clock&gt; {
+<span class="kw">type </span>TempId = Rc&lt;str&gt;;
+<span class="kw">type </span>EntityId = u64;
+<span class="kw">type </span>TempIds = HashMap&lt;TempId, EntityId&gt;;
+
+<span class="kw">pub struct </span>Transactor {
     next_entity_id: u64,
-    storage: Arc&lt;RwLock&lt;S&gt;&gt;,
-    clock: C,
+    attribute_resolver: CachingAttributeResolver,
 }
 
-<span class="kw">impl</span>&lt;S: Storage, C: Clock&gt; Transactor&lt;S, C&gt; {
-    <span class="kw">pub fn </span>new(storage: Arc&lt;RwLock&lt;S&gt;&gt;, clock: C) -&gt; <span class="self">Self </span>{
-        Transactor {
+<span class="kw">impl </span>Default <span class="kw">for </span>Transactor {
+    <span class="kw">fn </span>default() -&gt; <span class="self">Self </span>{
+        <span class="self">Self</span>::new()
+    }
+}
+
+<span class="kw">impl </span>Transactor {
+    <span class="kw">pub fn </span>new() -&gt; <span class="self">Self </span>{
+        <span class="self">Self </span>{
             next_entity_id: <span class="number">100</span>,
-            storage,
-            clock,
+            attribute_resolver: CachingAttributeResolver::new(),
         }
     }
 
-    <span class="kw">pub fn </span>transact(
+    <span class="kw">pub fn </span>transact&lt;<span class="lifetime">&#39;a</span>, S: ReadStorage&lt;<span class="lifetime">&#39;a</span>&gt;&gt;(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
+        storage: <span class="kw-2">&amp;</span><span class="lifetime">&#39;a </span>S,
+        now: Instant,
         transaction: Transaction,
-    ) -&gt; <span class="prelude-ty">Result</span>&lt;TransctionResult, TransactionError&gt; {
-        <span class="kw">let </span>last_tx = <span class="self">self</span>.next_entity_id;
+    ) -&gt; <span class="prelude-ty">Result</span>&lt;TransctionResult, TransactionError&lt;S::Error&gt;&gt; {
         <span class="kw">let </span>temp_ids = <span class="self">self</span>.generate_temp_ids(<span class="kw-2">&amp;</span>transaction)<span class="question-mark">?</span>;
-        <span class="kw">let </span>datoms = <span class="self">self</span>.transaction_datoms(<span class="kw-2">&amp;</span>transaction, <span class="kw-2">&amp;</span>temp_ids, last_tx)<span class="question-mark">?</span>;
-        <span class="self">self</span>.write_storage()<span class="question-mark">?</span>.save(<span class="kw-2">&amp;</span>datoms)<span class="question-mark">?</span>;
+        <span class="kw">let </span>datoms = <span class="self">self</span>.transaction_datoms(storage, now, <span class="kw-2">&amp;</span>transaction, <span class="kw-2">&amp;</span>temp_ids)<span class="question-mark">?</span>;
 
         <span class="prelude-val">Ok</span>(TransctionResult {
             tx_id: datoms[<span class="number">0</span>].tx,
@@ -236,149 +222,125 @@
         })
     }
 
-    <span class="kw">fn </span>read_storage(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Result</span>&lt;RwLockReadGuard&lt;S&gt;, TransactionError&gt; {
-        <span class="self">self</span>.storage.read().map_err(|<span class="kw">_</span>| TransactionError::Error)
-    }
-
-    <span class="kw">fn </span>write_storage(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Result</span>&lt;RwLockWriteGuard&lt;S&gt;, TransactionError&gt; {
-        <span class="self">self</span>.storage.write().map_err(|<span class="kw">_</span>| TransactionError::Error)
-    }
-
-    <span class="kw">fn </span>generate_temp_ids(
+    <span class="kw">fn </span>generate_temp_ids&lt;Error&gt;(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         transaction: <span class="kw-2">&amp;</span>Transaction,
-    ) -&gt; <span class="prelude-ty">Result</span>&lt;HashMap&lt;String, u64&gt;, TransactionError&gt; {
+    ) -&gt; <span class="prelude-ty">Result</span>&lt;TempIds, TransactionError&lt;Error&gt;&gt; {
         <span class="kw">let </span><span class="kw-2">mut </span>temp_ids = HashMap::new();
         <span class="kw">for </span>operation <span class="kw">in </span><span class="kw-2">&amp;</span>transaction.operations {
-            <span class="kw">if let </span>Entity::TempId(id) = <span class="kw-2">&amp;</span>operation.entity {
-                <span class="kw">if </span>temp_ids.insert(id.clone(), <span class="self">self</span>.next_entity_id()).is_some() {
-                    <span class="kw">return </span><span class="prelude-val">Err</span>(TransactionError::DuplicateTempId(id.clone()));
+            <span class="kw">if let </span>Entity::TempId(temp_id) = <span class="kw-2">&amp;</span>operation.entity {
+                <span class="kw">let </span>entity_id = <span class="self">self</span>.next_entity_id();
+                <span class="kw">if </span>temp_ids.insert(Rc::clone(temp_id), entity_id).is_some() {
+                    <span class="kw">return </span><span class="prelude-val">Err</span>(TransactionError::DuplicateTempId(Rc::clone(temp_id)));
                 }
             };
         }
         <span class="prelude-val">Ok</span>(temp_ids)
     }
 
-    <span class="kw">fn </span>transaction_datoms(
+    <span class="kw">fn </span>transaction_datoms&lt;<span class="lifetime">&#39;a</span>, S: ReadStorage&lt;<span class="lifetime">&#39;a</span>&gt;&gt;(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
+        storage: <span class="kw-2">&amp;</span><span class="lifetime">&#39;a </span>S,
+        now: Instant,
         transaction: <span class="kw-2">&amp;</span>Transaction,
-        temp_ids: <span class="kw-2">&amp;</span>HashMap&lt;String, u64&gt;,
-        last_tx: u64,
-    ) -&gt; <span class="prelude-ty">Result</span>&lt;Vec&lt;Datom&gt;, TransactionError&gt; {
+        temp_ids: <span class="kw-2">&amp;</span>TempIds,
+    ) -&gt; <span class="prelude-ty">Result</span>&lt;Vec&lt;Datom&gt;, TransactionError&lt;S::Error&gt;&gt; {
         <span class="kw">let </span><span class="kw-2">mut </span>datoms = Vec::new();
-        <span class="kw">let </span>tx = <span class="self">self</span>.create_tx_datom();
+        <span class="kw">let </span>tx = <span class="self">self</span>.create_tx_datom(now);
         <span class="kw">for </span>operation <span class="kw">in </span><span class="kw-2">&amp;</span>transaction.operations {
-            datoms.append(<span class="kw-2">&amp;mut </span><span class="self">self</span>.operation_datoms(tx.entity, operation, temp_ids, last_tx)<span class="question-mark">?</span>);
+            <span class="kw">let </span><span class="kw-2">mut </span>op_datoms = <span class="self">self</span>.operation_datoms(storage, tx.entity, operation, temp_ids)<span class="question-mark">?</span>;
+            datoms.append(<span class="kw-2">&amp;mut </span>op_datoms);
         }
         datoms.push(tx);
         <span class="prelude-val">Ok</span>(datoms)
     }
 
-    <span class="kw">fn </span>next_entity_id(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; u64 {
+    <span class="kw">fn </span>next_entity_id(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; EntityId {
         <span class="self">self</span>.next_entity_id += <span class="number">1</span>;
         <span class="self">self</span>.next_entity_id
     }
 
-    <span class="kw">fn </span>create_tx_datom(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; Datom {
+    <span class="kw">fn </span>create_tx_datom(<span class="kw-2">&amp;mut </span><span class="self">self</span>, now: Instant) -&gt; Datom {
         <span class="kw">let </span>tx = <span class="self">self</span>.next_entity_id();
-        Datom::add(tx, DB_TX_TIME_ID, <span class="self">self</span>.clock.now(), tx)
+        Datom::add(tx, DB_TX_TIME_ID, now.<span class="number">0</span>, tx)
     }
 
-    <span class="kw">fn </span>operation_datoms(
+    <span class="kw">fn </span>operation_datoms&lt;<span class="lifetime">&#39;a</span>, S: ReadStorage&lt;<span class="lifetime">&#39;a</span>&gt;&gt;(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
+        storage: <span class="kw-2">&amp;</span><span class="lifetime">&#39;a </span>S,
         tx: u64,
         operation: <span class="kw-2">&amp;</span>Operation,
-        temp_ids: <span class="kw-2">&amp;</span>HashMap&lt;String, u64&gt;,
-        last_tx: u64,
-    ) -&gt; <span class="prelude-ty">Result</span>&lt;Vec&lt;Datom&gt;, TransactionError&gt; {
+        temp_ids: <span class="kw-2">&amp;</span>TempIds,
+    ) -&gt; <span class="prelude-ty">Result</span>&lt;Vec&lt;Datom&gt;, TransactionError&lt;S::Error&gt;&gt; {
         <span class="kw">let </span><span class="kw-2">mut </span>datoms = Vec::new();
         <span class="kw">let </span>entity = <span class="self">self</span>.resolve_entity(<span class="kw-2">&amp;</span>operation.entity, temp_ids)<span class="question-mark">?</span>;
-        <span class="kw">let </span>storage = <span class="self">self</span>.read_storage()<span class="question-mark">?</span>;
-        <span class="kw">for </span>AttributeValue { attribute, value } <span class="kw">in </span><span class="kw-2">&amp;</span>operation.attributes {
-            <span class="kw">let </span>attribute_id = storage.resolve_ident(attribute)<span class="question-mark">?</span>;
-            <span class="kw">let </span>(cardinality, value_type) =
-                <span class="self">self</span>.attribute_metadata(<span class="kw-2">&amp;</span>storage, attribute_id, last_tx)<span class="question-mark">?</span>;
+        <span class="kw">let </span><span class="kw-2">mut </span>retract_attributes = Vec::new();
+        <span class="kw">for </span>AttributeValue {
+            attribute: ident,
+            value,
+        } <span class="kw">in </span><span class="kw-2">&amp;</span>operation.attributes
+        {
+            <span class="kw">let </span>attribute = <span class="kw">match </span><span class="self">self</span>.attribute_resolver.resolve_ident(storage, ident)<span class="question-mark">? </span>{
+                <span class="prelude-val">Some</span>(attr) =&gt; attr,
+                <span class="prelude-val">None </span>=&gt; <span class="kw">return </span><span class="prelude-val">Err</span>(TransactionError::IdentNotFound(Rc::clone(ident))),
+            };
 
-            <span class="kw">if </span>cardinality == Cardinality::One {
-                <span class="kw">let </span><span class="kw-2">mut </span>retracted =
-                    <span class="self">self</span>.retract_old_values(<span class="kw-2">&amp;</span>storage, entity, attribute_id, last_tx, tx)<span class="question-mark">?</span>;
-                datoms.append(<span class="kw-2">&amp;mut </span>retracted);
+            <span class="kw">if </span>attribute.cardinality == Cardinality::One {
+                retract_attributes.push(attribute.id);
             }
 
             <span class="kw">let </span><span class="kw-2">mut </span>v = value.clone();
             <span class="kw">if let </span><span class="prelude-val">Some</span>(id) = value.as_str().and_then(|str| temp_ids.get(str)) {
-                <span class="kw">if </span>value_type == ValueType::Ref {
+                <span class="kw">if </span>attribute.value_type == ValueType::Ref {
                     v = Value::U64(<span class="kw-2">*</span>id);
                 }
             };
 
-            <span class="kw">if </span>!v.matches_type(value_type) {
+            <span class="kw">if </span>!v.matches_type(attribute.value_type) {
                 <span class="kw">return </span><span class="prelude-val">Err</span>(TransactionError::InvalidAttributeType);
             }
 
-            datoms.push(Datom::add(entity, attribute_id, v, tx));
+            datoms.push(Datom::add(entity, attribute.id, v, tx));
         }
+
+        <span class="kw">for </span>attribute_id <span class="kw">in </span>retract_attributes {
+            <span class="kw">let </span><span class="kw-2">mut </span>retracted = <span class="self">self</span>.retract_old_values(storage, entity, attribute_id, tx)<span class="question-mark">?</span>;
+            datoms.append(<span class="kw-2">&amp;mut </span>retracted);
+        }
+
         <span class="prelude-val">Ok</span>(datoms)
     }
 
-    <span class="kw">fn </span>retract_old_values(
+    <span class="kw">fn </span>retract_old_values&lt;<span class="lifetime">&#39;a</span>, S: ReadStorage&lt;<span class="lifetime">&#39;a</span>&gt;&gt;(
         <span class="kw-2">&amp;</span><span class="self">self</span>,
-        storage: <span class="kw-2">&amp;</span>RwLockReadGuard&lt;S&gt;,
+        storage: <span class="kw-2">&amp;</span><span class="lifetime">&#39;a </span>S,
         entity: u64,
         attribute: u64,
-        last_tx: u64,
         tx: u64,
-    ) -&gt; <span class="prelude-ty">Result</span>&lt;Vec&lt;Datom&gt;, TransactionError&gt; {
+    ) -&gt; <span class="prelude-ty">Result</span>&lt;Vec&lt;Datom&gt;, TransactionError&lt;S::Error&gt;&gt; {
         <span class="kw">let </span><span class="kw-2">mut </span>datoms = Vec::new();
         <span class="comment">// Retract previous values
         </span><span class="kw">let </span>clause = Clause::new()
             .with_entity(EntityPattern::Id(entity))
             .with_attribute(AttributePattern::Id(attribute));
-        <span class="kw">for </span>datom <span class="kw">in </span>storage.find_datoms(<span class="kw-2">&amp;</span>clause, last_tx)<span class="question-mark">? </span>{
-            datoms.push(Datom::retract(entity, attribute, datom.value, tx));
+        <span class="kw">for </span>datom <span class="kw">in </span>storage.find(<span class="kw-2">&amp;</span>clause) {
+            datoms.push(Datom::retract(entity, attribute, datom<span class="question-mark">?</span>.value, tx));
         }
         <span class="prelude-val">Ok</span>(datoms)
     }
 
-    <span class="kw">fn </span>resolve_entity(
+    <span class="kw">fn </span>resolve_entity&lt;Error&gt;(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         entity: <span class="kw-2">&amp;</span>Entity,
-        temp_ids: <span class="kw-2">&amp;</span>HashMap&lt;String, u64&gt;,
-    ) -&gt; <span class="prelude-ty">Result</span>&lt;u64, TransactionError&gt; {
+        temp_ids: <span class="kw-2">&amp;</span>TempIds,
+    ) -&gt; <span class="prelude-ty">Result</span>&lt;u64, TransactionError&lt;Error&gt;&gt; {
         <span class="kw">match </span>entity {
             Entity::New =&gt; <span class="prelude-val">Ok</span>(<span class="self">self</span>.next_entity_id()),
             Entity::Id(id) =&gt; <span class="prelude-val">Ok</span>(<span class="kw-2">*</span>id),
             Entity::TempId(temp_id) =&gt; temp_ids
                 .get(temp_id)
                 .copied()
-                .ok_or_else(|| TransactionError::TempIdNotFound(temp_id.clone())),
-        }
-    }
-
-    <span class="kw">fn </span>attribute_metadata(
-        <span class="kw-2">&amp;</span><span class="self">self</span>,
-        storage: <span class="kw-2">&amp;</span>RwLockReadGuard&lt;S&gt;,
-        attribute: u64,
-        last_tx: u64,
-    ) -&gt; <span class="prelude-ty">Result</span>&lt;(Cardinality, ValueType), TransactionError&gt; {
-        <span class="kw">let </span>clause = Clause::new().with_entity(EntityPattern::Id(attribute));
-        <span class="kw">let </span>datoms = storage.find_datoms(<span class="kw-2">&amp;</span>clause, last_tx)<span class="question-mark">?</span>;
-        <span class="kw">let </span><span class="kw-2">mut </span>cardinality = <span class="prelude-val">None</span>;
-        <span class="kw">let </span><span class="kw-2">mut </span>value_type = <span class="prelude-val">None</span>;
-        <span class="kw">for </span>datom <span class="kw">in </span>datoms {
-            <span class="kw">match </span>datom.attribute {
-                DB_ATTR_TYPE_ID =&gt; {
-                    value_type = datom.value.as_u64().and_then(ValueType::from);
-                }
-                DB_ATTR_CARDINALITY_ID =&gt; {
-                    cardinality = datom.value.as_u64().and_then(Cardinality::from);
-                }
-                <span class="kw">_ </span>=&gt; {}
-            }
-        }
-        <span class="kw">match </span>(cardinality, value_type) {
-            (<span class="prelude-val">Some</span>(cardinality), <span class="prelude-val">Some</span>(value_type)) =&gt; <span class="prelude-val">Ok</span>((cardinality, value_type)),
-            <span class="kw">_ </span>=&gt; <span class="prelude-val">Err</span>(TransactionError::Error),
+                .ok_or_else(|| TransactionError::TempIdNotFound(Rc::clone(temp_id))),
         }
     }
 }

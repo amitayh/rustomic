@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"struct":["DiskStorage"]};
+window.SIDEBAR_ITEMS = {"enum":["DiskStorageError"],"struct":["DiskStorage","DiskStorageIter"]};

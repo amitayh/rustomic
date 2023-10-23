@@ -49,7 +49,7 @@ impl<'a> InMemoryStorageIter<'a> {
     fn new(index: &'a BTreeSet<Vec<u8>>, clause: &Clause) -> Self {
         let (start, end) = index::key_range(clause);
         Self {
-            index: &index,
+            index,
             range: index.range(start..end.clone()),
             end,
         }

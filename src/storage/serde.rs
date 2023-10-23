@@ -153,7 +153,7 @@ pub mod index {
             .rev()
             .take_while(|&&byte| byte == u8::MAX)
             .count();
-        let mut next = (&prefix[..(prefix.len() - ffs)]).to_vec();
+        let mut next = prefix[..(prefix.len() - ffs)].to_vec();
         if let Some(last) = next.last_mut() {
             *last += 1;
         }

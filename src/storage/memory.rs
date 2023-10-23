@@ -82,7 +82,7 @@ mod tests {
     use crate::datom::*;
     use crate::query::clause::*;
     use crate::query::pattern::*;
-    use crate::storage::memory2::*;
+    use crate::storage::memory::*;
 
     fn create_storage() -> InMemoryStorage {
         InMemoryStorage::new()

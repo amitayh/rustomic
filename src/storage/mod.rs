@@ -1,6 +1,6 @@
 pub mod attribute_resolver;
 pub mod disk;
-pub mod memory2;
+pub mod memory;
 pub mod serde;
 
 use crate::datom::*;

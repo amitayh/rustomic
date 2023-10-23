@@ -14,7 +14,7 @@ mod tests {
     use crate::clock::Instant;
     use crate::schema::default::default_datoms;
     use crate::schema::DB_TX_TIME_ID;
-    use crate::storage::memory2::InMemoryStorage;
+    use crate::storage::memory::InMemoryStorage;
     use crate::storage::WriteStorage;
 
     use super::datom::*;

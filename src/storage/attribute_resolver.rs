@@ -143,7 +143,7 @@ mod tests {
     use crate::schema::attribute::{Attribute, ValueType};
     use crate::schema::default::default_datoms;
     use crate::storage::attribute_resolver::*;
-    use crate::storage::memory2::InMemoryStorage;
+    use crate::storage::memory::InMemoryStorage;
     use crate::storage::*;
     use crate::tx::transactor::Transactor;
     use crate::tx::Transaction;

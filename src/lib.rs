@@ -8,10 +8,12 @@ pub mod tx;
 #[cfg(test)]
 mod tests {
 
+    use std::collections::HashSet;
     use std::time::SystemTime;
 
     use crate::clock::Instant;
     use crate::schema::default::default_datoms;
+    use crate::schema::DB_TX_TIME_ID;
     use crate::storage::memory2::InMemoryStorage;
     use crate::storage::WriteStorage;
 
@@ -47,11 +49,17 @@ mod tests {
     }
 
     fn create_db() -> (Transactor, InMemoryStorage) {
-        let mut storage = InMemoryStorage::new();
-        storage.save(&default_datoms()).unwrap();
-        let mut transactor = Transactor::new();
+        let (mut transactor, mut storage) = create_empty_db();
         transact(&mut transactor, &mut storage, create_schema());
         (transactor, storage)
+    }
+
+    fn create_empty_db() -> (Transactor, InMemoryStorage) {
+        let mut storage = InMemoryStorage::new();
+        storage
+            .save(&default_datoms())
+            .expect("unable to save default datoms");
+        (Transactor::new(), storage)
     }
 
     fn create_schema() -> Transaction {
@@ -216,6 +224,200 @@ mod tests {
         );
     }
 
+    #[test]
+    fn return_latest_value_with_cardinality_one() {
+        let (mut transactor, mut storage) = create_empty_db();
+
+        // Create the schema
+        transact(
+            &mut transactor,
+            &mut storage,
+            Transaction::new()
+                .with(Attribute::new("person/name", ValueType::Str).with_doc("A person's name"))
+                .with(
+                    Attribute::new("person/likes", ValueType::Str)
+                        .with_doc("Things a person likes"),
+                ),
+        );
+
+        // Insert initial data
+        let tx_result1 = transact(
+            &mut transactor,
+            &mut storage,
+            Transaction::new().with(
+                Operation::on_temp_id("joe")
+                    .set("person/name", "Joe")
+                    .set("person/likes", "Pizza"),
+            ),
+        );
+        let joe_id = tx_result1.temp_ids["joe"];
+
+        // Update what Joe likes
+        let tx_result2 = transact(
+            &mut transactor,
+            &mut storage,
+            Transaction::new().with(Operation::on_id(joe_id).set("person/likes", "Ice cream")),
+        );
+
+        let mut db = Db::new(tx_result2.tx_id);
+        let query_result = db.query(
+            &storage,
+            Query::new().wher(
+                Clause::new()
+                    .with_entity(EntityPattern::Id(joe_id))
+                    .with_attribute(AttributePattern::ident("person/likes"))
+                    .with_value(ValuePattern::variable("?likes")),
+            ),
+        );
+
+        assert!(query_result.is_ok());
+        let results = query_result.unwrap().results;
+        let likes: HashSet<&str> = results
+            .iter()
+            .flat_map(|assignment| assignment["?likes"].as_str().into_iter())
+            .collect();
+
+        assert_eq!(1, likes.len());
+        assert!(likes.contains("Ice cream"));
+    }
+
+    #[test]
+    fn return_all_values_with_cardinality_many() {
+        let (mut transactor, mut storage) = create_db();
+
+        // Insert initial data
+        let tx_result1 = transact(
+            &mut transactor,
+            &mut storage,
+            Transaction::new().with(
+                Operation::on_temp_id("joe")
+                    .set("person/name", "Joe")
+                    .set("person/likes", "Pizza"),
+            ),
+        );
+        let joe_id = tx_result1.temp_ids["joe"];
+
+        // Update what Joe likes
+        let tx_result2 = transact(
+            &mut transactor,
+            &mut storage,
+            Transaction::new().with(Operation::on_id(joe_id).set("person/likes", "Ice cream")),
+        );
+
+        let mut db = Db::new(tx_result2.tx_id);
+        let query_result = db.query(
+            &storage,
+            Query::new().wher(
+                Clause::new()
+                    .with_entity(EntityPattern::Id(joe_id))
+                    .with_attribute(AttributePattern::ident("person/likes"))
+                    .with_value(ValuePattern::variable("?likes")),
+            ),
+        );
+
+        assert!(query_result.is_ok());
+        let results = query_result.unwrap().results;
+        let likes: HashSet<&str> = results
+            .iter()
+            .flat_map(|assignment| assignment["?likes"].as_str().into_iter())
+            .collect();
+
+        assert_eq!(2, likes.len());
+        assert!(likes.contains("Pizza"));
+        assert!(likes.contains("Ice cream"));
+    }
+
+    #[test]
+    fn return_correct_value_for_database_snapshot() {
+        let (mut transactor, mut storage) = create_db();
+
+        // Insert initial data
+        let TransctionResult {
+            tx_id: first_tx_id,
+            tx_data: _,
+            temp_ids,
+        } = transact(
+            &mut transactor,
+            &mut storage,
+            Transaction::new().with(
+                Operation::on_temp_id("joe")
+                    .set("person/name", "Joe")
+                    .set("person/likes", "Pizza"),
+            ),
+        );
+        let joe_id = temp_ids["joe"];
+
+        // Update what Joe likes
+        transact(
+            &mut transactor,
+            &mut storage,
+            Transaction::new().with(
+                Operation::on_id(joe_id)
+                    .set("person/name", "Joe")
+                    .set("person/likes", "Ice cream"),
+            ),
+        );
+
+        let mut db = Db::new(first_tx_id);
+        let query_result = db.query(
+            &storage,
+            Query::new().wher(
+                Clause::new()
+                    .with_entity(EntityPattern::Id(joe_id))
+                    .with_attribute(AttributePattern::ident("person/likes"))
+                    .with_value(ValuePattern::variable("?likes")),
+            ),
+        );
+
+        assert!(query_result.is_ok());
+        let results = query_result.unwrap().results;
+        let likes: HashSet<&str> = results
+            .iter()
+            .flat_map(|assignment| assignment["?likes"].as_str().into_iter())
+            .collect();
+
+        assert_eq!(1, likes.len());
+        assert!(likes.contains("Pizza"));
+    }
+
+    #[test]
+    fn search_for_tx_pattern() {
+        let (mut transactor, mut storage) = create_db();
+
+        // Insert initial data
+        let tx_result = transact(
+            &mut transactor,
+            &mut storage,
+            Transaction::new().with(Operation::on_new().set("person/name", "Joe")),
+        );
+
+        let mut db = Db::new(tx_result.tx_id);
+        let query_result = db.query(
+            &storage,
+            Query::new()
+                .wher(
+                    Clause::new()
+                        .with_entity(EntityPattern::Blank)
+                        .with_attribute(AttributePattern::ident("person/name"))
+                        .with_value(ValuePattern::constant(Value::str("Joe")))
+                        .with_tx(TxPattern::variable("?tx")),
+                )
+                .wher(
+                    Clause::new()
+                        .with_entity(EntityPattern::variable("?tx"))
+                        .with_attribute(AttributePattern::Id(DB_TX_TIME_ID))
+                        .with_value(ValuePattern::variable("?tx_time")),
+                ),
+        );
+
+        assert!(query_result.is_ok());
+        let results = query_result.unwrap().results;
+        assert_eq!(1, results.len());
+        let result = &results[0];
+        assert_eq!(Some(tx_result.tx_id), result["?tx"].as_u64());
+        assert!(result["?tx_time"].as_u64().is_some_and(|time| time > 0));
+    }
+
     /*
     #[test]
     fn support_range_queries() {
@@ -274,186 +476,6 @@ mod tests {
         assert_eq!(2, names.len());
         assert!(names.contains(&"John"));
         assert!(names.contains(&"Ringo"));
-    }
-
-    #[test]
-    fn return_latest_value_with_cardinality_one() {
-        let (mut transactor, storage) = create_db();
-
-        // Create the schema
-        let schema = Transaction::new()
-            .with(Attribute::new("person/name", ValueType::Str).with_doc("A person's name"))
-            .with(Attribute::new("person/likes", ValueType::Str).with_doc("Things a person likes"));
-        assert!(transactor.transact(schema).is_ok());
-
-        // Insert initial data
-        let tx_result1 = transactor.transact(
-            Transaction::new().with(
-                Operation::on_temp_id("joe")
-                    .set("person/name", "Joe")
-                    .set("person/likes", "Pizza"),
-            ),
-        );
-        assert!(tx_result1.is_ok());
-        let joe_id = tx_result1.unwrap().temp_ids["joe"];
-
-        // Update what Joe likes
-        let tx_result2 = transactor.transact(
-            Transaction::new().with(Operation::on_id(joe_id).set("person/likes", "Ice cream")),
-        );
-        assert!(tx_result2.is_ok());
-
-        let db = Db::new(storage, tx_result2.unwrap().tx_id);
-        let query_result = db.query(
-            Query::new().wher(
-                Clause::new()
-                    .with_entity(EntityPattern::Id(joe_id))
-                    .with_attribute(AttributePattern::ident("person/likes"))
-                    .with_value(ValuePattern::variable("?likes")),
-            ),
-        );
-
-        assert!(query_result.is_ok());
-        let results = query_result.unwrap().results;
-        let likes: HashSet<&str> = results
-            .iter()
-            .flat_map(|assignment| assignment["?likes"].as_str().into_iter())
-            .collect();
-
-        assert_eq!(1, likes.len());
-        assert!(likes.contains("Ice cream"));
-    }
-
-    #[test]
-    fn return_all_values_with_cardinality_many() {
-        let (mut transactor, storage) = create_db();
-
-        // Insert initial data
-        let tx_result1 = transactor.transact(
-            Transaction::new().with(
-                Operation::on_temp_id("joe")
-                    .set("person/name", "Joe")
-                    .set("person/likes", "Pizza"),
-            ),
-        );
-        assert!(tx_result1.is_ok());
-        let joe_id = tx_result1.unwrap().temp_ids["joe"];
-
-        // Update what Joe likes
-        let tx_result2 = transactor.transact(
-            Transaction::new().with(
-                Operation::on_id(joe_id)
-                    .set("person/name", "Joe")
-                    .set("person/likes", "Ice cream"),
-            ),
-        );
-        assert!(tx_result2.is_ok());
-
-        let db = Db::new(storage, tx_result2.unwrap().tx_id);
-        let query_result = db.query(
-            Query::new().wher(
-                Clause::new()
-                    .with_entity(EntityPattern::Id(joe_id))
-                    .with_attribute(AttributePattern::ident("person/likes"))
-                    .with_value(ValuePattern::variable("?likes")),
-            ),
-        );
-
-        assert!(query_result.is_ok());
-        let results = query_result.unwrap().results;
-        let likes: HashSet<&str> = results
-            .iter()
-            .flat_map(|assignment| assignment["?likes"].as_str().into_iter())
-            .collect();
-
-        assert_eq!(2, likes.len());
-        assert!(likes.contains("Pizza"));
-        assert!(likes.contains("Ice cream"));
-    }
-
-    #[test]
-    fn return_correct_value_for_database_snapshot() {
-        let (mut transactor, storage) = create_db();
-
-        // Insert initial data
-        let tx_result1 = transactor.transact(
-            Transaction::new().with(
-                Operation::on_temp_id("joe")
-                    .set("person/name", "Joe")
-                    .set("person/likes", "Pizza"),
-            ),
-        );
-        assert!(tx_result1.is_ok());
-        let TransctionResult {
-            tx_id,
-            tx_data: _,
-            temp_ids,
-        } = tx_result1.unwrap();
-        let joe_id = temp_ids["joe"];
-
-        // Update what Joe likes
-        let tx_result2 = transactor.transact(
-            Transaction::new().with(
-                Operation::on_id(joe_id)
-                    .set("person/name", "Joe")
-                    .set("person/likes", "Ice cream"),
-            ),
-        );
-        assert!(tx_result2.is_ok());
-
-        let db = Db::new(storage, tx_id);
-        let query_result = db.query(
-            Query::new().wher(
-                Clause::new()
-                    .with_entity(EntityPattern::Id(joe_id))
-                    .with_attribute(AttributePattern::ident("person/likes"))
-                    .with_value(ValuePattern::variable("?likes")),
-            ),
-        );
-
-        assert!(query_result.is_ok());
-        let results = query_result.unwrap().results;
-        let likes: HashSet<&str> = results
-            .iter()
-            .flat_map(|assignment| assignment["?likes"].as_str().into_iter())
-            .collect();
-
-        assert_eq!(1, likes.len());
-        assert!(likes.contains("Pizza"));
-    }
-
-    #[test]
-    fn search_for_tx_pattern() {
-        let (mut transactor, storage) = create_db();
-
-        // Insert initial data
-        let tx_result = transactor
-            .transact(Transaction::new().with(Operation::on_new().set("person/name", "Joe")));
-        assert!(tx_result.is_ok());
-
-        let tx_id = tx_result.unwrap().tx_id;
-        let db = Db::new(storage, tx_id);
-        let query_result = db.query(
-            Query::new()
-                .wher(
-                    Clause::new()
-                        .with_entity(EntityPattern::Blank)
-                        .with_attribute(AttributePattern::ident("person/name"))
-                        .with_value(ValuePattern::constant(Value::str("Joe")))
-                        .with_tx(TxPattern::variable("?tx")),
-                )
-                .wher(
-                    Clause::new()
-                        .with_entity(EntityPattern::variable("?tx"))
-                        .with_attribute(AttributePattern::Id(DB_TX_TIME_ID))
-                        .with_value(ValuePattern::variable("?tx_time")),
-                ),
-        );
-
-        assert!(query_result.is_ok());
-        let results = query_result.unwrap().results;
-        assert_eq!(1, results.len());
-        assert_eq!(Some(tx_id), results[0]["?tx"].as_u64());
     }
     */
 

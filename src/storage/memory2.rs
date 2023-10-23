@@ -17,8 +17,6 @@ impl InMemoryStorage {
     }
 }
 
-//-------------------------------------------------------------------------------------------------
-
 impl WriteStorage for InMemoryStorage {
     type Error = Infallible;
 
@@ -31,8 +29,6 @@ impl WriteStorage for InMemoryStorage {
         Ok(())
     }
 }
-
-//-------------------------------------------------------------------------------------------------
 
 impl<'a> ReadStorage<'a> for InMemoryStorage {
     type Error = ReadError;

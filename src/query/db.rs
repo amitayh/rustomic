@@ -8,7 +8,6 @@ use crate::storage::attribute_resolver::*;
 use crate::storage::*;
 
 use super::pattern::AttributePattern;
-use super::pattern::TxPattern;
 
 pub struct Db {
     tx: u64,
@@ -62,14 +61,15 @@ impl Db {
             results.push(assignment.assigned);
             return Ok(());
         }
-        let tx_pattern = TxPattern::range(..=self.tx);
         if let [clause, rest @ ..] = clauses {
-            let mut assigned_clause = clause.assign(&assignment); // .with_tx(tx_pattern);
-            if assigned_clause.tx == TxPattern::Blank {
-                assigned_clause.with_tx2(tx_pattern);
-            }
+            let assigned_clause = clause.assign(&assignment);
+            // TODO: optimize filtering in storage layer?
+            let datoms = storage
+                .find(&assigned_clause)
+                .filter(|datom| datom.as_ref().map_or(false, |datom| datom.tx <= self.tx));
+
             // TODO can this be parallelized?
-            for datom in storage.find(&assigned_clause) {
+            for datom in datoms {
                 self.resolve(
                     storage,
                     rest,

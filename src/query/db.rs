@@ -11,14 +11,14 @@ use super::pattern::AttributePattern;
 
 pub struct Db {
     tx: u64,
-    attribute_resolver: CachingAttributeResolver,
+    attribute_resolver: AttributeResolver,
 }
 
 impl Db {
     pub fn new(tx: u64) -> Self {
         Self {
             tx,
-            attribute_resolver: CachingAttributeResolver::new(),
+            attribute_resolver: AttributeResolver::new(),
         }
     }
 

@@ -8,11 +8,11 @@ use crate::schema::attribute::*;
 use crate::schema::*;
 use crate::storage::ReadStorage;
 
-pub struct CachingAttributeResolver {
+pub struct AttributeResolver {
     cache: HashMap<Rc<str>, Attribute>,
 }
 
-impl CachingAttributeResolver {
+impl AttributeResolver {
     pub fn new() -> Self {
         Self {
             cache: HashMap::new(),
@@ -192,7 +192,7 @@ mod tests {
     #[test]
     fn returns_none_when_attribute_does_not_exist() {
         let storage = create_storage();
-        let mut resolver = CachingAttributeResolver::new();
+        let mut resolver = AttributeResolver::new();
         let result = resolver.resolve_ident(&storage, "foo/bar");
         assert!(result.is_ok());
         assert!(result.unwrap().is_none());
@@ -209,7 +209,7 @@ mod tests {
         assert!(tx_result.is_ok());
         assert!(storage.save(&tx_result.unwrap().tx_data).is_ok());
 
-        let mut resolver = CachingAttributeResolver::new();
+        let mut resolver = AttributeResolver::new();
         let result = resolver.resolve_ident(&storage, "foo/bar");
         assert!(result.is_ok());
 
@@ -232,7 +232,7 @@ mod tests {
         assert!(tx_result.is_ok());
         assert!(storage.save(&tx_result.unwrap().tx_data).is_ok());
 
-        let mut resolver = CachingAttributeResolver::new();
+        let mut resolver = AttributeResolver::new();
         let result1 = resolver.resolve_ident(&storage, "foo/bar");
         assert!(result1.is_ok());
         let result1 = result1.unwrap();

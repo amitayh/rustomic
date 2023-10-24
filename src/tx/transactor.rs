@@ -16,7 +16,7 @@ type TempIds = HashMap<TempId, EntityId>;
 
 pub struct Transactor {
     next_entity_id: u64,
-    attribute_resolver: CachingAttributeResolver,
+    attribute_resolver: AttributeResolver,
 }
 
 impl Default for Transactor {
@@ -29,7 +29,7 @@ impl Transactor {
     pub fn new() -> Self {
         Self {
             next_entity_id: 100,
-            attribute_resolver: CachingAttributeResolver::new(),
+            attribute_resolver: AttributeResolver::new(),
         }
     }
 

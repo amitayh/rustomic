@@ -59,7 +59,10 @@ impl Iterator for DiskStorageIter<'_> {
 
     fn next(&mut self) -> Option<Self::Item> {
         if !self.iterator.valid() {
-            return None;
+            return match self.iterator.status() {
+                Ok(_) => None,
+                Err(err) => Some(Err(DiskStorageError::DbError(err))),
+            };
         }
 
         let datom_bytes = self.iterator.key()?;

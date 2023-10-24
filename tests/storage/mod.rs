@@ -7,10 +7,10 @@ mod tests {
     use rustomic::query::pattern::*;
     use rustomic::storage::*;
 
-    trait Storage {
+    trait TestStorage {
         fn create() -> Self;
         fn save(&mut self, datoms: &[Datom]);
-        fn find(&self, clause: &Clause) -> Vec<Datom>;
+        fn find(&self, clause: Clause) -> Vec<Datom>;
     }
 
     mod memory {
@@ -19,7 +19,7 @@ mod tests {
 
         struct InMemory(InMemoryStorage);
 
-        impl Storage for InMemory {
+        impl TestStorage for InMemory {
             fn create() -> Self {
                 Self(InMemoryStorage::new())
             }
@@ -28,9 +28,9 @@ mod tests {
                 self.0.save(datoms).expect("should succeed")
             }
 
-            fn find(&self, clause: &Clause) -> Vec<Datom> {
+            fn find(&self, clause: Clause) -> Vec<Datom> {
                 self.0
-                    .find(clause)
+                    .find(&clause)
                     .map(|result| result.expect("should be valid"))
                     .collect()
             }
@@ -85,7 +85,7 @@ mod tests {
 
         struct Disk(DiskStorage);
 
-        impl Storage for Disk {
+        impl TestStorage for Disk {
             fn create() -> Self {
                 let dir = TempDir::new("rustomic").expect("Unable to create temp dir");
                 let mut options = Options::default();
@@ -98,9 +98,9 @@ mod tests {
                 self.0.save(datoms).expect("should succeed")
             }
 
-            fn find(&self, clause: &Clause) -> Vec<Datom> {
+            fn find(&self, clause: Clause) -> Vec<Datom> {
                 self.0
-                    .find(clause)
+                    .find(&clause)
                     .map(|result| result.expect("should be valid"))
                     .collect()
             }
@@ -147,17 +147,17 @@ mod tests {
         }
     }
 
-    fn return_empty_result_if_no_datoms_match_search_criteria_impl<S: Storage>() {
+    fn return_empty_result_if_no_datoms_match_search_criteria_impl<S: TestStorage>() {
         let storage = S::create();
 
         let entity = 100;
         let clause = Clause::new().with_entity(EntityPattern::Id(entity));
-        let read_result = storage.find(&clause);
+        let read_result = storage.find(clause);
 
         assert!(read_result.is_empty());
     }
 
-    fn find_single_datom_by_entity_attribute_and_value_impl<S: Storage>() {
+    fn find_single_datom_by_entity_attribute_and_value_impl<S: TestStorage>() {
         let mut storage = S::create();
 
         let entity = 100;
@@ -169,7 +169,7 @@ mod tests {
         storage.save(&datoms);
 
         let read_result = storage.find(
-            &Clause::new()
+            Clause::new()
                 .with_entity(EntityPattern::Id(entity))
                 .with_attribute(AttributePattern::Id(attribute))
                 .with_value(ValuePattern::Constant(Value::U64(value))),
@@ -178,7 +178,7 @@ mod tests {
         assert_eq!(datoms, read_result);
     }
 
-    fn find_multiple_datoms_by_entity_impl<S: Storage>() {
+    fn find_multiple_datoms_by_entity_impl<S: TestStorage>() {
         let mut storage = S::create();
 
         let entity = 100;
@@ -189,12 +189,12 @@ mod tests {
         ];
         storage.save(&datoms);
 
-        let read_result = storage.find(&Clause::new().with_entity(EntityPattern::Id(entity)));
+        let read_result = storage.find(Clause::new().with_entity(EntityPattern::Id(entity)));
 
         assert_eq!(datoms, read_result);
     }
 
-    fn find_multiple_datoms_by_attribute_for_different_entity_impl<S: Storage>() {
+    fn find_multiple_datoms_by_attribute_for_different_entity_impl<S: TestStorage>() {
         let mut storage = S::create();
 
         let entity1 = 100;
@@ -212,7 +212,7 @@ mod tests {
         storage.save(&datoms);
 
         let read_result =
-            storage.find(&Clause::new().with_attribute(AttributePattern::Id(attribute1)));
+            storage.find(Clause::new().with_attribute(AttributePattern::Id(attribute1)));
 
         let expected = vec![
             Datom::add(entity1, attribute1, 2u64, 1001),
@@ -222,7 +222,7 @@ mod tests {
         assert!(expected.iter().all(|datom| read_result.contains(datom)));
     }
 
-    fn find_multiple_datoms_by_attribute_for_same_entity_impl<S: Storage>() {
+    fn find_multiple_datoms_by_attribute_for_same_entity_impl<S: TestStorage>() {
         let mut storage = S::create();
 
         let entity = 100;
@@ -236,12 +236,12 @@ mod tests {
         ];
         storage.save(&datoms);
 
-        let read_result = storage.find(&Clause::new().with_entity(EntityPattern::Id(entity)));
+        let read_result = storage.find(Clause::new().with_entity(EntityPattern::Id(entity)));
 
         assert_eq!(datoms, read_result);
     }
 
-    fn ignore_datoms_of_other_entities_impl<S: Storage>() {
+    fn ignore_datoms_of_other_entities_impl<S: TestStorage>() {
         let mut storage = S::create();
 
         let entity1 = 100;
@@ -254,12 +254,12 @@ mod tests {
         ];
         storage.save(&datoms);
 
-        let read_result = storage.find(&Clause::new().with_entity(EntityPattern::Id(entity1)));
+        let read_result = storage.find(Clause::new().with_entity(EntityPattern::Id(entity1)));
 
         assert_eq!(datoms[0..1], read_result);
     }
 
-    fn ignore_retracted_values_impl<S: Storage>() {
+    fn ignore_retracted_values_impl<S: TestStorage>() {
         let mut storage = S::create();
 
         let entity = 100;
@@ -273,7 +273,7 @@ mod tests {
         storage.save(&datoms);
 
         let read_result = storage.find(
-            &Clause::new()
+            Clause::new()
                 .with_entity(EntityPattern::Id(entity))
                 .with_attribute(AttributePattern::Id(attribute)),
         );
@@ -281,7 +281,7 @@ mod tests {
         assert!(read_result.is_empty());
     }
 
-    fn fetch_only_latest_value_for_attribute_impl<S: Storage>() {
+    fn fetch_only_latest_value_for_attribute_impl<S: TestStorage>() {
         let mut storage = S::create();
 
         let entity = 100;
@@ -296,7 +296,7 @@ mod tests {
         storage.save(&datoms);
 
         let read_result = storage.find(
-            &Clause::new()
+            Clause::new()
                 .with_entity(EntityPattern::Id(entity))
                 .with_attribute(AttributePattern::Id(attribute)),
         );

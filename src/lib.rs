@@ -27,6 +27,56 @@ mod tests {
     use super::tx::transactor::*;
     use super::tx::*;
 
+    struct SUT {
+        transactor: Transactor,
+        storage: InMemoryStorage,
+        last_tx: u64,
+    }
+
+    impl SUT {
+        fn new() -> Self {
+            let mut sut = Self::new_without_schema();
+            sut.transact(create_schema());
+            sut
+        }
+
+        fn new_without_schema() -> Self {
+            let transactor = Transactor::new();
+            let mut storage = InMemoryStorage::new();
+            storage
+                .save(&default_datoms())
+                .expect("unable to save default datoms");
+
+            Self {
+                transactor,
+                storage,
+                last_tx: 0,
+            }
+        }
+
+        fn transact(&mut self, transaction: Transaction) -> TransctionResult {
+            let result = self.try_transact(transaction).expect("unable to transact");
+            self.storage.save(&result.tx_data).expect("unable to save");
+            self.last_tx = result.tx_id;
+            result
+        }
+
+        fn try_transact(&mut self, transaction: Transaction) -> Result<TransctionResult, &str> {
+            self.transactor
+                .transact(&self.storage, now(), transaction)
+                .map_err(|_| "unable to transact")
+        }
+
+        fn query(&self, query: Query) -> QueryResult {
+            self.query_at_snapshot(self.last_tx, query)
+        }
+
+        fn query_at_snapshot(&self, snapshot_tx: u64, query: Query) -> QueryResult {
+            let mut db = Db::new(snapshot_tx);
+            db.query(&self.storage, query).expect("unable to query")
+        }
+    }
+
     fn now() -> Instant {
         Instant(
             SystemTime::now()
@@ -34,32 +84,6 @@ mod tests {
                 .expect("time went backwards")
                 .as_secs(),
         )
-    }
-
-    fn transact(
-        transactor: &mut Transactor,
-        storage: &mut InMemoryStorage,
-        transaction: Transaction,
-    ) -> TransctionResult {
-        let result = transactor
-            .transact(storage, now(), transaction)
-            .expect("unable to transact");
-        storage.save(&result.tx_data).expect("unable to save");
-        result
-    }
-
-    fn create_db() -> (Transactor, InMemoryStorage) {
-        let (mut transactor, mut storage) = create_empty_db();
-        transact(&mut transactor, &mut storage, create_schema());
-        (transactor, storage)
-    }
-
-    fn create_empty_db() -> (Transactor, InMemoryStorage) {
-        let mut storage = InMemoryStorage::new();
-        storage
-            .save(&default_datoms())
-            .expect("unable to save default datoms");
-        (Transactor::new(), storage)
     }
 
     fn create_schema() -> Transaction {
@@ -87,20 +111,16 @@ mod tests {
 
     #[test]
     fn return_empty_result() {
-        let (mut transactor, mut storage) = create_db();
+        let mut sut = SUT::new();
 
         // Insert data
-        let tx_result = transact(
-            &mut transactor,
-            &mut storage,
+        sut.transact(
             Transaction::new()
                 .with(Operation::on_new().set("person/name", "Alice"))
                 .with(Operation::on_new().set("person/name", "Bob")),
         );
 
-        let mut db = Db::new(tx_result.tx_id);
-        let query_result = db.query(
-            &storage,
+        let query_result = sut.query(
             Query::new().wher(
                 Clause::new()
                     .with_entity(EntityPattern::variable("?name"))
@@ -109,28 +129,19 @@ mod tests {
             ),
         );
 
-        assert!(query_result.is_ok());
-        assert!(query_result.unwrap().results.is_empty());
+        assert!(query_result.results.is_empty());
     }
 
     #[test]
     fn create_entity_by_temp_id() {
-        let (mut transactor, mut storage) = create_db();
+        let mut sut = SUT::new();
 
         // Insert data
-        let TransctionResult {
-            tx_id,
-            tx_data: _,
-            temp_ids,
-        } = transact(
-            &mut transactor,
-            &mut storage,
+        let result = sut.transact(
             Transaction::new().with(Operation::on_temp_id("joe").set("person/name", "Joe")),
         );
 
-        let mut db = Db::new(tx_id);
-        let query_result = db.query(
-            &storage,
+        let query_result = sut.query(
             Query::new().wher(
                 Clause::new()
                     .with_entity(EntityPattern::variable("?joe"))
@@ -139,48 +150,41 @@ mod tests {
             ),
         );
 
-        assert!(query_result.is_ok());
-        //dbg!(&storage);
-        let joe_id = temp_ids.get("joe");
+        let joe_id = result.temp_ids.get("joe");
         assert!(joe_id.is_some());
-        assert_eq!(
-            joe_id.copied(),
-            query_result.unwrap().results[0]["?joe"].as_u64()
-        );
+        assert_eq!(joe_id.copied(), query_result.results[0]["?joe"].as_u64());
     }
 
     #[test]
     fn reject_transaction_with_invalid_attribute_type() {
-        let (mut transactor, mut storage) = create_db();
+        let mut sut = SUT::new();
 
         // This transaction should fail: "person/name" is of type `ValueType::Str`.
         let tx = Transaction::new().with(Operation::on_new().set("person/name", 42));
-        let tx_result = transactor.transact(&mut storage, now(), tx);
+        let tx_result = sut.try_transact(tx);
 
         assert!(tx_result.is_err());
     }
 
     #[test]
     fn reject_transaction_with_duplicate_temp_ids() {
-        let (mut transactor, mut storage) = create_db();
+        let mut sut = SUT::new();
 
         // This transaction should fail: temp ID "duplicate" should only be used once.
         let tx = Transaction::new()
             .with(Operation::on_temp_id("duplicate").set("person/name", "Alice"))
             .with(Operation::on_temp_id("duplicate").set("person/name", "Bob"));
-        let tx_result = transactor.transact(&mut storage, now(), tx);
+        let tx_result = sut.try_transact(tx);
 
         assert!(tx_result.is_err());
     }
 
     #[test]
     fn reference_temp_id_in_transaction() {
-        let (mut transactor, mut storage) = create_db();
+        let mut sut = SUT::new();
 
         // Insert data
-        let tx_result = transact(
-            &mut transactor,
-            &mut storage,
+        sut.transact(
             Transaction::new()
                 .with(Operation::on_temp_id("john").set("artist/name", "John Lenon"))
                 .with(Operation::on_temp_id("paul").set("artist/name", "Paul McCartney"))
@@ -193,9 +197,7 @@ mod tests {
                 ),
         );
 
-        let mut db = Db::new(tx_result.tx_id);
-        let query_result = db.query(
-            &storage,
+        let query_result = sut.query(
             Query::new()
                 .wher(
                     Clause::new()
@@ -217,21 +219,18 @@ mod tests {
                 ),
         );
 
-        assert!(query_result.is_ok());
         assert_eq!(
             Some("Abbey Road"),
-            query_result.unwrap().results[0]["?release-name"].as_str()
+            query_result.results[0]["?release-name"].as_str()
         );
     }
 
     #[test]
     fn return_latest_value_with_cardinality_one() {
-        let (mut transactor, mut storage) = create_empty_db();
+        let mut sut = SUT::new_without_schema();
 
         // Create the schema
-        transact(
-            &mut transactor,
-            &mut storage,
+        sut.transact(
             Transaction::new()
                 .with(Attribute::new("person/name", ValueType::Str).with_doc("A person's name"))
                 .with(
@@ -241,27 +240,21 @@ mod tests {
         );
 
         // Insert initial data
-        let tx_result1 = transact(
-            &mut transactor,
-            &mut storage,
+        let tx_result = sut.transact(
             Transaction::new().with(
                 Operation::on_temp_id("joe")
                     .set("person/name", "Joe")
                     .set("person/likes", "Pizza"),
             ),
         );
-        let joe_id = tx_result1.temp_ids["joe"];
+        let joe_id = tx_result.temp_ids["joe"];
 
         // Update what Joe likes
-        let tx_result2 = transact(
-            &mut transactor,
-            &mut storage,
+        sut.transact(
             Transaction::new().with(Operation::on_id(joe_id).set("person/likes", "Ice cream")),
         );
 
-        let mut db = Db::new(tx_result2.tx_id);
-        let query_result = db.query(
-            &storage,
+        let query_result = sut.query(
             Query::new().wher(
                 Clause::new()
                     .with_entity(EntityPattern::Id(joe_id))
@@ -270,9 +263,8 @@ mod tests {
             ),
         );
 
-        assert!(query_result.is_ok());
-        let results = query_result.unwrap().results;
-        let likes: HashSet<&str> = results
+        let likes: HashSet<&str> = query_result
+            .results
             .iter()
             .flat_map(|assignment| assignment["?likes"].as_str().into_iter())
             .collect();
@@ -283,30 +275,24 @@ mod tests {
 
     #[test]
     fn return_all_values_with_cardinality_many() {
-        let (mut transactor, mut storage) = create_db();
+        let mut sut = SUT::new();
 
         // Insert initial data
-        let tx_result1 = transact(
-            &mut transactor,
-            &mut storage,
+        let tx_result = sut.transact(
             Transaction::new().with(
                 Operation::on_temp_id("joe")
                     .set("person/name", "Joe")
                     .set("person/likes", "Pizza"),
             ),
         );
-        let joe_id = tx_result1.temp_ids["joe"];
+        let joe_id = tx_result.temp_ids["joe"];
 
         // Update what Joe likes
-        let tx_result2 = transact(
-            &mut transactor,
-            &mut storage,
+        sut.transact(
             Transaction::new().with(Operation::on_id(joe_id).set("person/likes", "Ice cream")),
         );
 
-        let mut db = Db::new(tx_result2.tx_id);
-        let query_result = db.query(
-            &storage,
+        let query_result = sut.query(
             Query::new().wher(
                 Clause::new()
                     .with_entity(EntityPattern::Id(joe_id))
@@ -315,9 +301,8 @@ mod tests {
             ),
         );
 
-        assert!(query_result.is_ok());
-        let results = query_result.unwrap().results;
-        let likes: HashSet<&str> = results
+        let likes: HashSet<&str> = query_result
+            .results
             .iter()
             .flat_map(|assignment| assignment["?likes"].as_str().into_iter())
             .collect();
@@ -329,28 +314,20 @@ mod tests {
 
     #[test]
     fn return_correct_value_for_database_snapshot() {
-        let (mut transactor, mut storage) = create_db();
+        let mut sut = SUT::new();
 
         // Insert initial data
-        let TransctionResult {
-            tx_id: first_tx_id,
-            tx_data: _,
-            temp_ids,
-        } = transact(
-            &mut transactor,
-            &mut storage,
+        let first_tx_result = sut.transact(
             Transaction::new().with(
                 Operation::on_temp_id("joe")
                     .set("person/name", "Joe")
                     .set("person/likes", "Pizza"),
             ),
         );
-        let joe_id = temp_ids["joe"];
+        let joe_id = first_tx_result.temp_ids["joe"];
 
         // Update what Joe likes
-        transact(
-            &mut transactor,
-            &mut storage,
+        sut.transact(
             Transaction::new().with(
                 Operation::on_id(joe_id)
                     .set("person/name", "Joe")
@@ -358,9 +335,8 @@ mod tests {
             ),
         );
 
-        let mut db = Db::new(first_tx_id);
-        let query_result = db.query(
-            &storage,
+        let query_result = sut.query_at_snapshot(
+            first_tx_result.tx_id,
             Query::new().wher(
                 Clause::new()
                     .with_entity(EntityPattern::Id(joe_id))
@@ -369,9 +345,8 @@ mod tests {
             ),
         );
 
-        assert!(query_result.is_ok());
-        let results = query_result.unwrap().results;
-        let likes: HashSet<&str> = results
+        let likes: HashSet<&str> = query_result
+            .results
             .iter()
             .flat_map(|assignment| assignment["?likes"].as_str().into_iter())
             .collect();
@@ -382,18 +357,13 @@ mod tests {
 
     #[test]
     fn search_for_tx_pattern() {
-        let (mut transactor, mut storage) = create_db();
+        let mut sut = SUT::new();
 
         // Insert initial data
-        let tx_result = transact(
-            &mut transactor,
-            &mut storage,
-            Transaction::new().with(Operation::on_new().set("person/name", "Joe")),
-        );
+        let tx_result =
+            sut.transact(Transaction::new().with(Operation::on_new().set("person/name", "Joe")));
 
-        let mut db = Db::new(tx_result.tx_id);
-        let query_result = db.query(
-            &storage,
+        let query_result = sut.query(
             Query::new()
                 .wher(
                     Clause::new()
@@ -410,10 +380,8 @@ mod tests {
                 ),
         );
 
-        assert!(query_result.is_ok());
-        let results = query_result.unwrap().results;
-        assert_eq!(1, results.len());
-        let result = &results[0];
+        assert_eq!(1, query_result.results.len());
+        let result = &query_result.results[0];
         assert_eq!(Some(tx_result.tx_id), result["?tx"].as_u64());
         assert!(result["?tx_time"].as_u64().is_some_and(|time| time > 0));
     }

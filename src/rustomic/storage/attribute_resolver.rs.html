@@ -261,11 +261,11 @@
 <span class="kw">use </span><span class="kw">crate</span>::schema::<span class="kw-2">*</span>;
 <span class="kw">use </span><span class="kw">crate</span>::storage::ReadStorage;
 
-<span class="kw">pub struct </span>CachingAttributeResolver {
+<span class="kw">pub struct </span>AttributeResolver {
     cache: HashMap&lt;Rc&lt;str&gt;, Attribute&gt;,
 }
 
-<span class="kw">impl </span>CachingAttributeResolver {
+<span class="kw">impl </span>AttributeResolver {
     <span class="kw">pub fn </span>new() -&gt; <span class="self">Self </span>{
         <span class="self">Self </span>{
             cache: HashMap::new(),
@@ -445,7 +445,7 @@
     <span class="attr">#[test]
     </span><span class="kw">fn </span>returns_none_when_attribute_does_not_exist() {
         <span class="kw">let </span>storage = create_storage();
-        <span class="kw">let </span><span class="kw-2">mut </span>resolver = CachingAttributeResolver::new();
+        <span class="kw">let </span><span class="kw-2">mut </span>resolver = AttributeResolver::new();
         <span class="kw">let </span>result = resolver.resolve_ident(<span class="kw-2">&amp;</span>storage, <span class="string">&quot;foo/bar&quot;</span>);
         <span class="macro">assert!</span>(result.is_ok());
         <span class="macro">assert!</span>(result.unwrap().is_none());
@@ -462,7 +462,7 @@
         <span class="macro">assert!</span>(tx_result.is_ok());
         <span class="macro">assert!</span>(storage.save(<span class="kw-2">&amp;</span>tx_result.unwrap().tx_data).is_ok());
 
-        <span class="kw">let </span><span class="kw-2">mut </span>resolver = CachingAttributeResolver::new();
+        <span class="kw">let </span><span class="kw-2">mut </span>resolver = AttributeResolver::new();
         <span class="kw">let </span>result = resolver.resolve_ident(<span class="kw-2">&amp;</span>storage, <span class="string">&quot;foo/bar&quot;</span>);
         <span class="macro">assert!</span>(result.is_ok());
 
@@ -485,7 +485,7 @@
         <span class="macro">assert!</span>(tx_result.is_ok());
         <span class="macro">assert!</span>(storage.save(<span class="kw-2">&amp;</span>tx_result.unwrap().tx_data).is_ok());
 
-        <span class="kw">let </span><span class="kw-2">mut </span>resolver = CachingAttributeResolver::new();
+        <span class="kw">let </span><span class="kw-2">mut </span>resolver = AttributeResolver::new();
         <span class="kw">let </span>result1 = resolver.resolve_ident(<span class="kw-2">&amp;</span>storage, <span class="string">&quot;foo/bar&quot;</span>);
         <span class="macro">assert!</span>(result1.is_ok());
         <span class="kw">let </span>result1 = result1.unwrap();

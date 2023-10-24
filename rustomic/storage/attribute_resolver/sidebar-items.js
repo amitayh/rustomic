@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"struct":["Attribute","CachingAttributeResolver"]};
+window.SIDEBAR_ITEMS = {"struct":["Attribute","AttributeResolver"]};

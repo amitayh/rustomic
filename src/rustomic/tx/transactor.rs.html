@@ -189,7 +189,7 @@
 
 <span class="kw">pub struct </span>Transactor {
     next_entity_id: u64,
-    attribute_resolver: CachingAttributeResolver,
+    attribute_resolver: AttributeResolver,
 }
 
 <span class="kw">impl </span>Default <span class="kw">for </span>Transactor {
@@ -202,7 +202,7 @@
     <span class="kw">pub fn </span>new() -&gt; <span class="self">Self </span>{
         <span class="self">Self </span>{
             next_entity_id: <span class="number">100</span>,
-            attribute_resolver: CachingAttributeResolver::new(),
+            attribute_resolver: AttributeResolver::new(),
         }
     }
 

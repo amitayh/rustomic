@@ -94,14 +94,14 @@
 
 <span class="kw">pub struct </span>Db {
     tx: u64,
-    attribute_resolver: CachingAttributeResolver,
+    attribute_resolver: AttributeResolver,
 }
 
 <span class="kw">impl </span>Db {
     <span class="kw">pub fn </span>new(tx: u64) -&gt; <span class="self">Self </span>{
         <span class="self">Self </span>{
             tx,
-            attribute_resolver: CachingAttributeResolver::new(),
+            attribute_resolver: AttributeResolver::new(),
         }
     }
 

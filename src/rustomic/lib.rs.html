@@ -449,38 +449,6 @@
 <a href="#449" id="449">449</a>
 <a href="#450" id="450">450</a>
 <a href="#451" id="451">451</a>
-<a href="#452" id="452">452</a>
-<a href="#453" id="453">453</a>
-<a href="#454" id="454">454</a>
-<a href="#455" id="455">455</a>
-<a href="#456" id="456">456</a>
-<a href="#457" id="457">457</a>
-<a href="#458" id="458">458</a>
-<a href="#459" id="459">459</a>
-<a href="#460" id="460">460</a>
-<a href="#461" id="461">461</a>
-<a href="#462" id="462">462</a>
-<a href="#463" id="463">463</a>
-<a href="#464" id="464">464</a>
-<a href="#465" id="465">465</a>
-<a href="#466" id="466">466</a>
-<a href="#467" id="467">467</a>
-<a href="#468" id="468">468</a>
-<a href="#469" id="469">469</a>
-<a href="#470" id="470">470</a>
-<a href="#471" id="471">471</a>
-<a href="#472" id="472">472</a>
-<a href="#473" id="473">473</a>
-<a href="#474" id="474">474</a>
-<a href="#475" id="475">475</a>
-<a href="#476" id="476">476</a>
-<a href="#477" id="477">477</a>
-<a href="#478" id="478">478</a>
-<a href="#479" id="479">479</a>
-<a href="#480" id="480">480</a>
-<a href="#481" id="481">481</a>
-<a href="#482" id="482">482</a>
-<a href="#483" id="483">483</a>
 </pre></div><pre class="rust"><code><span class="kw">pub mod </span>clock;
 <span class="kw">pub mod </span>datom;
 <span class="kw">pub mod </span>query;
@@ -510,39 +478,63 @@
     <span class="kw">use </span><span class="kw">super</span>::tx::transactor::<span class="kw-2">*</span>;
     <span class="kw">use </span><span class="kw">super</span>::tx::<span class="kw-2">*</span>;
 
+    <span class="kw">struct </span>SUT {
+        transactor: Transactor,
+        storage: InMemoryStorage,
+        last_tx: u64,
+    }
+
+    <span class="kw">impl </span>SUT {
+        <span class="kw">fn </span>new() -&gt; <span class="self">Self </span>{
+            <span class="kw">let </span><span class="kw-2">mut </span>sut = <span class="self">Self</span>::new_without_schema();
+            sut.transact(create_schema());
+            sut
+        }
+
+        <span class="kw">fn </span>new_without_schema() -&gt; <span class="self">Self </span>{
+            <span class="kw">let </span>transactor = Transactor::new();
+            <span class="kw">let </span><span class="kw-2">mut </span>storage = InMemoryStorage::new();
+            storage
+                .save(<span class="kw-2">&amp;</span>default_datoms())
+                .expect(<span class="string">&quot;Unable to save default datoms&quot;</span>);
+
+            <span class="self">Self </span>{
+                transactor,
+                storage,
+                last_tx: <span class="number">0</span>,
+            }
+        }
+
+        <span class="kw">fn </span>transact(<span class="kw-2">&amp;mut </span><span class="self">self</span>, transaction: Transaction) -&gt; TransctionResult {
+            <span class="kw">let </span>result = <span class="self">self</span>.try_transact(transaction).expect(<span class="string">&quot;Unable to transact&quot;</span>);
+            <span class="self">self</span>.storage.save(<span class="kw-2">&amp;</span>result.tx_data).expect(<span class="string">&quot;Unable to save&quot;</span>);
+            <span class="self">self</span>.last_tx = result.tx_id;
+            result
+        }
+
+        <span class="kw">fn </span>try_transact(<span class="kw-2">&amp;mut </span><span class="self">self</span>, transaction: Transaction) -&gt; <span class="prelude-ty">Option</span>&lt;TransctionResult&gt; {
+            <span class="self">self</span>.transactor
+                .transact(<span class="kw-2">&amp;</span><span class="self">self</span>.storage, now(), transaction)
+                .ok()
+        }
+
+        <span class="kw">fn </span>query(<span class="kw-2">&amp;</span><span class="self">self</span>, query: Query) -&gt; QueryResult {
+            <span class="self">self</span>.query_at_snapshot(<span class="self">self</span>.last_tx, query)
+        }
+
+        <span class="kw">fn </span>query_at_snapshot(<span class="kw-2">&amp;</span><span class="self">self</span>, snapshot_tx: u64, query: Query) -&gt; QueryResult {
+            <span class="kw">let </span><span class="kw-2">mut </span>db = Db::new(snapshot_tx);
+            db.query(<span class="kw-2">&amp;</span><span class="self">self</span>.storage, query).expect(<span class="string">&quot;Unable to query&quot;</span>)
+        }
+    }
+
     <span class="kw">fn </span>now() -&gt; Instant {
         Instant(
             SystemTime::now()
                 .duration_since(SystemTime::UNIX_EPOCH)
-                .expect(<span class="string">&quot;time went backwards&quot;</span>)
+                .expect(<span class="string">&quot;Time went backwards&quot;</span>)
                 .as_secs(),
         )
-    }
-
-    <span class="kw">fn </span>transact(
-        transactor: <span class="kw-2">&amp;mut </span>Transactor,
-        storage: <span class="kw-2">&amp;mut </span>InMemoryStorage,
-        transaction: Transaction,
-    ) -&gt; TransctionResult {
-        <span class="kw">let </span>result = transactor
-            .transact(storage, now(), transaction)
-            .expect(<span class="string">&quot;unable to transact&quot;</span>);
-        storage.save(<span class="kw-2">&amp;</span>result.tx_data).expect(<span class="string">&quot;unable to save&quot;</span>);
-        result
-    }
-
-    <span class="kw">fn </span>create_db() -&gt; (Transactor, InMemoryStorage) {
-        <span class="kw">let </span>(<span class="kw-2">mut </span>transactor, <span class="kw-2">mut </span>storage) = create_empty_db();
-        transact(<span class="kw-2">&amp;mut </span>transactor, <span class="kw-2">&amp;mut </span>storage, create_schema());
-        (transactor, storage)
-    }
-
-    <span class="kw">fn </span>create_empty_db() -&gt; (Transactor, InMemoryStorage) {
-        <span class="kw">let </span><span class="kw-2">mut </span>storage = InMemoryStorage::new();
-        storage
-            .save(<span class="kw-2">&amp;</span>default_datoms())
-            .expect(<span class="string">&quot;unable to save default datoms&quot;</span>);
-        (Transactor::new(), storage)
     }
 
     <span class="kw">fn </span>create_schema() -&gt; Transaction {
@@ -570,20 +562,16 @@
 
     <span class="attr">#[test]
     </span><span class="kw">fn </span>return_empty_result() {
-        <span class="kw">let </span>(<span class="kw-2">mut </span>transactor, <span class="kw-2">mut </span>storage) = create_db();
+        <span class="kw">let </span><span class="kw-2">mut </span>sut = SUT::new();
 
         <span class="comment">// Insert data
-        </span><span class="kw">let </span>tx_result = transact(
-            <span class="kw-2">&amp;mut </span>transactor,
-            <span class="kw-2">&amp;mut </span>storage,
+        </span>sut.transact(
             Transaction::new()
                 .with(Operation::on_new().set(<span class="string">&quot;person/name&quot;</span>, <span class="string">&quot;Alice&quot;</span>))
                 .with(Operation::on_new().set(<span class="string">&quot;person/name&quot;</span>, <span class="string">&quot;Bob&quot;</span>)),
         );
 
-        <span class="kw">let </span><span class="kw-2">mut </span>db = Db::new(tx_result.tx_id);
-        <span class="kw">let </span>query_result = db.query(
-            <span class="kw-2">&amp;</span>storage,
+        <span class="kw">let </span>query_result = sut.query(
             Query::new().wher(
                 Clause::new()
                     .with_entity(EntityPattern::variable(<span class="string">&quot;?name&quot;</span>))
@@ -592,28 +580,19 @@
             ),
         );
 
-        <span class="macro">assert!</span>(query_result.is_ok());
-        <span class="macro">assert!</span>(query_result.unwrap().results.is_empty());
+        <span class="macro">assert!</span>(query_result.results.is_empty());
     }
 
     <span class="attr">#[test]
     </span><span class="kw">fn </span>create_entity_by_temp_id() {
-        <span class="kw">let </span>(<span class="kw-2">mut </span>transactor, <span class="kw-2">mut </span>storage) = create_db();
+        <span class="kw">let </span><span class="kw-2">mut </span>sut = SUT::new();
 
         <span class="comment">// Insert data
-        </span><span class="kw">let </span>TransctionResult {
-            tx_id,
-            tx_data: <span class="kw">_</span>,
-            temp_ids,
-        } = transact(
-            <span class="kw-2">&amp;mut </span>transactor,
-            <span class="kw-2">&amp;mut </span>storage,
+        </span><span class="kw">let </span>result = sut.transact(
             Transaction::new().with(Operation::on_temp_id(<span class="string">&quot;joe&quot;</span>).set(<span class="string">&quot;person/name&quot;</span>, <span class="string">&quot;Joe&quot;</span>)),
         );
 
-        <span class="kw">let </span><span class="kw-2">mut </span>db = Db::new(tx_id);
-        <span class="kw">let </span>query_result = db.query(
-            <span class="kw-2">&amp;</span>storage,
+        <span class="kw">let </span>query_result = sut.query(
             Query::new().wher(
                 Clause::new()
                     .with_entity(EntityPattern::variable(<span class="string">&quot;?joe&quot;</span>))
@@ -622,48 +601,41 @@
             ),
         );
 
-        <span class="macro">assert!</span>(query_result.is_ok());
-        <span class="comment">//dbg!(&amp;storage);
-        </span><span class="kw">let </span>joe_id = temp_ids.get(<span class="string">&quot;joe&quot;</span>);
+        <span class="kw">let </span>joe_id = result.temp_ids.get(<span class="string">&quot;joe&quot;</span>);
         <span class="macro">assert!</span>(joe_id.is_some());
-        <span class="macro">assert_eq!</span>(
-            joe_id.copied(),
-            query_result.unwrap().results[<span class="number">0</span>][<span class="string">&quot;?joe&quot;</span>].as_u64()
-        );
+        <span class="macro">assert_eq!</span>(joe_id.copied(), query_result.results[<span class="number">0</span>][<span class="string">&quot;?joe&quot;</span>].as_u64());
     }
 
     <span class="attr">#[test]
     </span><span class="kw">fn </span>reject_transaction_with_invalid_attribute_type() {
-        <span class="kw">let </span>(<span class="kw-2">mut </span>transactor, <span class="kw-2">mut </span>storage) = create_db();
+        <span class="kw">let </span><span class="kw-2">mut </span>sut = SUT::new();
 
         <span class="comment">// This transaction should fail: &quot;person/name&quot; is of type `ValueType::Str`.
         </span><span class="kw">let </span>tx = Transaction::new().with(Operation::on_new().set(<span class="string">&quot;person/name&quot;</span>, <span class="number">42</span>));
-        <span class="kw">let </span>tx_result = transactor.transact(<span class="kw-2">&amp;mut </span>storage, now(), tx);
+        <span class="kw">let </span>tx_result = sut.try_transact(tx);
 
-        <span class="macro">assert!</span>(tx_result.is_err());
+        <span class="macro">assert!</span>(tx_result.is_none());
     }
 
     <span class="attr">#[test]
     </span><span class="kw">fn </span>reject_transaction_with_duplicate_temp_ids() {
-        <span class="kw">let </span>(<span class="kw-2">mut </span>transactor, <span class="kw-2">mut </span>storage) = create_db();
+        <span class="kw">let </span><span class="kw-2">mut </span>sut = SUT::new();
 
         <span class="comment">// This transaction should fail: temp ID &quot;duplicate&quot; should only be used once.
         </span><span class="kw">let </span>tx = Transaction::new()
             .with(Operation::on_temp_id(<span class="string">&quot;duplicate&quot;</span>).set(<span class="string">&quot;person/name&quot;</span>, <span class="string">&quot;Alice&quot;</span>))
             .with(Operation::on_temp_id(<span class="string">&quot;duplicate&quot;</span>).set(<span class="string">&quot;person/name&quot;</span>, <span class="string">&quot;Bob&quot;</span>));
-        <span class="kw">let </span>tx_result = transactor.transact(<span class="kw-2">&amp;mut </span>storage, now(), tx);
+        <span class="kw">let </span>tx_result = sut.try_transact(tx);
 
-        <span class="macro">assert!</span>(tx_result.is_err());
+        <span class="macro">assert!</span>(tx_result.is_none());
     }
 
     <span class="attr">#[test]
     </span><span class="kw">fn </span>reference_temp_id_in_transaction() {
-        <span class="kw">let </span>(<span class="kw-2">mut </span>transactor, <span class="kw-2">mut </span>storage) = create_db();
+        <span class="kw">let </span><span class="kw-2">mut </span>sut = SUT::new();
 
         <span class="comment">// Insert data
-        </span><span class="kw">let </span>tx_result = transact(
-            <span class="kw-2">&amp;mut </span>transactor,
-            <span class="kw-2">&amp;mut </span>storage,
+        </span>sut.transact(
             Transaction::new()
                 .with(Operation::on_temp_id(<span class="string">&quot;john&quot;</span>).set(<span class="string">&quot;artist/name&quot;</span>, <span class="string">&quot;John Lenon&quot;</span>))
                 .with(Operation::on_temp_id(<span class="string">&quot;paul&quot;</span>).set(<span class="string">&quot;artist/name&quot;</span>, <span class="string">&quot;Paul McCartney&quot;</span>))
@@ -676,9 +648,7 @@
                 ),
         );
 
-        <span class="kw">let </span><span class="kw-2">mut </span>db = Db::new(tx_result.tx_id);
-        <span class="kw">let </span>query_result = db.query(
-            <span class="kw-2">&amp;</span>storage,
+        <span class="kw">let </span>query_result = sut.query(
             Query::new()
                 .wher(
                     Clause::new()
@@ -700,21 +670,18 @@
                 ),
         );
 
-        <span class="macro">assert!</span>(query_result.is_ok());
         <span class="macro">assert_eq!</span>(
             <span class="prelude-val">Some</span>(<span class="string">&quot;Abbey Road&quot;</span>),
-            query_result.unwrap().results[<span class="number">0</span>][<span class="string">&quot;?release-name&quot;</span>].as_str()
+            query_result.results[<span class="number">0</span>][<span class="string">&quot;?release-name&quot;</span>].as_str()
         );
     }
 
     <span class="attr">#[test]
     </span><span class="kw">fn </span>return_latest_value_with_cardinality_one() {
-        <span class="kw">let </span>(<span class="kw-2">mut </span>transactor, <span class="kw-2">mut </span>storage) = create_empty_db();
+        <span class="kw">let </span><span class="kw-2">mut </span>sut = SUT::new_without_schema();
 
         <span class="comment">// Create the schema
-        </span>transact(
-            <span class="kw-2">&amp;mut </span>transactor,
-            <span class="kw-2">&amp;mut </span>storage,
+        </span>sut.transact(
             Transaction::new()
                 .with(Attribute::new(<span class="string">&quot;person/name&quot;</span>, ValueType::Str).with_doc(<span class="string">&quot;A person&#39;s name&quot;</span>))
                 .with(
@@ -724,27 +691,21 @@
         );
 
         <span class="comment">// Insert initial data
-        </span><span class="kw">let </span>tx_result1 = transact(
-            <span class="kw-2">&amp;mut </span>transactor,
-            <span class="kw-2">&amp;mut </span>storage,
+        </span><span class="kw">let </span>tx_result = sut.transact(
             Transaction::new().with(
                 Operation::on_temp_id(<span class="string">&quot;joe&quot;</span>)
                     .set(<span class="string">&quot;person/name&quot;</span>, <span class="string">&quot;Joe&quot;</span>)
                     .set(<span class="string">&quot;person/likes&quot;</span>, <span class="string">&quot;Pizza&quot;</span>),
             ),
         );
-        <span class="kw">let </span>joe_id = tx_result1.temp_ids[<span class="string">&quot;joe&quot;</span>];
+        <span class="kw">let </span>joe_id = tx_result.temp_ids[<span class="string">&quot;joe&quot;</span>];
 
         <span class="comment">// Update what Joe likes
-        </span><span class="kw">let </span>tx_result2 = transact(
-            <span class="kw-2">&amp;mut </span>transactor,
-            <span class="kw-2">&amp;mut </span>storage,
+        </span>sut.transact(
             Transaction::new().with(Operation::on_id(joe_id).set(<span class="string">&quot;person/likes&quot;</span>, <span class="string">&quot;Ice cream&quot;</span>)),
         );
 
-        <span class="kw">let </span><span class="kw-2">mut </span>db = Db::new(tx_result2.tx_id);
-        <span class="kw">let </span>query_result = db.query(
-            <span class="kw-2">&amp;</span>storage,
+        <span class="kw">let </span>query_result = sut.query(
             Query::new().wher(
                 Clause::new()
                     .with_entity(EntityPattern::Id(joe_id))
@@ -753,9 +714,8 @@
             ),
         );
 
-        <span class="macro">assert!</span>(query_result.is_ok());
-        <span class="kw">let </span>results = query_result.unwrap().results;
-        <span class="kw">let </span>likes: HashSet&lt;<span class="kw-2">&amp;</span>str&gt; = results
+        <span class="kw">let </span>likes: HashSet&lt;<span class="kw-2">&amp;</span>str&gt; = query_result
+            .results
             .iter()
             .flat_map(|assignment| assignment[<span class="string">&quot;?likes&quot;</span>].as_str().into_iter())
             .collect();
@@ -766,30 +726,24 @@
 
     <span class="attr">#[test]
     </span><span class="kw">fn </span>return_all_values_with_cardinality_many() {
-        <span class="kw">let </span>(<span class="kw-2">mut </span>transactor, <span class="kw-2">mut </span>storage) = create_db();
+        <span class="kw">let </span><span class="kw-2">mut </span>sut = SUT::new();
 
         <span class="comment">// Insert initial data
-        </span><span class="kw">let </span>tx_result1 = transact(
-            <span class="kw-2">&amp;mut </span>transactor,
-            <span class="kw-2">&amp;mut </span>storage,
+        </span><span class="kw">let </span>tx_result = sut.transact(
             Transaction::new().with(
                 Operation::on_temp_id(<span class="string">&quot;joe&quot;</span>)
                     .set(<span class="string">&quot;person/name&quot;</span>, <span class="string">&quot;Joe&quot;</span>)
                     .set(<span class="string">&quot;person/likes&quot;</span>, <span class="string">&quot;Pizza&quot;</span>),
             ),
         );
-        <span class="kw">let </span>joe_id = tx_result1.temp_ids[<span class="string">&quot;joe&quot;</span>];
+        <span class="kw">let </span>joe_id = tx_result.temp_ids[<span class="string">&quot;joe&quot;</span>];
 
         <span class="comment">// Update what Joe likes
-        </span><span class="kw">let </span>tx_result2 = transact(
-            <span class="kw-2">&amp;mut </span>transactor,
-            <span class="kw-2">&amp;mut </span>storage,
+        </span>sut.transact(
             Transaction::new().with(Operation::on_id(joe_id).set(<span class="string">&quot;person/likes&quot;</span>, <span class="string">&quot;Ice cream&quot;</span>)),
         );
 
-        <span class="kw">let </span><span class="kw-2">mut </span>db = Db::new(tx_result2.tx_id);
-        <span class="kw">let </span>query_result = db.query(
-            <span class="kw-2">&amp;</span>storage,
+        <span class="kw">let </span>query_result = sut.query(
             Query::new().wher(
                 Clause::new()
                     .with_entity(EntityPattern::Id(joe_id))
@@ -798,9 +752,8 @@
             ),
         );
 
-        <span class="macro">assert!</span>(query_result.is_ok());
-        <span class="kw">let </span>results = query_result.unwrap().results;
-        <span class="kw">let </span>likes: HashSet&lt;<span class="kw-2">&amp;</span>str&gt; = results
+        <span class="kw">let </span>likes: HashSet&lt;<span class="kw-2">&amp;</span>str&gt; = query_result
+            .results
             .iter()
             .flat_map(|assignment| assignment[<span class="string">&quot;?likes&quot;</span>].as_str().into_iter())
             .collect();
@@ -812,28 +765,20 @@
 
     <span class="attr">#[test]
     </span><span class="kw">fn </span>return_correct_value_for_database_snapshot() {
-        <span class="kw">let </span>(<span class="kw-2">mut </span>transactor, <span class="kw-2">mut </span>storage) = create_db();
+        <span class="kw">let </span><span class="kw-2">mut </span>sut = SUT::new();
 
         <span class="comment">// Insert initial data
-        </span><span class="kw">let </span>TransctionResult {
-            tx_id: first_tx_id,
-            tx_data: <span class="kw">_</span>,
-            temp_ids,
-        } = transact(
-            <span class="kw-2">&amp;mut </span>transactor,
-            <span class="kw-2">&amp;mut </span>storage,
+        </span><span class="kw">let </span>first_tx_result = sut.transact(
             Transaction::new().with(
                 Operation::on_temp_id(<span class="string">&quot;joe&quot;</span>)
                     .set(<span class="string">&quot;person/name&quot;</span>, <span class="string">&quot;Joe&quot;</span>)
                     .set(<span class="string">&quot;person/likes&quot;</span>, <span class="string">&quot;Pizza&quot;</span>),
             ),
         );
-        <span class="kw">let </span>joe_id = temp_ids[<span class="string">&quot;joe&quot;</span>];
+        <span class="kw">let </span>joe_id = first_tx_result.temp_ids[<span class="string">&quot;joe&quot;</span>];
 
         <span class="comment">// Update what Joe likes
-        </span>transact(
-            <span class="kw-2">&amp;mut </span>transactor,
-            <span class="kw-2">&amp;mut </span>storage,
+        </span>sut.transact(
             Transaction::new().with(
                 Operation::on_id(joe_id)
                     .set(<span class="string">&quot;person/name&quot;</span>, <span class="string">&quot;Joe&quot;</span>)
@@ -841,9 +786,8 @@
             ),
         );
 
-        <span class="kw">let </span><span class="kw-2">mut </span>db = Db::new(first_tx_id);
-        <span class="kw">let </span>query_result = db.query(
-            <span class="kw-2">&amp;</span>storage,
+        <span class="kw">let </span>query_result = sut.query_at_snapshot(
+            first_tx_result.tx_id,
             Query::new().wher(
                 Clause::new()
                     .with_entity(EntityPattern::Id(joe_id))
@@ -852,9 +796,8 @@
             ),
         );
 
-        <span class="macro">assert!</span>(query_result.is_ok());
-        <span class="kw">let </span>results = query_result.unwrap().results;
-        <span class="kw">let </span>likes: HashSet&lt;<span class="kw-2">&amp;</span>str&gt; = results
+        <span class="kw">let </span>likes: HashSet&lt;<span class="kw-2">&amp;</span>str&gt; = query_result
+            .results
             .iter()
             .flat_map(|assignment| assignment[<span class="string">&quot;?likes&quot;</span>].as_str().into_iter())
             .collect();
@@ -865,18 +808,13 @@
 
     <span class="attr">#[test]
     </span><span class="kw">fn </span>search_for_tx_pattern() {
-        <span class="kw">let </span>(<span class="kw-2">mut </span>transactor, <span class="kw-2">mut </span>storage) = create_db();
+        <span class="kw">let </span><span class="kw-2">mut </span>sut = SUT::new();
 
         <span class="comment">// Insert initial data
-        </span><span class="kw">let </span>tx_result = transact(
-            <span class="kw-2">&amp;mut </span>transactor,
-            <span class="kw-2">&amp;mut </span>storage,
-            Transaction::new().with(Operation::on_new().set(<span class="string">&quot;person/name&quot;</span>, <span class="string">&quot;Joe&quot;</span>)),
-        );
+        </span><span class="kw">let </span>tx_result =
+            sut.transact(Transaction::new().with(Operation::on_new().set(<span class="string">&quot;person/name&quot;</span>, <span class="string">&quot;Joe&quot;</span>)));
 
-        <span class="kw">let </span><span class="kw-2">mut </span>db = Db::new(tx_result.tx_id);
-        <span class="kw">let </span>query_result = db.query(
-            <span class="kw-2">&amp;</span>storage,
+        <span class="kw">let </span>query_result = sut.query(
             Query::new()
                 .wher(
                     Clause::new()
@@ -893,10 +831,8 @@
                 ),
         );
 
-        <span class="macro">assert!</span>(query_result.is_ok());
-        <span class="kw">let </span>results = query_result.unwrap().results;
-        <span class="macro">assert_eq!</span>(<span class="number">1</span>, results.len());
-        <span class="kw">let </span>result = <span class="kw-2">&amp;</span>results[<span class="number">0</span>];
+        <span class="macro">assert_eq!</span>(<span class="number">1</span>, query_result.results.len());
+        <span class="kw">let </span>result = <span class="kw-2">&amp;</span>query_result.results[<span class="number">0</span>];
         <span class="macro">assert_eq!</span>(<span class="prelude-val">Some</span>(tx_result.tx_id), result[<span class="string">&quot;?tx&quot;</span>].as_u64());
         <span class="macro">assert!</span>(result[<span class="string">&quot;?tx_time&quot;</span>].as_u64().is_some_and(|time| time &gt; <span class="number">0</span>));
     }

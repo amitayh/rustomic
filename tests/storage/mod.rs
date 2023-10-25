@@ -25,13 +25,13 @@ mod tests {
             }
 
             fn save(&mut self, datoms: &[Datom]) {
-                self.0.save(datoms).expect("should succeed")
+                self.0.save(datoms).expect("Unable to save datoms")
             }
 
             fn find(&self, clause: Clause) -> Vec<Datom> {
                 self.0
                     .find(&clause)
-                    .map(|result| result.expect("should be valid"))
+                    .map(|result| result.expect("Error while reading datom"))
                     .collect()
             }
         }
@@ -83,25 +83,34 @@ mod tests {
         use rustomic::storage::disk::*;
         use tempdir::TempDir;
 
-        struct Disk(DiskStorage);
+        struct Disk {
+            path: TempDir,
+        }
 
         impl TestStorage for Disk {
             fn create() -> Self {
-                let dir = TempDir::new("rustomic").expect("Unable to create temp dir");
-                let mut options = Options::default();
-                options.create_if_missing(true);
-                let db = DB::open(&options, dir).expect("Unable to open DB");
-                Self(DiskStorage::new(db))
+                let path = TempDir::new("rustomic").expect("Unable to create temp dir");
+                let mut storage = Self { path };
+                storage.save(&[]); // Ensure DB is created
+                storage
             }
 
             fn save(&mut self, datoms: &[Datom]) {
-                self.0.save(datoms).expect("should succeed")
+                let mut options = Options::default();
+                options.create_if_missing(true);
+                let db = DB::open(&options, &self.path).expect("Unable to open DB");
+                DiskStorage::new(db)
+                    .save(datoms)
+                    .expect("Unable to save datoms")
             }
 
             fn find(&self, clause: Clause) -> Vec<Datom> {
-                self.0
+                let db = DB::open_for_read_only(&Options::default(), &self.path, true)
+                    .expect("Unable to open DB");
+
+                DiskStorage::new(db)
                     .find(&clause)
-                    .map(|result| result.expect("should be valid"))
+                    .map(|result| result.expect("Error while reading datom"))
                     .collect()
             }
         }

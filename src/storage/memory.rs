@@ -17,6 +17,12 @@ impl InMemoryStorage {
     }
 }
 
+impl Default for InMemoryStorage {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl WriteStorage for InMemoryStorage {
     type Error = Infallible;
 

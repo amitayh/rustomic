@@ -45,7 +45,7 @@ mod tests {
             let mut storage = InMemoryStorage::new();
             storage
                 .save(&default_datoms())
-                .expect("unable to save default datoms");
+                .expect("Unable to save default datoms");
 
             Self {
                 transactor,
@@ -55,16 +55,16 @@ mod tests {
         }
 
         fn transact(&mut self, transaction: Transaction) -> TransctionResult {
-            let result = self.try_transact(transaction).expect("unable to transact");
-            self.storage.save(&result.tx_data).expect("unable to save");
+            let result = self.try_transact(transaction).expect("Unable to transact");
+            self.storage.save(&result.tx_data).expect("Unable to save");
             self.last_tx = result.tx_id;
             result
         }
 
-        fn try_transact(&mut self, transaction: Transaction) -> Result<TransctionResult, &str> {
+        fn try_transact(&mut self, transaction: Transaction) -> Option<TransctionResult> {
             self.transactor
                 .transact(&self.storage, now(), transaction)
-                .map_err(|_| "unable to transact")
+                .ok()
         }
 
         fn query(&self, query: Query) -> QueryResult {
@@ -73,7 +73,7 @@ mod tests {
 
         fn query_at_snapshot(&self, snapshot_tx: u64, query: Query) -> QueryResult {
             let mut db = Db::new(snapshot_tx);
-            db.query(&self.storage, query).expect("unable to query")
+            db.query(&self.storage, query).expect("Unable to query")
         }
     }
 
@@ -81,7 +81,7 @@ mod tests {
         Instant(
             SystemTime::now()
                 .duration_since(SystemTime::UNIX_EPOCH)
-                .expect("time went backwards")
+                .expect("Time went backwards")
                 .as_secs(),
         )
     }
@@ -163,7 +163,7 @@ mod tests {
         let tx = Transaction::new().with(Operation::on_new().set("person/name", 42));
         let tx_result = sut.try_transact(tx);
 
-        assert!(tx_result.is_err());
+        assert!(tx_result.is_none());
     }
 
     #[test]
@@ -176,7 +176,7 @@ mod tests {
             .with(Operation::on_temp_id("duplicate").set("person/name", "Bob"));
         let tx_result = sut.try_transact(tx);
 
-        assert!(tx_result.is_err());
+        assert!(tx_result.is_none());
     }
 
     #[test]

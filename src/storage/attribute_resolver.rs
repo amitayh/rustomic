@@ -12,6 +12,12 @@ pub struct AttributeResolver {
     cache: HashMap<Rc<str>, Attribute>,
 }
 
+impl Default for AttributeResolver {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl AttributeResolver {
     pub fn new() -> Self {
         Self {

@@ -34,8 +34,8 @@ impl<'a> ReadStorage<'a> for DiskStorage {
     type Error = DiskStorageError;
     type Iter = DiskStorageIter<'a>;
 
-    fn find(&'a self, clause: &Clause) -> Self::Iter {
-        DiskStorageIter::new(clause, &self.db)
+    fn find(&'a self, restricts: &Restricts) -> Self::Iter {
+        DiskStorageIter::new(restricts, &self.db)
     }
 }
 
@@ -45,8 +45,8 @@ pub struct DiskStorageIter<'a> {
 }
 
 impl<'a> DiskStorageIter<'a> {
-    fn new(clause: &Clause, db: &'a rocksdb::DB) -> Self {
-        let (start, end) = index::key_range(clause);
+    fn new(restricts: &Restricts, db: &'a rocksdb::DB) -> Self {
+        let (start, end) = index::key_range(restricts);
         let read_options = ReadOptions::default();
         let mut iterator = db.raw_iterator_opt(read_options);
         iterator.seek(&start);

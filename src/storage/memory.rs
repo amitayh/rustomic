@@ -40,11 +40,10 @@ impl<'a> ReadStorage<'a> for InMemoryStorage {
     type Error = ReadError;
     type Iter = InMemoryStorageIter<'a>;
 
-    fn find(&'a self, clause: &Clause) -> Self::Iter {
-        InMemoryStorageIter::new(&self.index, clause)
+    fn find(&'a self, restricts: &Restricts) -> Self::Iter {
+        InMemoryStorageIter::new(&self.index, restricts)
     }
 }
-
 
 pub struct InMemoryStorageIter<'a> {
     index: &'a BTreeSet<Bytes>,
@@ -53,8 +52,8 @@ pub struct InMemoryStorageIter<'a> {
 }
 
 impl<'a> InMemoryStorageIter<'a> {
-    fn new(index: &'a BTreeSet<Bytes>, clause: &Clause) -> Self {
-        let (start, end) = index::key_range(clause);
+    fn new(index: &'a BTreeSet<Bytes>, restricts: &Restricts) -> Self {
+        let (start, end) = index::key_range(restricts);
         Self {
             index,
             range: index.range::<Bytes, _>(&start..&end),
@@ -77,8 +76,7 @@ impl<'a> Iterator for InMemoryStorageIter<'a> {
                 self.seek(index::seek_key(&datom, datom_bytes));
                 self.next()
             }
-            Ok(datom) => Some(Ok(datom)),
-            Err(err) => Some(Err(err)),
+            result => Some(result),
         }
     }
 }

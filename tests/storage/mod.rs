@@ -3,14 +3,12 @@ pub mod serde;
 #[cfg(test)]
 mod tests {
     use rustomic::datom::*;
-    use rustomic::query::clause::*;
-    use rustomic::query::pattern::*;
     use rustomic::storage::*;
 
     trait TestStorage {
         fn create() -> Self;
         fn save(&mut self, datoms: &[Datom]);
-        fn find(&self, clause: Clause) -> Vec<Datom>;
+        fn find(&self, restricts: Restricts) -> Vec<Datom>;
     }
 
     mod memory {
@@ -28,9 +26,9 @@ mod tests {
                 self.0.save(datoms).expect("Unable to save datoms")
             }
 
-            fn find(&self, clause: Clause) -> Vec<Datom> {
+            fn find(&self, restricts: Restricts) -> Vec<Datom> {
                 self.0
-                    .find(&clause)
+                    .find(&restricts)
                     .map(|result| result.expect("Error while reading datom"))
                     .collect()
             }
@@ -104,12 +102,12 @@ mod tests {
                     .expect("Unable to save datoms")
             }
 
-            fn find(&self, clause: Clause) -> Vec<Datom> {
+            fn find(&self, restricts: Restricts) -> Vec<Datom> {
                 let db = DB::open_for_read_only(&Options::default(), &self.path, true)
                     .expect("Unable to open DB");
 
                 DiskStorage::new(db)
-                    .find(&clause)
+                    .find(&restricts)
                     .map(|result| result.expect("Error while reading datom"))
                     .collect()
             }
@@ -160,7 +158,7 @@ mod tests {
         let storage = S::create();
 
         let entity = 100;
-        let clause = Clause::new().with_entity(EntityPattern::Id(entity));
+        let clause = Restricts::new().with_entity(entity);
         let read_result = storage.find(clause);
 
         assert!(read_result.is_empty());
@@ -178,10 +176,10 @@ mod tests {
         storage.save(&datoms);
 
         let read_result = storage.find(
-            Clause::new()
-                .with_entity(EntityPattern::Id(entity))
-                .with_attribute(AttributePattern::Id(attribute))
-                .with_value(ValuePattern::Constant(Value::U64(value))),
+            Restricts::new()
+                .with_entity(entity)
+                .with_attribute(attribute)
+                .with_value(Value::U64(value)),
         );
 
         assert_eq!(datoms, read_result);
@@ -198,7 +196,7 @@ mod tests {
         ];
         storage.save(&datoms);
 
-        let read_result = storage.find(Clause::new().with_entity(EntityPattern::Id(entity)));
+        let read_result = storage.find(Restricts::new().with_entity(entity));
 
         assert_eq!(datoms, read_result);
     }
@@ -220,8 +218,7 @@ mod tests {
         ];
         storage.save(&datoms);
 
-        let read_result =
-            storage.find(Clause::new().with_attribute(AttributePattern::Id(attribute1)));
+        let read_result = storage.find(Restricts::new().with_attribute(attribute1));
 
         let expected = vec![
             Datom::add(entity1, attribute1, 2u64, 1001),
@@ -245,7 +242,7 @@ mod tests {
         ];
         storage.save(&datoms);
 
-        let read_result = storage.find(Clause::new().with_entity(EntityPattern::Id(entity)));
+        let read_result = storage.find(Restricts::new().with_entity(entity));
 
         assert_eq!(datoms, read_result);
     }
@@ -263,7 +260,7 @@ mod tests {
         ];
         storage.save(&datoms);
 
-        let read_result = storage.find(Clause::new().with_entity(EntityPattern::Id(entity1)));
+        let read_result = storage.find(Restricts::new().with_entity(entity1));
 
         assert_eq!(datoms[0..1], read_result);
     }
@@ -282,9 +279,9 @@ mod tests {
         storage.save(&datoms);
 
         let read_result = storage.find(
-            Clause::new()
-                .with_entity(EntityPattern::Id(entity))
-                .with_attribute(AttributePattern::Id(attribute)),
+            Restricts::new()
+                .with_entity(entity)
+                .with_attribute(attribute),
         );
 
         assert!(read_result.is_empty());
@@ -305,9 +302,9 @@ mod tests {
         storage.save(&datoms);
 
         let read_result = storage.find(
-            Clause::new()
-                .with_entity(EntityPattern::Id(entity))
-                .with_attribute(AttributePattern::Id(attribute)),
+            Restricts::new()
+                .with_entity(entity)
+                .with_attribute(attribute),
         );
 
         assert_eq!(datoms[2..], read_result);

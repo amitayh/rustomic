@@ -2,11 +2,11 @@ use std::collections::HashMap;
 use std::rc::Rc;
 
 use crate::datom::*;
-use crate::query::clause::Clause;
-use crate::query::pattern::*;
 use crate::schema::attribute::*;
 use crate::schema::*;
 use crate::storage::ReadStorage;
+
+use super::Restricts;
 
 pub struct AttributeResolver {
     cache: HashMap<Rc<str>, Attribute>,
@@ -30,8 +30,8 @@ impl AttributeResolver {
         storage: &'a S,
         ident: &str,
     ) -> Result<Option<Attribute>, S::Error> {
-        if let Some(attribute) = self.cache.get(ident) {
-            return Ok(Some(attribute.clone()));
+        if let attribute @ Some(_) = self.cache.get(ident) {
+            return Ok(attribute.cloned());
         }
         if let Some(attribute) = resolve_ident(storage, ident)? {
             self.update_cache(attribute.clone());
@@ -50,10 +50,10 @@ fn resolve_ident<'a, S: ReadStorage<'a>>(
     ident: &str,
 ) -> Result<Option<Attribute>, S::Error> {
     // [?attribute :db/attr/ident ?ident]
-    let clause = Clause::new()
-        .with_attribute(AttributePattern::Id(DB_ATTR_IDENT_ID))
-        .with_value(ValuePattern::constant(ident.into()));
-    if let Some(datom) = storage.find(&clause).next() {
+    let restricts = Restricts::new()
+        .with_attribute(DB_ATTR_IDENT_ID)
+        .with_value(ident.into());
+    if let Some(datom) = storage.find(&restricts).next() {
         return resolve_id(storage, datom?.entity);
     }
     Ok(None)
@@ -65,8 +65,8 @@ fn resolve_id<'a, S: ReadStorage<'a>>(
 ) -> Result<Option<Attribute>, S::Error> {
     let mut builder = Builder::new(attribute_id);
     // [?attribute _ _]
-    let clause = Clause::new().with_entity(EntityPattern::Id(attribute_id));
-    for datom in storage.find(&clause) {
+    let restricts = Restricts::new().with_entity(attribute_id);
+    for datom in storage.find(&restricts) {
         builder.consume(&datom?);
     }
     Ok(builder.build())
@@ -176,9 +176,9 @@ mod tests {
         type Error = <InMemoryStorage as ReadStorage<'a>>::Error;
         type Iter = <InMemoryStorage as ReadStorage<'a>>::Iter;
 
-        fn find(&'a self, clause: &Clause) -> Self::Iter {
+        fn find(&'a self, restricts: &Restricts) -> Self::Iter {
             self.count.set(self.count.get() + 1);
-            self.inner.find(clause)
+            self.inner.find(restricts)
         }
     }
 

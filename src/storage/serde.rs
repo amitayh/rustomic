@@ -27,7 +27,6 @@ pub type Bytes = Vec<u8>;
 // https://docs.datomic.com/pro/query/indexes.html
 pub mod index {
     use super::*;
-    use crate::query::pattern::{AttributePattern, EntityPattern, TxPattern, ValuePattern};
 
     // The EAVT index provides efficient access to everything about a given entity. Conceptually
     // this is very similar to row access style in a SQL database, except that entities can possess
@@ -86,41 +85,41 @@ pub mod index {
     //   +----------------+------------------------+----+------+--------+
     pub const TAG_AVET: u8 = 0x02;
 
-    pub fn key_range(clause: &Clause) -> (Bytes, Bytes) {
-        let start = match clause {
-            Clause {
-                entity: EntityPattern::Id(entity),
-                attribute: AttributePattern::Id(attribute),
-                value: ValuePattern::Constant(value),
-                tx: TxPattern::Constant(tx),
+    pub fn key_range(restricts: &Restricts) -> (Bytes, Bytes) {
+        let start = match restricts {
+            Restricts {
+                entity: Some(entity),
+                attribute: Some(attribute),
+                value: Some(value),
+                tx: Some(tx),
             } => write_to_vec!(&TAG_EAVT, entity, attribute, value, &!tx),
-            Clause {
-                entity: EntityPattern::Id(entity),
-                attribute: AttributePattern::Id(attribute),
-                value: ValuePattern::Constant(value),
+            Restricts {
+                entity: Some(entity),
+                attribute: Some(attribute),
+                value: Some(value),
                 tx: _,
             } => write_to_vec!(&TAG_EAVT, entity, attribute, value),
-            Clause {
-                entity: EntityPattern::Id(entity),
-                attribute: AttributePattern::Id(attribute),
+            Restricts {
+                entity: Some(entity),
+                attribute: Some(attribute),
                 value: _,
                 tx: _,
             } => write_to_vec!(&TAG_EAVT, entity, attribute),
-            Clause {
-                entity: EntityPattern::Id(entity),
+            Restricts {
+                entity: Some(entity),
                 attribute: _,
                 value: _,
                 tx: _,
             } => write_to_vec!(&TAG_EAVT, entity),
-            Clause {
+            Restricts {
                 entity: _,
-                attribute: AttributePattern::Id(attribute),
-                value: ValuePattern::Constant(value),
+                attribute: Some(attribute),
+                value: Some(value),
                 tx: _,
             } => write_to_vec!(&TAG_AVET, attribute, value),
-            Clause {
+            Restricts {
                 entity: _,
-                attribute: AttributePattern::Id(attribute),
+                attribute: Some(attribute),
                 value: _,
                 tx: _,
             } => write_to_vec!(&TAG_AEVT, attribute),

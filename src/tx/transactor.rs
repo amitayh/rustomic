@@ -2,8 +2,6 @@ use std::collections::HashMap;
 
 use crate::clock::Instant;
 use crate::datom::*;
-use crate::query::clause::Clause;
-use crate::query::pattern::*;
 use crate::schema::attribute::*;
 use crate::schema::*;
 use crate::storage::attribute_resolver::*;
@@ -147,10 +145,10 @@ impl Transactor {
     ) -> Result<Vec<Datom>, TransactionError<S::Error>> {
         let mut datoms = Vec::new();
         // Retract previous values
-        let clause = Clause::new()
-            .with_entity(EntityPattern::Id(entity))
-            .with_attribute(AttributePattern::Id(attribute));
-        for datom in storage.find(&clause) {
+        let restricts = Restricts::new()
+            .with_entity(entity)
+            .with_attribute(attribute);
+        for datom in storage.find(&restricts) {
             datoms.push(Datom::retract(entity, attribute, datom?.value, tx));
         }
         Ok(datoms)

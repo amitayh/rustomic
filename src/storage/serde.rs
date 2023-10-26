@@ -14,6 +14,8 @@ macro_rules! write_to_vec {
     }};
 }
 
+pub type Bytes = Vec<u8>;
+
 // +-------+---------------------------------+--------------------------------+
 // | Index | Sort order                      | Contains                       |
 // +-------+---------------------------------+--------------------------------+
@@ -84,7 +86,7 @@ pub mod index {
     //   +----------------+------------------------+----+------+--------+
     pub const TAG_AVET: u8 = 0x02;
 
-    pub fn key_range(clause: &Clause) -> (Vec<u8>, Vec<u8>) {
+    pub fn key_range(clause: &Clause) -> (Bytes, Bytes) {
         let start = match clause {
             Clause {
                 entity: EntityPattern::Id(entity),
@@ -128,7 +130,7 @@ pub mod index {
         (start, end)
     }
 
-    pub fn seek_key(datom: &Datom, datom_bytes: &[u8]) -> Vec<u8> {
+    pub fn seek_key(datom: &Datom, datom_bytes: &[u8]) -> Bytes {
         next_prefix(&datom_bytes[..key_size(datom)])
     }
 
@@ -147,7 +149,7 @@ pub mod index {
     /// range.
     ///
     /// For example, for prefix `foo` the function returns `fop`.
-    fn next_prefix(prefix: &[u8]) -> Vec<u8> {
+    fn next_prefix(prefix: &[u8]) -> Bytes {
         let ffs = prefix
             .iter()
             .rev()
@@ -178,7 +180,7 @@ pub mod datom {
     pub mod serialize {
         use super::*;
 
-        pub fn eavt(datom: &Datom) -> Vec<u8> {
+        pub fn eavt(datom: &Datom) -> Bytes {
             write_to_vec!(
                 index::TAG_EAVT,
                 datom.entity,
@@ -189,7 +191,7 @@ pub mod datom {
             )
         }
 
-        pub fn aevt(datom: &Datom) -> Vec<u8> {
+        pub fn aevt(datom: &Datom) -> Bytes {
             write_to_vec!(
                 index::TAG_AEVT,
                 datom.attribute,
@@ -200,7 +202,7 @@ pub mod datom {
             )
         }
 
-        pub fn avet(datom: &Datom) -> Vec<u8> {
+        pub fn avet(datom: &Datom) -> Bytes {
             write_to_vec!(
                 index::TAG_AVET,
                 datom.attribute,
@@ -276,7 +278,7 @@ pub mod datom {
 
 pub trait Writable {
     fn size(&self) -> usize;
-    fn write(&self, buffer: &mut Vec<u8>);
+    fn write(&self, buffer: &mut Bytes);
 }
 
 impl Writable for u8 {
@@ -284,7 +286,7 @@ impl Writable for u8 {
         std::mem::size_of::<Self>()
     }
 
-    fn write(&self, buffer: &mut Vec<u8>) {
+    fn write(&self, buffer: &mut Bytes) {
         buffer.push(*self);
     }
 }
@@ -294,7 +296,7 @@ impl Writable for u16 {
         std::mem::size_of::<Self>()
     }
 
-    fn write(&self, buffer: &mut Vec<u8>) {
+    fn write(&self, buffer: &mut Bytes) {
         buffer.extend_from_slice(&self.to_be_bytes());
     }
 }
@@ -304,7 +306,7 @@ impl Writable for u64 {
         std::mem::size_of::<Self>()
     }
 
-    fn write(&self, buffer: &mut Vec<u8>) {
+    fn write(&self, buffer: &mut Bytes) {
         buffer.extend_from_slice(&self.to_be_bytes());
     }
 }
@@ -314,7 +316,7 @@ impl Writable for i64 {
         std::mem::size_of::<Self>()
     }
 
-    fn write(&self, buffer: &mut Vec<u8>) {
+    fn write(&self, buffer: &mut Bytes) {
         buffer.extend_from_slice(&self.to_be_bytes());
     }
 }
@@ -326,7 +328,7 @@ impl Writable for str {
         self.len()
     }
 
-    fn write(&self, buffer: &mut Vec<u8>) {
+    fn write(&self, buffer: &mut Bytes) {
         if let Ok(length) = u16::try_from(self.len()) {
             length.write(buffer);
             buffer.extend_from_slice(self.as_bytes());
@@ -345,7 +347,7 @@ impl Writable for Value {
         }
     }
 
-    fn write(&self, buffer: &mut Vec<u8>) {
+    fn write(&self, buffer: &mut Bytes) {
         match self {
             Self::U64(value) => {
                 value::TAG_U64.write(buffer);
@@ -369,7 +371,7 @@ impl Writable for Op {
         1
     }
 
-    fn write(&self, buffer: &mut Vec<u8>) {
+    fn write(&self, buffer: &mut Bytes) {
         match self {
             Self::Added => op::TAG_ADDED,
             Self::Retracted => op::TAG_RETRACTED,

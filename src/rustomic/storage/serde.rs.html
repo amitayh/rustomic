@@ -479,6 +479,8 @@
 <a href="#479" id="479">479</a>
 <a href="#480" id="480">480</a>
 <a href="#481" id="481">481</a>
+<a href="#482" id="482">482</a>
+<a href="#483" id="483">483</a>
 </pre></div><pre class="rust"><code><span class="kw">use </span>std::rc::Rc;
 <span class="kw">use </span>thiserror::Error;
 
@@ -494,6 +496,8 @@
         buffer
     }};
 }
+
+<span class="kw">pub type </span>Bytes = Vec&lt;u8&gt;;
 
 <span class="comment">// +-------+---------------------------------+--------------------------------+
 // | Index | Sort order                      | Contains                       |
@@ -565,7 +569,7 @@
     //   +----------------+------------------------+----+------+--------+
     </span><span class="kw">pub const </span>TAG_AVET: u8 = <span class="number">0x02</span>;
 
-    <span class="kw">pub fn </span>key_range(clause: <span class="kw-2">&amp;</span>Clause) -&gt; (Vec&lt;u8&gt;, Vec&lt;u8&gt;) {
+    <span class="kw">pub fn </span>key_range(clause: <span class="kw-2">&amp;</span>Clause) -&gt; (Bytes, Bytes) {
         <span class="kw">let </span>start = <span class="kw">match </span>clause {
             Clause {
                 entity: EntityPattern::Id(entity),
@@ -609,7 +613,7 @@
         (start, end)
     }
 
-    <span class="kw">pub fn </span>seek_key(datom: <span class="kw-2">&amp;</span>Datom, datom_bytes: <span class="kw-2">&amp;</span>[u8]) -&gt; Vec&lt;u8&gt; {
+    <span class="kw">pub fn </span>seek_key(datom: <span class="kw-2">&amp;</span>Datom, datom_bytes: <span class="kw-2">&amp;</span>[u8]) -&gt; Bytes {
         next_prefix(<span class="kw-2">&amp;</span>datom_bytes[..key_size(datom)])
     }
 
@@ -628,7 +632,7 @@
     /// range.
     ///
     /// For example, for prefix `foo` the function returns `fop`.
-    </span><span class="kw">fn </span>next_prefix(prefix: <span class="kw-2">&amp;</span>[u8]) -&gt; Vec&lt;u8&gt; {
+    </span><span class="kw">fn </span>next_prefix(prefix: <span class="kw-2">&amp;</span>[u8]) -&gt; Bytes {
         <span class="kw">let </span>ffs = prefix
             .iter()
             .rev()
@@ -659,7 +663,7 @@
     <span class="kw">pub mod </span>serialize {
         <span class="kw">use super</span>::<span class="kw-2">*</span>;
 
-        <span class="kw">pub fn </span>eavt(datom: <span class="kw-2">&amp;</span>Datom) -&gt; Vec&lt;u8&gt; {
+        <span class="kw">pub fn </span>eavt(datom: <span class="kw-2">&amp;</span>Datom) -&gt; Bytes {
             <span class="macro">write_to_vec!</span>(
                 index::TAG_EAVT,
                 datom.entity,
@@ -670,7 +674,7 @@
             )
         }
 
-        <span class="kw">pub fn </span>aevt(datom: <span class="kw-2">&amp;</span>Datom) -&gt; Vec&lt;u8&gt; {
+        <span class="kw">pub fn </span>aevt(datom: <span class="kw-2">&amp;</span>Datom) -&gt; Bytes {
             <span class="macro">write_to_vec!</span>(
                 index::TAG_AEVT,
                 datom.attribute,
@@ -681,7 +685,7 @@
             )
         }
 
-        <span class="kw">pub fn </span>avet(datom: <span class="kw-2">&amp;</span>Datom) -&gt; Vec&lt;u8&gt; {
+        <span class="kw">pub fn </span>avet(datom: <span class="kw-2">&amp;</span>Datom) -&gt; Bytes {
             <span class="macro">write_to_vec!</span>(
                 index::TAG_AVET,
                 datom.attribute,
@@ -757,7 +761,7 @@
 
 </span><span class="kw">pub trait </span>Writable {
     <span class="kw">fn </span>size(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; usize;
-    <span class="kw">fn </span>write(<span class="kw-2">&amp;</span><span class="self">self</span>, buffer: <span class="kw-2">&amp;mut </span>Vec&lt;u8&gt;);
+    <span class="kw">fn </span>write(<span class="kw-2">&amp;</span><span class="self">self</span>, buffer: <span class="kw-2">&amp;mut </span>Bytes);
 }
 
 <span class="kw">impl </span>Writable <span class="kw">for </span>u8 {
@@ -765,7 +769,7 @@
         std::mem::size_of::&lt;<span class="self">Self</span>&gt;()
     }
 
-    <span class="kw">fn </span>write(<span class="kw-2">&amp;</span><span class="self">self</span>, buffer: <span class="kw-2">&amp;mut </span>Vec&lt;u8&gt;) {
+    <span class="kw">fn </span>write(<span class="kw-2">&amp;</span><span class="self">self</span>, buffer: <span class="kw-2">&amp;mut </span>Bytes) {
         buffer.push(<span class="kw-2">*</span><span class="self">self</span>);
     }
 }
@@ -775,7 +779,7 @@
         std::mem::size_of::&lt;<span class="self">Self</span>&gt;()
     }
 
-    <span class="kw">fn </span>write(<span class="kw-2">&amp;</span><span class="self">self</span>, buffer: <span class="kw-2">&amp;mut </span>Vec&lt;u8&gt;) {
+    <span class="kw">fn </span>write(<span class="kw-2">&amp;</span><span class="self">self</span>, buffer: <span class="kw-2">&amp;mut </span>Bytes) {
         buffer.extend_from_slice(<span class="kw-2">&amp;</span><span class="self">self</span>.to_be_bytes());
     }
 }
@@ -785,7 +789,7 @@
         std::mem::size_of::&lt;<span class="self">Self</span>&gt;()
     }
 
-    <span class="kw">fn </span>write(<span class="kw-2">&amp;</span><span class="self">self</span>, buffer: <span class="kw-2">&amp;mut </span>Vec&lt;u8&gt;) {
+    <span class="kw">fn </span>write(<span class="kw-2">&amp;</span><span class="self">self</span>, buffer: <span class="kw-2">&amp;mut </span>Bytes) {
         buffer.extend_from_slice(<span class="kw-2">&amp;</span><span class="self">self</span>.to_be_bytes());
     }
 }
@@ -795,7 +799,7 @@
         std::mem::size_of::&lt;<span class="self">Self</span>&gt;()
     }
 
-    <span class="kw">fn </span>write(<span class="kw-2">&amp;</span><span class="self">self</span>, buffer: <span class="kw-2">&amp;mut </span>Vec&lt;u8&gt;) {
+    <span class="kw">fn </span>write(<span class="kw-2">&amp;</span><span class="self">self</span>, buffer: <span class="kw-2">&amp;mut </span>Bytes) {
         buffer.extend_from_slice(<span class="kw-2">&amp;</span><span class="self">self</span>.to_be_bytes());
     }
 }
@@ -807,7 +811,7 @@
         </span><span class="self">self</span>.len()
     }
 
-    <span class="kw">fn </span>write(<span class="kw-2">&amp;</span><span class="self">self</span>, buffer: <span class="kw-2">&amp;mut </span>Vec&lt;u8&gt;) {
+    <span class="kw">fn </span>write(<span class="kw-2">&amp;</span><span class="self">self</span>, buffer: <span class="kw-2">&amp;mut </span>Bytes) {
         <span class="kw">if let </span><span class="prelude-val">Ok</span>(length) = u16::try_from(<span class="self">self</span>.len()) {
             length.write(buffer);
             buffer.extend_from_slice(<span class="self">self</span>.as_bytes());
@@ -826,7 +830,7 @@
         }
     }
 
-    <span class="kw">fn </span>write(<span class="kw-2">&amp;</span><span class="self">self</span>, buffer: <span class="kw-2">&amp;mut </span>Vec&lt;u8&gt;) {
+    <span class="kw">fn </span>write(<span class="kw-2">&amp;</span><span class="self">self</span>, buffer: <span class="kw-2">&amp;mut </span>Bytes) {
         <span class="kw">match </span><span class="self">self </span>{
             <span class="self">Self</span>::U64(value) =&gt; {
                 value::TAG_U64.write(buffer);
@@ -850,7 +854,7 @@
         <span class="number">1
     </span>}
 
-    <span class="kw">fn </span>write(<span class="kw-2">&amp;</span><span class="self">self</span>, buffer: <span class="kw-2">&amp;mut </span>Vec&lt;u8&gt;) {
+    <span class="kw">fn </span>write(<span class="kw-2">&amp;</span><span class="self">self</span>, buffer: <span class="kw-2">&amp;mut </span>Bytes) {
         <span class="kw">match </span><span class="self">self </span>{
             <span class="self">Self</span>::Added =&gt; op::TAG_ADDED,
             <span class="self">Self</span>::Retracted =&gt; op::TAG_RETRACTED,

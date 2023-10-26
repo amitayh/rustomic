@@ -78,6 +78,10 @@
 <a href="#78" id="78">78</a>
 <a href="#79" id="79">79</a>
 <a href="#80" id="80">80</a>
+<a href="#81" id="81">81</a>
+<a href="#82" id="82">82</a>
+<a href="#83" id="83">83</a>
+<a href="#84" id="84">84</a>
 </pre></div><pre class="rust"><code><span class="kw">use </span>std::collections::btree_set::Range;
 <span class="kw">use </span>std::collections::BTreeSet;
 <span class="kw">use </span>std::convert::Infallible;
@@ -86,7 +90,7 @@
 <span class="kw">use </span><span class="kw">crate</span>::storage::<span class="kw-2">*</span>;
 
 <span class="kw">pub struct </span>InMemoryStorage {
-    index: BTreeSet&lt;Vec&lt;u8&gt;&gt;,
+    index: BTreeSet&lt;Bytes&gt;,
 }
 
 <span class="kw">impl </span>InMemoryStorage {
@@ -125,20 +129,25 @@
     }
 }
 
+
 <span class="kw">pub struct </span>InMemoryStorageIter&lt;<span class="lifetime">&#39;a</span>&gt; {
-    index: <span class="kw-2">&amp;</span><span class="lifetime">&#39;a </span>BTreeSet&lt;Vec&lt;u8&gt;&gt;,
-    range: Range&lt;<span class="lifetime">&#39;a</span>, Vec&lt;u8&gt;&gt;,
-    end: Vec&lt;u8&gt;,
+    index: <span class="kw-2">&amp;</span><span class="lifetime">&#39;a </span>BTreeSet&lt;Bytes&gt;,
+    range: Range&lt;<span class="lifetime">&#39;a</span>, Bytes&gt;,
+    end: Bytes,
 }
 
 <span class="kw">impl</span>&lt;<span class="lifetime">&#39;a</span>&gt; InMemoryStorageIter&lt;<span class="lifetime">&#39;a</span>&gt; {
-    <span class="kw">fn </span>new(index: <span class="kw-2">&amp;</span><span class="lifetime">&#39;a </span>BTreeSet&lt;Vec&lt;u8&gt;&gt;, clause: <span class="kw-2">&amp;</span>Clause) -&gt; <span class="self">Self </span>{
+    <span class="kw">fn </span>new(index: <span class="kw-2">&amp;</span><span class="lifetime">&#39;a </span>BTreeSet&lt;Bytes&gt;, clause: <span class="kw-2">&amp;</span>Clause) -&gt; <span class="self">Self </span>{
         <span class="kw">let </span>(start, end) = index::key_range(clause);
         <span class="self">Self </span>{
             index,
-            range: index.range(start..end.clone()),
+            range: index.range::&lt;Bytes, <span class="kw">_</span>&gt;(<span class="kw-2">&amp;</span>start..<span class="kw-2">&amp;</span>end),
             end,
         }
+    }
+
+    <span class="kw">fn </span>seek(<span class="kw-2">&amp;mut </span><span class="self">self</span>, start: Bytes) {
+        <span class="self">self</span>.range = <span class="self">self</span>.index.range::&lt;Bytes, <span class="kw">_</span>&gt;(<span class="kw-2">&amp;</span>start..<span class="kw-2">&amp;</span><span class="self">self</span>.end);
     }
 }
 
@@ -149,8 +158,7 @@
         <span class="kw">let </span>datom_bytes = <span class="self">self</span>.range.next()<span class="question-mark">?</span>;
         <span class="kw">match </span>datom::deserialize(datom_bytes) {
             <span class="prelude-val">Ok</span>(datom) <span class="kw">if </span>datom.op == Op::Retracted =&gt; {
-                <span class="kw">let </span>seek_key = index::seek_key(<span class="kw-2">&amp;</span>datom, datom_bytes);
-                <span class="self">self</span>.range = <span class="self">self</span>.index.range(seek_key..<span class="self">self</span>.end.clone());
+                <span class="self">self</span>.seek(index::seek_key(<span class="kw-2">&amp;</span>datom, datom_bytes));
                 <span class="self">self</span>.next()
             }
             <span class="prelude-val">Ok</span>(datom) =&gt; <span class="prelude-val">Some</span>(<span class="prelude-val">Ok</span>(datom)),

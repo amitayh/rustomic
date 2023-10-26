@@ -91,7 +91,6 @@
 <a href="#91" id="91">91</a>
 <a href="#92" id="92">92</a>
 <a href="#93" id="93">93</a>
-<a href="#94" id="94">94</a>
 </pre></div><pre class="rust"><code><span class="kw">use </span>rocksdb::<span class="kw-2">*</span>;
 
 <span class="kw">use </span><span class="kw">crate</span>::storage::serde::<span class="kw-2">*</span>;
@@ -135,7 +134,7 @@
 
 <span class="kw">pub struct </span>DiskStorageIter&lt;<span class="lifetime">&#39;a</span>&gt; {
     iterator: DBRawIteratorWithThreadMode&lt;<span class="lifetime">&#39;a</span>, DBWithThreadMode&lt;SingleThreaded&gt;&gt;,
-    end: Vec&lt;u8&gt;,
+    end: Bytes,
 }
 
 <span class="kw">impl</span>&lt;<span class="lifetime">&#39;a</span>&gt; DiskStorageIter&lt;<span class="lifetime">&#39;a</span>&gt; {
@@ -166,8 +165,7 @@
 
         <span class="kw">match </span>datom::deserialize(datom_bytes) {
             <span class="prelude-val">Ok</span>(datom) <span class="kw">if </span>datom.op == Op::Retracted =&gt; {
-                <span class="kw">let </span>seek_key = index::seek_key(<span class="kw-2">&amp;</span>datom, datom_bytes);
-                <span class="self">self</span>.iterator.seek(seek_key);
+                <span class="self">self</span>.iterator.seek(index::seek_key(<span class="kw-2">&amp;</span>datom, datom_bytes));
                 <span class="self">self</span>.next()
             }
             <span class="prelude-val">Ok</span>(datom) =&gt; {

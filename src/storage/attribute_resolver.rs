@@ -25,7 +25,7 @@ impl AttributeResolver {
         }
     }
 
-    pub fn resolve_ident<'a, S: ReadStorage<'a>>(
+    pub fn resolve<'a, S: ReadStorage<'a>>(
         &mut self,
         storage: &'a S,
         ident: &str,
@@ -199,7 +199,7 @@ mod tests {
     fn returns_none_when_attribute_does_not_exist() {
         let storage = create_storage();
         let mut resolver = AttributeResolver::new();
-        let result = resolver.resolve_ident(&storage, "foo/bar");
+        let result = resolver.resolve(&storage, "foo/bar");
         assert!(result.is_ok());
         assert!(result.unwrap().is_none());
     }
@@ -216,7 +216,7 @@ mod tests {
         assert!(storage.save(&tx_result.unwrap().tx_data).is_ok());
 
         let mut resolver = AttributeResolver::new();
-        let result = resolver.resolve_ident(&storage, "foo/bar");
+        let result = resolver.resolve(&storage, "foo/bar");
         assert!(result.is_ok());
 
         let result = result.unwrap().unwrap();
@@ -239,7 +239,7 @@ mod tests {
         assert!(storage.save(&tx_result.unwrap().tx_data).is_ok());
 
         let mut resolver = AttributeResolver::new();
-        let result1 = resolver.resolve_ident(&storage, "foo/bar");
+        let result1 = resolver.resolve(&storage, "foo/bar");
         assert!(result1.is_ok());
         let result1 = result1.unwrap();
         assert!(result1.is_some());
@@ -248,7 +248,7 @@ mod tests {
         let queries = storage.current_count();
         assert!(queries > 0);
 
-        let result2 = resolver.resolve_ident(&storage, "foo/bar");
+        let result2 = resolver.resolve(&storage, "foo/bar");
         assert!(result2.is_ok());
         let result2 = result2.unwrap();
         assert_eq!(result1, result2);

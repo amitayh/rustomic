@@ -105,7 +105,7 @@ impl Transactor {
             value,
         } in &operation.attributes
         {
-            let attribute = match self.attribute_resolver.resolve_ident(storage, ident)? {
+            let attribute = match self.attribute_resolver.resolve(storage, ident)? {
                 Some(attr) => attr,
                 None => return Err(TransactionError::IdentNotFound(Rc::clone(ident))),
             };

@@ -43,7 +43,7 @@ impl Db {
             if let AttributePattern::Ident(ident) = &clause.attribute {
                 let attribute = self
                     .attribute_resolver
-                    .resolve_ident(storage, ident)?
+                    .resolve(storage, ident)?
                     .ok_or_else(|| QueryError::IdentNotFound(Rc::clone(ident)))?;
 
                 clause.attribute = AttributePattern::Id(attribute.id);

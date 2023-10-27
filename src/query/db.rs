@@ -7,7 +7,8 @@ use crate::query::*;
 use crate::storage::attribute_resolver::*;
 use crate::storage::*;
 
-use super::pattern::AttributePattern;
+use super::pattern::AttributeIdentifier;
+use super::pattern::Pattern;
 
 pub struct Db {
     tx: u64,
@@ -40,13 +41,13 @@ impl Db {
         query: &mut Query,
     ) -> Result<(), QueryError<S::Error>> {
         for clause in &mut query.wher {
-            if let AttributePattern::Ident(ident) = &clause.attribute {
+            if let Pattern::Constant(AttributeIdentifier::Ident(ident)) = &clause.attribute {
                 let attribute = self
                     .attribute_resolver
                     .resolve(storage, ident)?
                     .ok_or_else(|| QueryError::IdentNotFound(Rc::clone(ident)))?;
 
-                clause.attribute = AttributePattern::Id(attribute.id);
+                clause.attribute = Pattern::id(attribute.id);
             }
         }
         Ok(())

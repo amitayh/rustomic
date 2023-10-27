@@ -4,9 +4,10 @@ pub mod memory;
 pub mod serde;
 
 use crate::datom::*;
-use crate::query::clause::Clause;
-use crate::query::pattern::{AttributePattern, EntityPattern, ValuePattern};
+use crate::query::clause::*;
+use crate::query::pattern::*;
 
+#[derive(Default)]
 pub struct Restricts {
     pub entity: Option<u64>,
     pub attribute: Option<u64>,
@@ -45,12 +46,6 @@ impl Restricts {
     }
 }
 
-impl Default for Restricts {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
 pub trait ReadStorage<'a> {
     type Error: std::error::Error;
     type Iter: Iterator<Item = Result<Datom, Self::Error>>;
@@ -62,15 +57,15 @@ pub trait ReadStorage<'a> {
 
     #[deprecated]
     fn find_old(&'a self, clause: &Clause) -> Self::Iter {
-        let mut restricts = Restricts::default();
-        if let EntityPattern::Id(entity) = clause.entity {
-            restricts.entity = Some(entity);
+        let mut restricts = Restricts::new();
+        if let Pattern::Constant(entity) = clause.entity {
+            restricts = restricts.with_entity(entity);
         }
-        if let AttributePattern::Id(attribute) = clause.attribute {
-            restricts.attribute = Some(attribute);
+        if let Pattern::Constant(AttributeIdentifier::Id(attribute)) = clause.attribute {
+            restricts = restricts.with_attribute(attribute);
         }
-        if let ValuePattern::Constant(value) = &clause.value {
-            restricts.value = Some(value.clone());
+        if let Pattern::Constant(value) = &clause.value {
+            restricts = restricts.with_value(value.clone());
         }
         self.find(&restricts)
     }

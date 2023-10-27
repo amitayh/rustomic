@@ -5,6 +5,7 @@ use std::convert::Infallible;
 use crate::storage::serde::*;
 use crate::storage::*;
 
+#[derive(Default)]
 pub struct InMemoryStorage {
     index: BTreeSet<Bytes>,
 }
@@ -14,12 +15,6 @@ impl InMemoryStorage {
         Self {
             index: BTreeSet::new(),
         }
-    }
-}
-
-impl Default for InMemoryStorage {
-    fn default() -> Self {
-        Self::new()
     }
 }
 

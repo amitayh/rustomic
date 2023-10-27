@@ -12,15 +12,10 @@ type TempId = Rc<str>;
 type EntityId = u64;
 type TempIds = HashMap<TempId, EntityId>;
 
+#[derive(Default)]
 pub struct Transactor {
     next_entity_id: u64,
     attribute_resolver: AttributeResolver,
-}
-
-impl Default for Transactor {
-    fn default() -> Self {
-        Self::new()
-    }
 }
 
 impl Transactor {

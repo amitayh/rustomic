@@ -8,14 +8,9 @@ use crate::storage::ReadStorage;
 
 use super::Restricts;
 
+#[derive(Default)]
 pub struct AttributeResolver {
     cache: HashMap<Rc<str>, Attribute>,
-}
-
-impl Default for AttributeResolver {
-    fn default() -> Self {
-        Self::new()
-    }
 }
 
 impl AttributeResolver {

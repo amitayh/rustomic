@@ -4,10 +4,10 @@ use crate::query::pattern::*;
 
 #[derive(Clone, Debug, Default)]
 pub struct Clause {
-    pub entity: EntityPattern,
-    pub attribute: AttributePattern,
-    pub value: ValuePattern,
-    pub tx: TxPattern,
+    pub entity: Pattern<u64>,
+    pub attribute: Pattern<AttributeIdentifier>,
+    pub value: Pattern<Value>,
+    pub tx: Pattern<u64>,
 }
 
 impl Clause {
@@ -15,27 +15,27 @@ impl Clause {
         Self::default()
     }
 
-    pub fn with_entity(mut self, entity: EntityPattern) -> Self {
+    pub fn with_entity(mut self, entity: Pattern<u64>) -> Self {
         self.entity = entity;
         self
     }
 
-    pub fn with_attribute(mut self, attribute: AttributePattern) -> Self {
+    pub fn with_attribute(mut self, attribute: Pattern<AttributeIdentifier>) -> Self {
         self.attribute = attribute;
         self
     }
 
-    pub fn with_value(mut self, value: ValuePattern) -> Self {
+    pub fn with_value(mut self, value: Pattern<Value>) -> Self {
         self.value = value;
         self
     }
 
-    pub fn with_tx(mut self, tx: TxPattern) -> Self {
+    pub fn with_tx(mut self, tx: Pattern<u64>) -> Self {
         self.tx = tx;
         self
     }
 
-    pub fn with_tx2(&mut self, tx: TxPattern) {
+    pub fn with_tx2(&mut self, tx: Pattern<u64>) {
         self.tx = tx;
         //*self
     }
@@ -45,9 +45,9 @@ impl Clause {
     /// use rustomic::query::pattern::*;
     ///
     /// let clause = Clause::new()
-    ///     .with_entity(EntityPattern::variable("foo"))
-    ///     .with_attribute(AttributePattern::variable("bar"))
-    ///     .with_value(ValuePattern::variable("baz"));
+    ///     .with_entity(Pattern::variable("foo"))
+    ///     .with_attribute(Pattern::variable("bar"))
+    ///     .with_value(Pattern::variable("baz"));
     ///
     /// let free_variables = clause.free_variables();
     /// assert_eq!(3, free_variables.len());
@@ -80,10 +80,10 @@ impl Clause {
     /// use rustomic::datom::*;
     ///
     /// let clause = Clause::new()
-    ///     .with_entity(EntityPattern::variable("foo"))
-    ///     .with_attribute(AttributePattern::variable("bar"))
-    ///     .with_value(ValuePattern::variable("baz"))
-    ///     .with_tx(TxPattern::variable("qux"));
+    ///     .with_entity(Pattern::variable("foo"))
+    ///     .with_attribute(Pattern::variable("bar"))
+    ///     .with_value(Pattern::variable("baz"))
+    ///     .with_tx(Pattern::variable("qux"));
     ///
     /// let query = Query::new().wher(clause.clone());
     /// let mut assignment = Assignment::from_query(&query);
@@ -94,24 +94,24 @@ impl Clause {
     ///
     /// let assigned = clause.assign(&assignment);
     ///
-    /// assert_eq!(EntityPattern::Id(1), assigned.entity);
-    /// assert_eq!(AttributePattern::Id(2), assigned.attribute);
-    /// assert_eq!(ValuePattern::Constant(Value::U64(3)), assigned.value);
-    /// assert_eq!(TxPattern::Constant(4), assigned.tx);
+    /// assert_eq!(Pattern::Constant(1), assigned.entity);
+    /// assert_eq!(Pattern::id(2), assigned.attribute);
+    /// assert_eq!(Pattern::value(3u64), assigned.value);
+    /// assert_eq!(Pattern::Constant(4), assigned.tx);
     /// ```
     pub fn assign(&self, assignment: &Assignment) -> Self {
         let mut clause = self.clone();
         if let Some(Value::U64(entity)) = assignment.assigned_value(&self.entity) {
-            clause.entity = EntityPattern::Id(*entity);
+            clause.entity = Pattern::Constant(*entity);
         }
         if let Some(Value::U64(attribute)) = assignment.assigned_value(&self.attribute) {
-            clause.attribute = AttributePattern::Id(*attribute);
+            clause.attribute = Pattern::id(*attribute);
         }
         if let Some(value) = assignment.assigned_value(&self.value) {
-            clause.value = ValuePattern::Constant(value.clone());
+            clause.value = Pattern::Constant(value.clone());
         }
         if let Some(Value::U64(tx)) = assignment.assigned_value(&self.tx) {
-            clause.tx = TxPattern::Constant(*tx);
+            clause.tx = Pattern::Constant(*tx);
         }
         clause
     }

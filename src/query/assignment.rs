@@ -30,9 +30,9 @@ impl Assignment {
     ///
     /// let query = Query::new().wher(
     ///     Clause::new()
-    ///         .with_entity(EntityPattern::variable("foo"))
-    ///         .with_attribute(AttributePattern::variable("bar"))
-    ///         .with_value(ValuePattern::variable("baz")),
+    ///         .with_entity(Pattern::variable("foo"))
+    ///         .with_attribute(Pattern::variable("bar"))
+    ///         .with_value(Pattern::variable("baz")),
     /// );
     /// let mut assignment = Assignment::from_query(&query);
     ///
@@ -89,10 +89,10 @@ impl Assignment {
     /// let assignment = Assignment::new(variables);
     ///
     /// let clause = Clause::new()
-    ///     .with_entity(EntityPattern::variable("?entity"))
-    ///     .with_attribute(AttributePattern::variable("?attribute"))
-    ///     .with_value(ValuePattern::variable("?value"))
-    ///     .with_tx(TxPattern::variable("?tx"));
+    ///     .with_entity(Pattern::variable("?entity"))
+    ///     .with_attribute(Pattern::variable("?attribute"))
+    ///     .with_value(Pattern::variable("?value"))
+    ///     .with_tx(Pattern::variable("?tx"));
     ///
     /// let entity = 1u64;
     /// let attribute = 2u64;
@@ -123,7 +123,7 @@ impl Assignment {
         assignment
     }
 
-    pub fn assigned_value<P: Pattern>(&self, pattern: &P) -> Option<&Value> {
+    pub fn assigned_value<T>(&self, pattern: &Pattern<T>) -> Option<&Value> {
         pattern
             .variable_name()
             .and_then(|variable| self.assigned.get(variable))

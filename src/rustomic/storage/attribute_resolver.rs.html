@@ -252,29 +252,19 @@
 <a href="#252" id="252">252</a>
 <a href="#253" id="253">253</a>
 <a href="#254" id="254">254</a>
-<a href="#255" id="255">255</a>
-<a href="#256" id="256">256</a>
-<a href="#257" id="257">257</a>
-<a href="#258" id="258">258</a>
-<a href="#259" id="259">259</a>
 </pre></div><pre class="rust"><code><span class="kw">use </span>std::collections::HashMap;
 <span class="kw">use </span>std::rc::Rc;
 
 <span class="kw">use </span><span class="kw">crate</span>::datom::<span class="kw-2">*</span>;
-<span class="kw">use </span><span class="kw">crate</span>::query::clause::Clause;
-<span class="kw">use </span><span class="kw">crate</span>::query::pattern::<span class="kw-2">*</span>;
 <span class="kw">use </span><span class="kw">crate</span>::schema::attribute::<span class="kw-2">*</span>;
 <span class="kw">use </span><span class="kw">crate</span>::schema::<span class="kw-2">*</span>;
 <span class="kw">use </span><span class="kw">crate</span>::storage::ReadStorage;
 
-<span class="kw">pub struct </span>AttributeResolver {
-    cache: HashMap&lt;Rc&lt;str&gt;, Attribute&gt;,
-}
+<span class="kw">use </span><span class="kw">super</span>::Restricts;
 
-<span class="kw">impl </span>Default <span class="kw">for </span>AttributeResolver {
-    <span class="kw">fn </span>default() -&gt; <span class="self">Self </span>{
-        <span class="self">Self</span>::new()
-    }
+<span class="attr">#[derive(Default)]
+</span><span class="kw">pub struct </span>AttributeResolver {
+    cache: HashMap&lt;Rc&lt;str&gt;, Attribute&gt;,
 }
 
 <span class="kw">impl </span>AttributeResolver {
@@ -284,13 +274,13 @@
         }
     }
 
-    <span class="kw">pub fn </span>resolve_ident&lt;<span class="lifetime">&#39;a</span>, S: ReadStorage&lt;<span class="lifetime">&#39;a</span>&gt;&gt;(
+    <span class="kw">pub fn </span>resolve&lt;<span class="lifetime">&#39;a</span>, S: ReadStorage&lt;<span class="lifetime">&#39;a</span>&gt;&gt;(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         storage: <span class="kw-2">&amp;</span><span class="lifetime">&#39;a </span>S,
         ident: <span class="kw-2">&amp;</span>str,
     ) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="prelude-ty">Option</span>&lt;Attribute&gt;, S::Error&gt; {
-        <span class="kw">if let </span><span class="prelude-val">Some</span>(attribute) = <span class="self">self</span>.cache.get(ident) {
-            <span class="kw">return </span><span class="prelude-val">Ok</span>(<span class="prelude-val">Some</span>(attribute.clone()));
+        <span class="kw">if let </span>attribute @ <span class="prelude-val">Some</span>(<span class="kw">_</span>) = <span class="self">self</span>.cache.get(ident) {
+            <span class="kw">return </span><span class="prelude-val">Ok</span>(attribute.cloned());
         }
         <span class="kw">if let </span><span class="prelude-val">Some</span>(attribute) = resolve_ident(storage, ident)<span class="question-mark">? </span>{
             <span class="self">self</span>.update_cache(attribute.clone());
@@ -309,10 +299,10 @@
     ident: <span class="kw-2">&amp;</span>str,
 ) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="prelude-ty">Option</span>&lt;Attribute&gt;, S::Error&gt; {
     <span class="comment">// [?attribute :db/attr/ident ?ident]
-    </span><span class="kw">let </span>clause = Clause::new()
-        .with_attribute(AttributePattern::Id(DB_ATTR_IDENT_ID))
-        .with_value(ValuePattern::constant(ident.into()));
-    <span class="kw">if let </span><span class="prelude-val">Some</span>(datom) = storage.find(<span class="kw-2">&amp;</span>clause).next() {
+    </span><span class="kw">let </span>restricts = Restricts::new()
+        .with_attribute(DB_ATTR_IDENT_ID)
+        .with_value(ident.into());
+    <span class="kw">if let </span><span class="prelude-val">Some</span>(datom) = storage.find(<span class="kw-2">&amp;</span>restricts).next() {
         <span class="kw">return </span>resolve_id(storage, datom<span class="question-mark">?</span>.entity);
     }
     <span class="prelude-val">Ok</span>(<span class="prelude-val">None</span>)
@@ -324,8 +314,8 @@
 ) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="prelude-ty">Option</span>&lt;Attribute&gt;, S::Error&gt; {
     <span class="kw">let </span><span class="kw-2">mut </span>builder = Builder::new(attribute_id);
     <span class="comment">// [?attribute _ _]
-    </span><span class="kw">let </span>clause = Clause::new().with_entity(EntityPattern::Id(attribute_id));
-    <span class="kw">for </span>datom <span class="kw">in </span>storage.find(<span class="kw-2">&amp;</span>clause) {
+    </span><span class="kw">let </span>restricts = Restricts::new().with_entity(attribute_id);
+    <span class="kw">for </span>datom <span class="kw">in </span>storage.find(<span class="kw-2">&amp;</span>restricts) {
         builder.consume(<span class="kw-2">&amp;</span>datom<span class="question-mark">?</span>);
     }
     <span class="prelude-val">Ok</span>(builder.build())
@@ -435,9 +425,9 @@
         <span class="kw">type </span>Error = &lt;InMemoryStorage <span class="kw">as </span>ReadStorage&lt;<span class="lifetime">&#39;a</span>&gt;&gt;::Error;
         <span class="kw">type </span>Iter = &lt;InMemoryStorage <span class="kw">as </span>ReadStorage&lt;<span class="lifetime">&#39;a</span>&gt;&gt;::Iter;
 
-        <span class="kw">fn </span>find(<span class="kw-2">&amp;</span><span class="lifetime">&#39;a </span><span class="self">self</span>, clause: <span class="kw-2">&amp;</span>Clause) -&gt; <span class="self">Self</span>::Iter {
+        <span class="kw">fn </span>find(<span class="kw-2">&amp;</span><span class="lifetime">&#39;a </span><span class="self">self</span>, restricts: <span class="kw-2">&amp;</span>Restricts) -&gt; <span class="self">Self</span>::Iter {
             <span class="self">self</span>.count.set(<span class="self">self</span>.count.get() + <span class="number">1</span>);
-            <span class="self">self</span>.inner.find(clause)
+            <span class="self">self</span>.inner.find(restricts)
         }
     }
 
@@ -458,7 +448,7 @@
     </span><span class="kw">fn </span>returns_none_when_attribute_does_not_exist() {
         <span class="kw">let </span>storage = create_storage();
         <span class="kw">let </span><span class="kw-2">mut </span>resolver = AttributeResolver::new();
-        <span class="kw">let </span>result = resolver.resolve_ident(<span class="kw-2">&amp;</span>storage, <span class="string">&quot;foo/bar&quot;</span>);
+        <span class="kw">let </span>result = resolver.resolve(<span class="kw-2">&amp;</span>storage, <span class="string">&quot;foo/bar&quot;</span>);
         <span class="macro">assert!</span>(result.is_ok());
         <span class="macro">assert!</span>(result.unwrap().is_none());
     }
@@ -475,7 +465,7 @@
         <span class="macro">assert!</span>(storage.save(<span class="kw-2">&amp;</span>tx_result.unwrap().tx_data).is_ok());
 
         <span class="kw">let </span><span class="kw-2">mut </span>resolver = AttributeResolver::new();
-        <span class="kw">let </span>result = resolver.resolve_ident(<span class="kw-2">&amp;</span>storage, <span class="string">&quot;foo/bar&quot;</span>);
+        <span class="kw">let </span>result = resolver.resolve(<span class="kw-2">&amp;</span>storage, <span class="string">&quot;foo/bar&quot;</span>);
         <span class="macro">assert!</span>(result.is_ok());
 
         <span class="kw">let </span>result = result.unwrap().unwrap();
@@ -498,7 +488,7 @@
         <span class="macro">assert!</span>(storage.save(<span class="kw-2">&amp;</span>tx_result.unwrap().tx_data).is_ok());
 
         <span class="kw">let </span><span class="kw-2">mut </span>resolver = AttributeResolver::new();
-        <span class="kw">let </span>result1 = resolver.resolve_ident(<span class="kw-2">&amp;</span>storage, <span class="string">&quot;foo/bar&quot;</span>);
+        <span class="kw">let </span>result1 = resolver.resolve(<span class="kw-2">&amp;</span>storage, <span class="string">&quot;foo/bar&quot;</span>);
         <span class="macro">assert!</span>(result1.is_ok());
         <span class="kw">let </span>result1 = result1.unwrap();
         <span class="macro">assert!</span>(result1.is_some());
@@ -507,7 +497,7 @@
         </span><span class="kw">let </span>queries = storage.current_count();
         <span class="macro">assert!</span>(queries &gt; <span class="number">0</span>);
 
-        <span class="kw">let </span>result2 = resolver.resolve_ident(<span class="kw-2">&amp;</span>storage, <span class="string">&quot;foo/bar&quot;</span>);
+        <span class="kw">let </span>result2 = resolver.resolve(<span class="kw-2">&amp;</span>storage, <span class="string">&quot;foo/bar&quot;</span>);
         <span class="macro">assert!</span>(result2.is_ok());
         <span class="kw">let </span>result2 = result2.unwrap();
         <span class="macro">assert_eq!</span>(result1, result2);

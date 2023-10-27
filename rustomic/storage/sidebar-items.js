@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"mod":["attribute_resolver","disk","memory","serde"],"trait":["ReadStorage","WriteStorage"]};
+window.SIDEBAR_ITEMS = {"mod":["attribute_resolver","disk","memory","serde"],"struct":["Restricts"],"trait":["ReadStorage","WriteStorage"]};

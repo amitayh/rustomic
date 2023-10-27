@@ -81,6 +81,9 @@
 <a href="#81" id="81">81</a>
 <a href="#82" id="82">82</a>
 <a href="#83" id="83">83</a>
+<a href="#84" id="84">84</a>
+<a href="#85" id="85">85</a>
+<a href="#86" id="86">86</a>
 </pre></div><pre class="rust"><code><span class="kw">use </span>std::collections::HashMap;
 
 <span class="kw">use </span><span class="kw">crate</span>::datom::Value;
@@ -90,7 +93,8 @@
 <span class="kw">use </span><span class="kw">crate</span>::storage::attribute_resolver::<span class="kw-2">*</span>;
 <span class="kw">use </span><span class="kw">crate</span>::storage::<span class="kw-2">*</span>;
 
-<span class="kw">use </span><span class="kw">super</span>::pattern::AttributePattern;
+<span class="kw">use </span><span class="kw">super</span>::pattern::AttributeIdentifier;
+<span class="kw">use </span><span class="kw">super</span>::pattern::Pattern;
 
 <span class="kw">pub struct </span>Db {
     tx: u64,
@@ -123,11 +127,13 @@
         query: <span class="kw-2">&amp;mut </span>Query,
     ) -&gt; <span class="prelude-ty">Result</span>&lt;(), QueryError&lt;S::Error&gt;&gt; {
         <span class="kw">for </span>clause <span class="kw">in </span><span class="kw-2">&amp;mut </span>query.wher {
-            <span class="kw">if let </span>AttributePattern::Ident(ident) = <span class="kw-2">&amp;</span>clause.attribute {
-                <span class="kw">let </span>attribute = <span class="self">self</span>.attribute_resolver.resolve_ident(storage, ident)<span class="question-mark">?</span>;
-                <span class="kw">let </span>attribute =
-                    attribute.ok_or_else(|| QueryError::IdentNotFound(Rc::clone(ident)))<span class="question-mark">?</span>;
-                clause.attribute = AttributePattern::Id(attribute.id);
+            <span class="kw">if let </span>Pattern::Constant(AttributeIdentifier::Ident(ident)) = <span class="kw-2">&amp;</span>clause.attribute {
+                <span class="kw">let </span>attribute = <span class="self">self
+                    </span>.attribute_resolver
+                    .resolve(storage, ident)<span class="question-mark">?
+                    </span>.ok_or_else(|| QueryError::IdentNotFound(Rc::clone(ident)))<span class="question-mark">?</span>;
+
+                clause.attribute = Pattern::id(attribute.id);
             }
         }
         <span class="prelude-val">Ok</span>(())
@@ -145,10 +151,10 @@
             <span class="kw">return </span><span class="prelude-val">Ok</span>(());
         }
         <span class="kw">if let </span>[clause, rest @ ..] = clauses {
-            <span class="kw">let </span>assigned_clause = clause.assign(<span class="kw-2">&amp;</span>assignment);
+            <span class="kw">let </span>assigned_clause = <span class="kw-2">&amp;</span>clause.assign(<span class="kw-2">&amp;</span>assignment);
             <span class="comment">// TODO: optimize filtering in storage layer?
             </span><span class="kw">let </span>datoms = storage
-                .find(<span class="kw-2">&amp;</span>assigned_clause)
+                .find(<span class="kw-2">&amp;</span>assigned_clause.into())
                 .filter(|datom| datom.as_ref().map_or(<span class="bool-val">false</span>, |datom| datom.tx &lt;= <span class="self">self</span>.tx));
 
             <span class="comment">// TODO can this be parallelized?
@@ -156,7 +162,7 @@
                 <span class="self">self</span>.resolve(
                     storage,
                     rest,
-                    assignment.update_with(<span class="kw-2">&amp;</span>assigned_clause, datom<span class="question-mark">?</span>),
+                    assignment.update_with(assigned_clause, datom<span class="question-mark">?</span>),
                     results,
                 )<span class="question-mark">?</span>;
             }

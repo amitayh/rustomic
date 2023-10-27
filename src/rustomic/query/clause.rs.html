@@ -122,10 +122,10 @@
 
 <span class="attr">#[derive(Clone, Debug, Default)]
 </span><span class="kw">pub struct </span>Clause {
-    <span class="kw">pub </span>entity: EntityPattern,
-    <span class="kw">pub </span>attribute: AttributePattern,
-    <span class="kw">pub </span>value: ValuePattern,
-    <span class="kw">pub </span>tx: TxPattern,
+    <span class="kw">pub </span>entity: Pattern&lt;u64&gt;,
+    <span class="kw">pub </span>attribute: Pattern&lt;AttributeIdentifier&gt;,
+    <span class="kw">pub </span>value: Pattern&lt;Value&gt;,
+    <span class="kw">pub </span>tx: Pattern&lt;u64&gt;,
 }
 
 <span class="kw">impl </span>Clause {
@@ -133,27 +133,27 @@
         <span class="self">Self</span>::default()
     }
 
-    <span class="kw">pub fn </span>with_entity(<span class="kw-2">mut </span><span class="self">self</span>, entity: EntityPattern) -&gt; <span class="self">Self </span>{
+    <span class="kw">pub fn </span>with_entity(<span class="kw-2">mut </span><span class="self">self</span>, entity: Pattern&lt;u64&gt;) -&gt; <span class="self">Self </span>{
         <span class="self">self</span>.entity = entity;
         <span class="self">self
     </span>}
 
-    <span class="kw">pub fn </span>with_attribute(<span class="kw-2">mut </span><span class="self">self</span>, attribute: AttributePattern) -&gt; <span class="self">Self </span>{
+    <span class="kw">pub fn </span>with_attribute(<span class="kw-2">mut </span><span class="self">self</span>, attribute: Pattern&lt;AttributeIdentifier&gt;) -&gt; <span class="self">Self </span>{
         <span class="self">self</span>.attribute = attribute;
         <span class="self">self
     </span>}
 
-    <span class="kw">pub fn </span>with_value(<span class="kw-2">mut </span><span class="self">self</span>, value: ValuePattern) -&gt; <span class="self">Self </span>{
+    <span class="kw">pub fn </span>with_value(<span class="kw-2">mut </span><span class="self">self</span>, value: Pattern&lt;Value&gt;) -&gt; <span class="self">Self </span>{
         <span class="self">self</span>.value = value;
         <span class="self">self
     </span>}
 
-    <span class="kw">pub fn </span>with_tx(<span class="kw-2">mut </span><span class="self">self</span>, tx: TxPattern) -&gt; <span class="self">Self </span>{
+    <span class="kw">pub fn </span>with_tx(<span class="kw-2">mut </span><span class="self">self</span>, tx: Pattern&lt;u64&gt;) -&gt; <span class="self">Self </span>{
         <span class="self">self</span>.tx = tx;
         <span class="self">self
     </span>}
 
-    <span class="kw">pub fn </span>with_tx2(<span class="kw-2">&amp;mut </span><span class="self">self</span>, tx: TxPattern) {
+    <span class="kw">pub fn </span>with_tx2(<span class="kw-2">&amp;mut </span><span class="self">self</span>, tx: Pattern&lt;u64&gt;) {
         <span class="self">self</span>.tx = tx;
         <span class="comment">//*self
     </span>}
@@ -163,9 +163,9 @@
     /// use rustomic::query::pattern::*;
     ///
     /// let clause = Clause::new()
-    ///     .with_entity(EntityPattern::variable(&quot;foo&quot;))
-    ///     .with_attribute(AttributePattern::variable(&quot;bar&quot;))
-    ///     .with_value(ValuePattern::variable(&quot;baz&quot;));
+    ///     .with_entity(Pattern::variable(&quot;foo&quot;))
+    ///     .with_attribute(Pattern::variable(&quot;bar&quot;))
+    ///     .with_value(Pattern::variable(&quot;baz&quot;));
     ///
     /// let free_variables = clause.free_variables();
     /// assert_eq!(3, free_variables.len());
@@ -198,10 +198,10 @@
     /// use rustomic::datom::*;
     ///
     /// let clause = Clause::new()
-    ///     .with_entity(EntityPattern::variable(&quot;foo&quot;))
-    ///     .with_attribute(AttributePattern::variable(&quot;bar&quot;))
-    ///     .with_value(ValuePattern::variable(&quot;baz&quot;))
-    ///     .with_tx(TxPattern::variable(&quot;qux&quot;));
+    ///     .with_entity(Pattern::variable(&quot;foo&quot;))
+    ///     .with_attribute(Pattern::variable(&quot;bar&quot;))
+    ///     .with_value(Pattern::variable(&quot;baz&quot;))
+    ///     .with_tx(Pattern::variable(&quot;qux&quot;));
     ///
     /// let query = Query::new().wher(clause.clone());
     /// let mut assignment = Assignment::from_query(&amp;query);
@@ -212,24 +212,24 @@
     ///
     /// let assigned = clause.assign(&amp;assignment);
     ///
-    /// assert_eq!(EntityPattern::Id(1), assigned.entity);
-    /// assert_eq!(AttributePattern::Id(2), assigned.attribute);
-    /// assert_eq!(ValuePattern::Constant(Value::U64(3)), assigned.value);
-    /// assert_eq!(TxPattern::Constant(4), assigned.tx);
+    /// assert_eq!(Pattern::Constant(1), assigned.entity);
+    /// assert_eq!(Pattern::id(2), assigned.attribute);
+    /// assert_eq!(Pattern::value(3u64), assigned.value);
+    /// assert_eq!(Pattern::Constant(4), assigned.tx);
     /// ```
     </span><span class="kw">pub fn </span>assign(<span class="kw-2">&amp;</span><span class="self">self</span>, assignment: <span class="kw-2">&amp;</span>Assignment) -&gt; <span class="self">Self </span>{
         <span class="kw">let </span><span class="kw-2">mut </span>clause = <span class="self">self</span>.clone();
         <span class="kw">if let </span><span class="prelude-val">Some</span>(Value::U64(entity)) = assignment.assigned_value(<span class="kw-2">&amp;</span><span class="self">self</span>.entity) {
-            clause.entity = EntityPattern::Id(<span class="kw-2">*</span>entity);
+            clause.entity = Pattern::Constant(<span class="kw-2">*</span>entity);
         }
         <span class="kw">if let </span><span class="prelude-val">Some</span>(Value::U64(attribute)) = assignment.assigned_value(<span class="kw-2">&amp;</span><span class="self">self</span>.attribute) {
-            clause.attribute = AttributePattern::Id(<span class="kw-2">*</span>attribute);
+            clause.attribute = Pattern::id(<span class="kw-2">*</span>attribute);
         }
         <span class="kw">if let </span><span class="prelude-val">Some</span>(value) = assignment.assigned_value(<span class="kw-2">&amp;</span><span class="self">self</span>.value) {
-            clause.value = ValuePattern::Constant(value.clone());
+            clause.value = Pattern::Constant(value.clone());
         }
         <span class="kw">if let </span><span class="prelude-val">Some</span>(Value::U64(tx)) = assignment.assigned_value(<span class="kw-2">&amp;</span><span class="self">self</span>.tx) {
-            clause.tx = TxPattern::Constant(<span class="kw-2">*</span>tx);
+            clause.tx = Pattern::Constant(<span class="kw-2">*</span>tx);
         }
         clause
     }

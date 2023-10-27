@@ -46,18 +46,9 @@ impl Restricts {
     }
 }
 
-pub trait ReadStorage<'a> {
-    type Error: std::error::Error;
-    type Iter: Iterator<Item = Result<Datom, Self::Error>>;
-
-    /// Returns an iterator that yields all *non-retracted* datoms that match the search clause.
-    /// Iterator might fail with `Self::Error` during iteration.
-    /// Ordering of datoms is not guaranteed.
-    fn find(&'a self, restricts: &Restricts) -> Self::Iter;
-
-    #[deprecated]
-    fn find_old(&'a self, clause: &Clause) -> Self::Iter {
-        let mut restricts = Restricts::new();
+impl From<&Clause> for Restricts {
+    fn from(clause: &Clause) -> Self {
+        let mut restricts = Self::new();
         if let Pattern::Constant(entity) = clause.entity {
             restricts = restricts.with_entity(entity);
         }
@@ -67,8 +58,18 @@ pub trait ReadStorage<'a> {
         if let Pattern::Constant(value) = &clause.value {
             restricts = restricts.with_value(value.clone());
         }
-        self.find(&restricts)
+        restricts
     }
+}
+
+pub trait ReadStorage<'a> {
+    type Error: std::error::Error;
+    type Iter: Iterator<Item = Result<Datom, Self::Error>>;
+
+    /// Returns an iterator that yields all *non-retracted* datoms that match the search clause.
+    /// Iterator might fail with `Self::Error` during iteration.
+    /// Ordering of datoms is not guaranteed.
+    fn find(&'a self, restricts: &Restricts) -> Self::Iter;
 }
 
 pub trait WriteStorage {

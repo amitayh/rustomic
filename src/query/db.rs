@@ -65,10 +65,10 @@ impl Db {
             return Ok(());
         }
         if let [clause, rest @ ..] = clauses {
-            let assigned_clause = clause.assign(&assignment);
+            let assigned_clause = &clause.assign(&assignment);
             // TODO: optimize filtering in storage layer?
             let datoms = storage
-                .find_old(&assigned_clause)
+                .find(&assigned_clause.into())
                 .filter(|datom| datom.as_ref().map_or(false, |datom| datom.tx <= self.tx));
 
             // TODO can this be parallelized?
@@ -76,7 +76,7 @@ impl Db {
                 self.resolve(
                     storage,
                     rest,
-                    assignment.update_with(&assigned_clause, datom?),
+                    assignment.update_with(assigned_clause, datom?),
                     results,
                 )?;
             }

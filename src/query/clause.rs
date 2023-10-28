@@ -1,3 +1,5 @@
+use std::rc::Rc;
+
 use crate::datom::*;
 use crate::query::assignment::*;
 use crate::query::pattern::*;
@@ -35,11 +37,6 @@ impl Clause {
         self
     }
 
-    pub fn with_tx2(&mut self, tx: Pattern<u64>) {
-        self.tx = tx;
-        //*self
-    }
-
     /// ```
     /// use rustomic::query::clause::*;
     /// use rustomic::query::pattern::*;
@@ -55,7 +52,7 @@ impl Clause {
     /// assert!(free_variables.contains(&"bar"));
     /// assert!(free_variables.contains(&"baz"));
     /// ```
-    pub fn free_variables(&self) -> Vec<&str> {
+    pub fn free_variables(&self) -> Vec<Rc<str>> {
         let mut variables = Vec::new();
         if let Some(variable) = self.entity.variable_name() {
             variables.push(variable);

@@ -50,8 +50,6 @@ impl Assignment {
                 .wher
                 .iter()
                 .flat_map(|clause| clause.free_variables())
-                // TODO don't construct the `Rc` here, get from `free_variables`
-                .map(Rc::from)
                 .collect(),
         )
     }
@@ -126,12 +124,12 @@ impl Assignment {
     pub fn assigned_value<T>(&self, pattern: &Pattern<T>) -> Option<&Value> {
         pattern
             .variable_name()
-            .and_then(|variable| self.assigned.get(variable))
+            .and_then(|variable| self.assigned.get(&variable))
     }
 
-    pub fn assign<V: Into<Value>>(&mut self, variable: &str, value: V) {
-        if let Some(var) = self.unassigned.take(variable) {
-            self.assigned.insert(var, value.into());
+    pub fn assign<V: Into<Value>>(&mut self, variable: Rc<str>, value: V) {
+        if self.unassigned.remove(&variable) {
+            self.assigned.insert(variable, value.into());
         }
     }
 }

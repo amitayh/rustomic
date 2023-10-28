@@ -15,9 +15,9 @@ impl<T> Pattern<T> {
         Self::Variable(Rc::from(name))
     }
 
-    pub fn variable_name(&self) -> Option<&str> {
+    pub fn variable_name(&self) -> Option<Rc<str>> {
         match self {
-            Self::Variable(variable) => Some(variable),
+            Self::Variable(variable) => Some(Rc::clone(variable)),
             _ => None,
         }
     }

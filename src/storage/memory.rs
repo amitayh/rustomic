@@ -12,9 +12,7 @@ pub struct InMemoryStorage {
 
 impl InMemoryStorage {
     pub fn new() -> Self {
-        Self {
-            index: BTreeSet::new(),
-        }
+        Self::default()
     }
 }
 

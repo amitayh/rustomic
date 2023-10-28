@@ -15,9 +15,7 @@ pub struct AttributeResolver {
 
 impl AttributeResolver {
     pub fn new() -> Self {
-        Self {
-            cache: HashMap::new(),
-        }
+        Self::default()
     }
 
     pub fn resolve<'a, S: ReadStorage<'a>>(

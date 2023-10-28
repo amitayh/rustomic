@@ -59,9 +59,7 @@ pub struct Transaction {
 
 impl Transaction {
     pub fn new() -> Self {
-        Self {
-            operations: Vec::new(),
-        }
+        Self::default()
     }
 
     pub fn with<O: Into<Operation>>(mut self, o: O) -> Self {

@@ -17,12 +17,7 @@ pub struct Restricts {
 
 impl Restricts {
     pub fn new() -> Self {
-        Self {
-            entity: None,
-            attribute: None,
-            value: None,
-            tx: None,
-        }
+        Self::default()
     }
 
     pub fn with_entity(mut self, entity: u64) -> Self {

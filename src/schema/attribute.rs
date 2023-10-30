@@ -142,15 +142,15 @@ impl Attribute {
 }
 
 impl From<Attribute> for tx::Operation {
-    fn from(val: Attribute) -> Self {
+    fn from(attribute: Attribute) -> Self {
         let mut operation = Self::on_new()
-            .set(DB_ATTR_IDENT_IDENT, val.ident)
-            .set(DB_ATTR_CARDINALITY_IDENT, val.cardinality as u64)
-            .set(DB_ATTR_TYPE_IDENT, val.value_type as u64);
-        if let Some(doc) = val.doc {
+            .set(DB_ATTR_IDENT_IDENT, attribute.ident)
+            .set(DB_ATTR_CARDINALITY_IDENT, attribute.cardinality as u64)
+            .set(DB_ATTR_TYPE_IDENT, attribute.value_type as u64);
+        if let Some(doc) = attribute.doc {
             operation = operation.set(DB_ATTR_DOC_IDENT, doc);
         }
-        if val.unique {
+        if attribute.unique {
             operation = operation.set(DB_ATTR_UNIQUE_IDENT, 1u64);
         }
         operation

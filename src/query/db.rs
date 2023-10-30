@@ -31,7 +31,7 @@ impl Db {
         let mut results = Vec::new();
         self.resolve_idents(storage, &mut query)?;
         let assignment = Assignment::from_query(&query);
-        self.resolve(storage, &query.wher, assignment, &mut results)?;
+        self.resolve(storage, &query, &query.wher, assignment, &mut results)?;
         Ok(QueryResult { results })
     }
 
@@ -56,6 +56,7 @@ impl Db {
     fn resolve<'a, S: ReadStorage<'a>>(
         &self,
         storage: &'a S,
+        query: &Query,
         clauses: &[Clause],
         assignment: Assignment,
         results: &mut Vec<HashMap<Rc<str>, Value>>,
@@ -73,12 +74,10 @@ impl Db {
 
             // TODO can this be parallelized?
             for datom in datoms {
-                self.resolve(
-                    storage,
-                    rest,
-                    assignment.update_with(assigned_clause, datom?),
-                    results,
-                )?;
+                let assignment = assignment.update_with(assigned_clause, datom?);
+                if query.test(&assignment.assigned) {
+                    self.resolve(storage, query, rest, assignment, results)?;
+                }
             }
         }
         Ok(())

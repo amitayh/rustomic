@@ -35,6 +35,22 @@ impl Value {
     /// ```
     /// use rustomic::datom::Value;
     ///
+    /// let str_value = Value::str("foo");
+    /// assert_eq!(None, str_value.as_i64());
+    ///
+    /// let i64_value = Value::I64(42);
+    /// assert_eq!(Some(42), i64_value.as_i64());
+    /// ```
+    pub fn as_i64(&self) -> Option<i64> {
+        match *self {
+            Self::I64(value) => Some(value),
+            _ => None,
+        }
+    }
+
+    /// ```
+    /// use rustomic::datom::Value;
+    ///
     /// let u64_value = Value::U64(42);
     /// assert_eq!(None, u64_value.as_str());
     ///
@@ -44,13 +60,6 @@ impl Value {
     pub fn as_str(&self) -> Option<&str> {
         match self {
             Self::Str(value) => Some(value),
-            _ => None,
-        }
-    }
-
-    pub fn as_string(&self) -> Option<Rc<str>> {
-        match self {
-            Self::Str(value) => Some(Rc::clone(value)),
             _ => None,
         }
     }
@@ -141,7 +150,7 @@ impl Arbitrary for Value {
             Some(0) => Self::I64(i64::arbitrary(u)),
             Some(1) => Self::U64(u64::arbitrary(u)),
             Some(2) => Self::Str(String::arbitrary(u).into()),
-            _ => panic!(),
+            _ => unreachable!(),
         }
     }
 }

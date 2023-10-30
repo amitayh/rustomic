@@ -21,6 +21,13 @@ impl<T> Pattern<T> {
             _ => None,
         }
     }
+
+    pub fn variable_name_ref(&self) -> Option<&str> {
+        match self {
+            Self::Variable(variable) => Some(variable),
+            _ => None,
+        }
+    }
 }
 
 impl Pattern<AttributeIdentifier> {

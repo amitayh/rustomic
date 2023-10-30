@@ -53,7 +53,7 @@ impl Clause {
     /// assert!(free_variables.contains(&"baz"));
     /// ```
     pub fn free_variables(&self) -> Vec<Rc<str>> {
-        let mut variables = Vec::new();
+        let mut variables = Vec::with_capacity(4);
         if let Some(variable) = self.entity.variable_name() {
             variables.push(variable);
         }

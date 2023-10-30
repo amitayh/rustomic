@@ -17,6 +17,7 @@ mod tests {
     use crate::storage::memory::InMemoryStorage;
     use crate::storage::WriteStorage;
 
+    use super::datom::*;
     use super::query::clause::*;
     use super::query::db::*;
     use super::query::pattern::*;
@@ -385,13 +386,12 @@ mod tests {
         assert!(result["?tx_time"].as_u64().is_some_and(|time| time > 0));
     }
 
-    /*
     #[test]
-    fn support_range_queries() {
-        let (mut transactor, storage) = create_db();
+    fn support_query_predicates() {
+        let mut sut = SUT::new();
 
         // Insert data
-        let tx_result = transactor.transact(
+        sut.transact(
             Transaction::new()
                 .with(
                     Operation::on_new()
@@ -414,28 +414,29 @@ mod tests {
                         .set("person/age", 32),
                 ),
         );
-        assert!(tx_result.is_ok());
 
-        let db = Db::new(storage, tx_result.unwrap().tx_id);
-        let query_result = db.query(
+        let query_result = sut.query(
             Query::new()
                 .wher(
                     Clause::new()
-                        .with_entity(Pattern2::variable("?person"))
-                        .with_attribute(Pattern2::ident("person/age"))
-                        .with_value(ValuePattern::range(&(Value::I64(32)..))),
+                        .with_entity(Pattern::variable("?person"))
+                        .with_attribute(Pattern::ident("person/age"))
+                        .with_value(Pattern::variable("?age")),
                 )
                 .wher(
                     Clause::new()
-                        .with_entity(Pattern2::variable("?person"))
-                        .with_attribute(Pattern2::ident("person/name"))
-                        .with_value(ValuePattern::variable("?name")),
-                ),
+                        .with_entity(Pattern::variable("?person"))
+                        .with_attribute(Pattern::ident("person/name"))
+                        .with_value(Pattern::variable("?name")),
+                )
+                .value_pred("?age", |value| match value {
+                    Value::I64(age) => *age >= 32,
+                    _ => false,
+                }),
         );
 
-        assert!(query_result.is_ok());
-        let results = query_result.unwrap().results;
-        let names: Vec<&str> = results
+        let names: Vec<&str> = query_result
+            .results
             .iter()
             .flat_map(|assignment| assignment["?name"].as_str().into_iter())
             .collect();
@@ -444,7 +445,6 @@ mod tests {
         assert!(names.contains(&"John"));
         assert!(names.contains(&"Ringo"));
     }
-    */
 
     // TODO retract
 }

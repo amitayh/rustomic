@@ -6,6 +6,23 @@ use crate::datom::*;
 use crate::query::pattern::*;
 use crate::query::*;
 
+#[derive(Debug, Eq, PartialEq, Clone)]
+pub struct Assignment2(HashMap<Rc<str>, Value>);
+
+#[derive(Debug, Eq, PartialEq, Clone)]
+pub struct PartialAssignment {
+    pub assigned: HashMap<Rc<str>, Value>,
+    unassigned: HashSet<Rc<str>>,
+}
+
+pub enum Assignment3 {
+    Complete(HashMap<Rc<str>, Value>),
+    Partial {
+        assigned: HashMap<Rc<str>, Value>,
+        unassigned: HashSet<Rc<str>>,
+    },
+}
+
 // TODO PartialAssignment / CompleteAssignment?
 #[derive(Debug, Eq, PartialEq, Clone)]
 pub struct Assignment {
@@ -106,16 +123,16 @@ impl Assignment {
     /// ```
     pub fn update_with(&self, clause: &Clause, datom: Datom) -> Self {
         let mut assignment = self.clone();
-        if let Some(entity_variable) = clause.entity.variable_name() {
+        if let Some(entity_variable) = clause.entity.variable_name_ref() {
             assignment.assign(entity_variable, datom.entity);
         }
-        if let Some(attribute_variable) = clause.attribute.variable_name() {
+        if let Some(attribute_variable) = clause.attribute.variable_name_ref() {
             assignment.assign(attribute_variable, datom.attribute);
         }
-        if let Some(value_variable) = clause.value.variable_name() {
+        if let Some(value_variable) = clause.value.variable_name_ref() {
             assignment.assign(value_variable, datom.value);
         }
-        if let Some(tx_variable) = clause.tx.variable_name() {
+        if let Some(tx_variable) = clause.tx.variable_name_ref() {
             assignment.assign(tx_variable, datom.tx);
         }
         assignment
@@ -123,13 +140,13 @@ impl Assignment {
 
     pub fn assigned_value<T>(&self, pattern: &Pattern<T>) -> Option<&Value> {
         pattern
-            .variable_name()
-            .and_then(|variable| self.assigned.get(&variable))
+            .variable_name_ref()
+            .and_then(|variable| self.assigned.get(variable))
     }
 
-    pub fn assign<V: Into<Value>>(&mut self, variable: Rc<str>, value: V) {
-        if self.unassigned.remove(&variable) {
-            self.assigned.insert(variable, value.into());
+    pub fn assign<V: Into<Value>>(&mut self, variable: &str, value: V) {
+        if let Some(var) = self.unassigned.take(variable) {
+            self.assigned.insert(var, value.into());
         }
     }
 }

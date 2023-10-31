@@ -467,6 +467,7 @@
     <span class="kw">use </span><span class="kw">crate</span>::storage::memory::InMemoryStorage;
     <span class="kw">use </span><span class="kw">crate</span>::storage::WriteStorage;
 
+    <span class="kw">use </span><span class="kw">super</span>::datom::<span class="kw-2">*</span>;
     <span class="kw">use </span><span class="kw">super</span>::query::clause::<span class="kw-2">*</span>;
     <span class="kw">use </span><span class="kw">super</span>::query::db::<span class="kw-2">*</span>;
     <span class="kw">use </span><span class="kw">super</span>::query::pattern::<span class="kw-2">*</span>;
@@ -835,67 +836,66 @@
         <span class="macro">assert!</span>(result[<span class="string">&quot;?tx_time&quot;</span>].as_u64().is_some_and(|time| time &gt; <span class="number">0</span>));
     }
 
-    <span class="comment">/*
-    #[test]
-    fn support_range_queries() {
-        let (mut transactor, storage) = create_db();
+    <span class="attr">#[test]
+    </span><span class="kw">fn </span>support_query_predicates() {
+        <span class="kw">let </span><span class="kw-2">mut </span>sut = SUT::new();
 
-        // Insert data
-        let tx_result = transactor.transact(
+        <span class="comment">// Insert data
+        </span>sut.transact(
             Transaction::new()
                 .with(
                     Operation::on_new()
-                        .set(&quot;person/name&quot;, &quot;John&quot;)
-                        .set(&quot;person/age&quot;, 33),
+                        .set(<span class="string">&quot;person/name&quot;</span>, <span class="string">&quot;John&quot;</span>)
+                        .set(<span class="string">&quot;person/age&quot;</span>, <span class="number">33</span>),
                 )
                 .with(
                     Operation::on_new()
-                        .set(&quot;person/name&quot;, &quot;Paul&quot;)
-                        .set(&quot;person/age&quot;, 31),
+                        .set(<span class="string">&quot;person/name&quot;</span>, <span class="string">&quot;Paul&quot;</span>)
+                        .set(<span class="string">&quot;person/age&quot;</span>, <span class="number">31</span>),
                 )
                 .with(
                     Operation::on_new()
-                        .set(&quot;person/name&quot;, &quot;George&quot;)
-                        .set(&quot;person/age&quot;, 30),
+                        .set(<span class="string">&quot;person/name&quot;</span>, <span class="string">&quot;George&quot;</span>)
+                        .set(<span class="string">&quot;person/age&quot;</span>, <span class="number">30</span>),
                 )
                 .with(
                     Operation::on_new()
-                        .set(&quot;person/name&quot;, &quot;Ringo&quot;)
-                        .set(&quot;person/age&quot;, 32),
+                        .set(<span class="string">&quot;person/name&quot;</span>, <span class="string">&quot;Ringo&quot;</span>)
+                        .set(<span class="string">&quot;person/age&quot;</span>, <span class="number">32</span>),
                 ),
         );
-        assert!(tx_result.is_ok());
 
-        let db = Db::new(storage, tx_result.unwrap().tx_id);
-        let query_result = db.query(
+        <span class="kw">let </span>query_result = sut.query(
             Query::new()
                 .wher(
                     Clause::new()
-                        .with_entity(Pattern2::variable(&quot;?person&quot;))
-                        .with_attribute(Pattern2::ident(&quot;person/age&quot;))
-                        .with_value(ValuePattern::range(&amp;(Value::I64(32)..))),
+                        .with_entity(Pattern::variable(<span class="string">&quot;?person&quot;</span>))
+                        .with_attribute(Pattern::ident(<span class="string">&quot;person/age&quot;</span>))
+                        .with_value(Pattern::variable(<span class="string">&quot;?age&quot;</span>)),
                 )
                 .wher(
                     Clause::new()
-                        .with_entity(Pattern2::variable(&quot;?person&quot;))
-                        .with_attribute(Pattern2::ident(&quot;person/name&quot;))
-                        .with_value(ValuePattern::variable(&quot;?name&quot;)),
-                ),
+                        .with_entity(Pattern::variable(<span class="string">&quot;?person&quot;</span>))
+                        .with_attribute(Pattern::ident(<span class="string">&quot;person/name&quot;</span>))
+                        .with_value(Pattern::variable(<span class="string">&quot;?name&quot;</span>)),
+                )
+                .value_pred(<span class="string">&quot;?age&quot;</span>, |value| <span class="kw">match </span>value {
+                    Value::I64(age) =&gt; <span class="kw-2">*</span>age &gt;= <span class="number">32</span>,
+                    <span class="kw">_ </span>=&gt; <span class="bool-val">false</span>,
+                }),
         );
 
-        assert!(query_result.is_ok());
-        let results = query_result.unwrap().results;
-        let names: Vec&lt;&amp;str&gt; = results
+        <span class="kw">let </span>names: Vec&lt;<span class="kw-2">&amp;</span>str&gt; = query_result
+            .results
             .iter()
-            .flat_map(|assignment| assignment[&quot;?name&quot;].as_str().into_iter())
+            .flat_map(|assignment| assignment[<span class="string">&quot;?name&quot;</span>].as_str().into_iter())
             .collect();
 
-        assert_eq!(2, names.len());
-        assert!(names.contains(&amp;&quot;John&quot;));
-        assert!(names.contains(&amp;&quot;Ringo&quot;));
+        <span class="macro">assert_eq!</span>(<span class="number">2</span>, names.len());
+        <span class="macro">assert!</span>(names.contains(<span class="kw-2">&amp;</span><span class="string">&quot;John&quot;</span>));
+        <span class="macro">assert!</span>(names.contains(<span class="kw-2">&amp;</span><span class="string">&quot;Ringo&quot;</span>));
     }
-    */
 
-    // TODO retract
+    <span class="comment">// TODO retract
 </span>}
 </code></pre></div></section></main></body></html>

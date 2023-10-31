@@ -72,11 +72,6 @@
 <a href="#72" id="72">72</a>
 <a href="#73" id="73">73</a>
 <a href="#74" id="74">74</a>
-<a href="#75" id="75">75</a>
-<a href="#76" id="76">76</a>
-<a href="#77" id="77">77</a>
-<a href="#78" id="78">78</a>
-<a href="#79" id="79">79</a>
 </pre></div><pre class="rust"><code><span class="kw">pub mod </span>attribute_resolver;
 <span class="kw">pub mod </span>disk;
 <span class="kw">pub mod </span>memory;
@@ -96,12 +91,7 @@
 
 <span class="kw">impl </span>Restricts {
     <span class="kw">pub fn </span>new() -&gt; <span class="self">Self </span>{
-        <span class="self">Self </span>{
-            entity: <span class="prelude-val">None</span>,
-            attribute: <span class="prelude-val">None</span>,
-            value: <span class="prelude-val">None</span>,
-            tx: <span class="prelude-val">None</span>,
-        }
+        <span class="self">Self</span>::default()
     }
 
     <span class="kw">pub fn </span>with_entity(<span class="kw-2">mut </span><span class="self">self</span>, entity: u64) -&gt; <span class="self">Self </span>{

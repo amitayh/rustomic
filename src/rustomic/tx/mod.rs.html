@@ -88,8 +88,6 @@
 <a href="#88" id="88">88</a>
 <a href="#89" id="89">89</a>
 <a href="#90" id="90">90</a>
-<a href="#91" id="91">91</a>
-<a href="#92" id="92">92</a>
 </pre></div><pre class="rust"><code><span class="kw">pub mod </span>transactor;
 
 <span class="kw">use </span>std::collections::HashMap;
@@ -151,9 +149,7 @@
 
 <span class="kw">impl </span>Transaction {
     <span class="kw">pub fn </span>new() -&gt; <span class="self">Self </span>{
-        <span class="self">Self </span>{
-            operations: Vec::new(),
-        }
+        <span class="self">Self</span>::default()
     }
 
     <span class="kw">pub fn </span>with&lt;O: Into&lt;Operation&gt;&gt;(<span class="kw-2">mut </span><span class="self">self</span>, o: O) -&gt; <span class="self">Self </span>{

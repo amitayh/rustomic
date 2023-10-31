@@ -113,10 +113,9 @@
 <a href="#113" id="113">113</a>
 <a href="#114" id="114">114</a>
 <a href="#115" id="115">115</a>
-<a href="#116" id="116">116</a>
-<a href="#117" id="117">117</a>
-<a href="#118" id="118">118</a>
-</pre></div><pre class="rust"><code><span class="kw">use </span><span class="kw">crate</span>::datom::<span class="kw-2">*</span>;
+</pre></div><pre class="rust"><code><span class="kw">use </span>std::rc::Rc;
+
+<span class="kw">use </span><span class="kw">crate</span>::datom::<span class="kw-2">*</span>;
 <span class="kw">use </span><span class="kw">crate</span>::query::assignment::<span class="kw-2">*</span>;
 <span class="kw">use </span><span class="kw">crate</span>::query::pattern::<span class="kw-2">*</span>;
 
@@ -153,11 +152,6 @@
         <span class="self">self
     </span>}
 
-    <span class="kw">pub fn </span>with_tx2(<span class="kw-2">&amp;mut </span><span class="self">self</span>, tx: Pattern&lt;u64&gt;) {
-        <span class="self">self</span>.tx = tx;
-        <span class="comment">//*self
-    </span>}
-
     <span class="doccomment">/// ```
     /// use rustomic::query::clause::*;
     /// use rustomic::query::pattern::*;
@@ -173,8 +167,8 @@
     /// assert!(free_variables.contains(&amp;&quot;bar&quot;));
     /// assert!(free_variables.contains(&amp;&quot;baz&quot;));
     /// ```
-    </span><span class="kw">pub fn </span>free_variables(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; Vec&lt;<span class="kw-2">&amp;</span>str&gt; {
-        <span class="kw">let </span><span class="kw-2">mut </span>variables = Vec::new();
+    </span><span class="kw">pub fn </span>free_variables(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; Vec&lt;Rc&lt;str&gt;&gt; {
+        <span class="kw">let </span><span class="kw-2">mut </span>variables = Vec::with_capacity(<span class="number">4</span>);
         <span class="kw">if let </span><span class="prelude-val">Some</span>(variable) = <span class="self">self</span>.entity.variable_name() {
             variables.push(variable);
         }

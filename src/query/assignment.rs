@@ -6,23 +6,6 @@ use crate::datom::*;
 use crate::query::pattern::*;
 use crate::query::*;
 
-#[derive(Debug, Eq, PartialEq, Clone)]
-pub struct Assignment2(HashMap<Rc<str>, Value>);
-
-#[derive(Debug, Eq, PartialEq, Clone)]
-pub struct PartialAssignment {
-    pub assigned: HashMap<Rc<str>, Value>,
-    unassigned: HashSet<Rc<str>>,
-}
-
-pub enum Assignment3 {
-    Complete(HashMap<Rc<str>, Value>),
-    Partial {
-        assigned: HashMap<Rc<str>, Value>,
-        unassigned: HashSet<Rc<str>>,
-    },
-}
-
 // TODO PartialAssignment / CompleteAssignment?
 #[derive(Debug, Eq, PartialEq, Clone)]
 pub struct Assignment {

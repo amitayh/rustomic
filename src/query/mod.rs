@@ -9,31 +9,13 @@ use std::collections::HashMap;
 use std::rc::Rc;
 use thiserror::Error;
 
-type Res = HashMap<Rc<str>, Value>;
-
-pub struct VariablePredicate {
-    variable: Rc<str>,
-    predicate: Box<dyn Fn(&Value) -> bool>,
-}
-
-impl VariablePredicate {
-    fn new<P: Fn(&Value) -> bool + 'static>(variable: &str, predicate: P) -> Self {
-        Self {
-            variable: Rc::from(variable),
-            predicate: Box::new(predicate),
-        }
-    }
-
-    fn test(&self, assignment: &Res) -> bool {
-        let value = assignment.get(&self.variable);
-        value.map_or(true, |v| (self.predicate)(v))
-    }
-}
+type PartialAssignment = HashMap<Rc<str>, Value>;
+type Predicate = Box<dyn Fn(&PartialAssignment) -> bool>;
 
 #[derive(Default)]
 pub struct Query {
     pub wher: Vec<Clause>,
-    pub predicates: Vec<VariablePredicate>,
+    pub predicates: Vec<Predicate>,
 }
 
 impl Query {
@@ -46,26 +28,32 @@ impl Query {
         self
     }
 
-    pub fn value_pred<P: Fn(&Value) -> bool + 'static>(
-        mut self,
-        variable: &str,
-        predicate: P,
-    ) -> Self {
-        self.predicates
-            .push(VariablePredicate::new(variable, predicate));
+    pub fn pred<P: Fn(&PartialAssignment) -> bool + 'static>(mut self, predicate: P) -> Self {
+        self.predicates.push(Box::new(predicate));
         self
     }
 
-    pub fn test(&self, assignment: &Res) -> bool {
+    pub fn value_pred<P: Fn(&Value) -> bool + 'static>(
+        self,
+        variable: &'static str,
+        predicate: P,
+    ) -> Self {
+        self.pred(move |assignment| {
+            let value = assignment.get(variable);
+            value.map_or(true, &predicate)
+        })
+    }
+
+    pub fn test(&self, assignment: &PartialAssignment) -> bool {
         self.predicates
             .iter()
-            .all(|predicate| predicate.test(&assignment))
+            .all(|predicate| predicate(assignment))
     }
 }
 
 #[derive(Debug)]
 pub struct QueryResult {
-    pub results: Vec<Res>,
+    pub results: Vec<PartialAssignment>,
 }
 
 #[derive(Debug, Error)]

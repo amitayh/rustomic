@@ -41,8 +41,8 @@ impl Restricts {
     }
 }
 
-impl From<&Clause> for Restricts {
-    fn from(clause: &Clause) -> Self {
+impl From<&DataPattern> for Restricts {
+    fn from(clause: &DataPattern) -> Self {
         let mut restricts = Self::new();
         if let Pattern::Constant(entity) = clause.entity {
             restricts = restricts.with_entity(entity);

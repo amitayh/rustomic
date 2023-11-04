@@ -14,20 +14,6 @@ impl<T> Pattern<T> {
     pub fn variable(name: &str) -> Self {
         Self::Variable(Rc::from(name))
     }
-
-    pub fn variable_name(&self) -> Option<Rc<str>> {
-        match self {
-            Self::Variable(variable) => Some(Rc::clone(variable)),
-            _ => None,
-        }
-    }
-
-    pub fn variable_name_ref(&self) -> Option<&str> {
-        match self {
-            Self::Variable(variable) => Some(variable),
-            _ => None,
-        }
-    }
 }
 
 impl Pattern<AttributeIdentifier> {

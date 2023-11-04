@@ -15,7 +15,7 @@ impl DiskStorage {
 }
 
 impl WriteStorage for DiskStorage {
-    type Error = DiskStorageError;
+    type Error = rocksdb::Error;
 
     fn save(&mut self, datoms: &[Datom]) -> Result<(), Self::Error> {
         let mut batch = rocksdb::WriteBatch::default();

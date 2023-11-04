@@ -23,8 +23,8 @@ impl AttributeResolver {
         storage: &'a S,
         ident: &str,
     ) -> Result<Option<Attribute>, S::Error> {
-        if let attribute @ Some(_) = self.cache.get(ident) {
-            return Ok(attribute.cloned());
+        if let Some(attribute) = self.cache.get(ident) {
+            return Ok(Some(attribute.clone()));
         }
         if let Some(attribute) = resolve_ident(storage, ident)? {
             self.update_cache(attribute.clone());

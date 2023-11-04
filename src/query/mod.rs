@@ -14,7 +14,7 @@ type Predicate = Box<dyn Fn(&PartialAssignment) -> bool>;
 
 #[derive(Default)]
 pub struct Query {
-    pub wher: Vec<Clause>,
+    pub wher: Vec<DataPattern>,
     pub predicates: Vec<Predicate>,
 }
 
@@ -23,7 +23,7 @@ impl Query {
         Self::default()
     }
 
-    pub fn wher(mut self, clause: Clause) -> Self {
+    pub fn wher(mut self, clause: DataPattern) -> Self {
         self.wher.push(clause);
         self
     }

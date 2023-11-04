@@ -155,9 +155,10 @@ pub mod index {
             .take_while(|&&byte| byte == u8::MAX)
             .count();
         let mut next = prefix[..(prefix.len() - ffs)].to_vec();
-        if let Some(last) = next.last_mut() {
-            *last += 1;
-        }
+        let last = next
+            .last_mut()
+            .expect("There should have at least non-0xFF byte");
+        *last += 1;
         next
     }
 }

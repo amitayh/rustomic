@@ -122,7 +122,7 @@ mod tests {
 
         let query_result = sut.query(
             Query::new().wher(
-                Clause::new()
+                DataPattern::new()
                     .with_entity(Pattern::variable("?name"))
                     .with_attribute(Pattern::ident("person/name"))
                     .with_value(Pattern::value("Eve")),
@@ -143,7 +143,7 @@ mod tests {
 
         let query_result = sut.query(
             Query::new().wher(
-                Clause::new()
+                DataPattern::new()
                     .with_entity(Pattern::variable("?joe"))
                     .with_attribute(Pattern::ident("person/name"))
                     .with_value(Pattern::value("Joe")),
@@ -200,19 +200,19 @@ mod tests {
         let query_result = sut.query(
             Query::new()
                 .wher(
-                    Clause::new()
+                    DataPattern::new()
                         .with_entity(Pattern::variable("?artist"))
                         .with_attribute(Pattern::ident("artist/name"))
                         .with_value(Pattern::value("John Lenon")),
                 )
                 .wher(
-                    Clause::new()
+                    DataPattern::new()
                         .with_entity(Pattern::variable("?release"))
                         .with_attribute(Pattern::ident("release/artists"))
                         .with_value(Pattern::variable("?artist")),
                 )
                 .wher(
-                    Clause::new()
+                    DataPattern::new()
                         .with_entity(Pattern::variable("?release"))
                         .with_attribute(Pattern::ident("release/name"))
                         .with_value(Pattern::variable("?release-name")),
@@ -256,7 +256,7 @@ mod tests {
 
         let query_result = sut.query(
             Query::new().wher(
-                Clause::new()
+                DataPattern::new()
                     .with_entity(Pattern::Constant(joe_id))
                     .with_attribute(Pattern::ident("person/likes"))
                     .with_value(Pattern::variable("?likes")),
@@ -294,7 +294,7 @@ mod tests {
 
         let query_result = sut.query(
             Query::new().wher(
-                Clause::new()
+                DataPattern::new()
                     .with_entity(Pattern::Constant(joe_id))
                     .with_attribute(Pattern::ident("person/likes"))
                     .with_value(Pattern::variable("?likes")),
@@ -338,7 +338,7 @@ mod tests {
         let query_result = sut.query_at_snapshot(
             first_tx_result.tx_id,
             Query::new().wher(
-                Clause::new()
+                DataPattern::new()
                     .with_entity(Pattern::Constant(joe_id))
                     .with_attribute(Pattern::ident("person/likes"))
                     .with_value(Pattern::variable("?likes")),
@@ -366,14 +366,14 @@ mod tests {
         let query_result = sut.query(
             Query::new()
                 .wher(
-                    Clause::new()
+                    DataPattern::new()
                         .with_entity(Pattern::Blank)
                         .with_attribute(Pattern::ident("person/name"))
                         .with_value(Pattern::value("Joe"))
                         .with_tx(Pattern::variable("?tx")),
                 )
                 .wher(
-                    Clause::new()
+                    DataPattern::new()
                         .with_entity(Pattern::variable("?tx"))
                         .with_attribute(Pattern::id(DB_TX_TIME_ID))
                         .with_value(Pattern::variable("?tx_time")),
@@ -418,19 +418,19 @@ mod tests {
         let query_result = sut.query(
             Query::new()
                 .wher(
-                    Clause::new()
+                    DataPattern::new()
                         .with_entity(Pattern::variable("?person"))
                         .with_attribute(Pattern::ident("person/age"))
                         .with_value(Pattern::variable("?age")),
                 )
                 .wher(
-                    Clause::new()
+                    DataPattern::new()
                         .with_entity(Pattern::variable("?person"))
                         .with_attribute(Pattern::ident("person/name"))
                         .with_value(Pattern::variable("?name")),
                 )
                 .value_pred("?age", |value| match value {
-                    Value::I64(age) => *age >= 32,
+                    Value::I64(age) => age >= &32,
                     _ => false,
                 }),
         );

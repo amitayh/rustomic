@@ -57,7 +57,7 @@ impl Db {
         &self,
         storage: &'a S,
         query: &Query,
-        clauses: &[Clause],
+        patterns: &[DataPattern],
         assignment: Assignment,
         results: &mut Vec<HashMap<Rc<str>, Value>>,
     ) -> Result<(), QueryError<S::Error>> {
@@ -65,16 +65,16 @@ impl Db {
             results.push(assignment.assigned);
             return Ok(());
         }
-        if let [clause, rest @ ..] = clauses {
-            let assigned_clause = &clause.assign(&assignment);
+        if let [pattern, rest @ ..] = patterns {
+            let bound = &pattern.bind(&assignment);
             // TODO: optimize filtering in storage layer?
             let datoms = storage
-                .find(&assigned_clause.into())
+                .find(&bound.into())
                 .filter(|datom| datom.as_ref().map_or(false, |datom| datom.tx <= self.tx));
 
             // TODO can this be parallelized?
             for datom in datoms {
-                let assignment = assignment.update_with(assigned_clause, datom?);
+                let assignment = assignment.update_with(bound, datom?);
                 if query.test(&assignment.assigned) {
                     self.resolve(storage, query, rest, assignment, results)?;
                 }

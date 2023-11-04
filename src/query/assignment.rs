@@ -29,7 +29,7 @@ impl Assignment {
     /// use rustomic::datom::*;
     ///
     /// let query = Query::new().wher(
-    ///     Clause::new()
+    ///     DataPattern::new()
     ///         .with_entity(Pattern::variable("foo"))
     ///         .with_attribute(Pattern::variable("bar"))
     ///         .with_value(Pattern::variable("baz")),
@@ -86,7 +86,7 @@ impl Assignment {
     /// variables.insert(Rc::from("?tx"));
     /// let assignment = Assignment::new(variables);
     ///
-    /// let clause = Clause::new()
+    /// let clause = DataPattern::new()
     ///     .with_entity(Pattern::variable("?entity"))
     ///     .with_attribute(Pattern::variable("?attribute"))
     ///     .with_value(Pattern::variable("?value"))
@@ -104,30 +104,31 @@ impl Assignment {
     /// assert_eq!(Value::U64(value), updated.assigned["?value"]);
     /// assert_eq!(Value::U64(tx), updated.assigned["?tx"]);
     /// ```
-    pub fn update_with(&self, clause: &Clause, datom: Datom) -> Self {
+    pub fn update_with(&self, pattern: &DataPattern, datom: Datom) -> Self {
         let mut assignment = self.clone();
-        if let Some(entity_variable) = clause.entity.variable_name_ref() {
-            assignment.assign(entity_variable, datom.entity);
+        if let Pattern::Variable(variable) = &pattern.entity {
+            assignment.assign(variable, datom.entity);
         }
-        if let Some(attribute_variable) = clause.attribute.variable_name_ref() {
-            assignment.assign(attribute_variable, datom.attribute);
+        if let Pattern::Variable(variable) = &pattern.attribute {
+            assignment.assign(variable, datom.attribute);
         }
-        if let Some(value_variable) = clause.value.variable_name_ref() {
-            assignment.assign(value_variable, datom.value);
+        if let Pattern::Variable(variable) = &pattern.value {
+            assignment.assign(variable, datom.value);
         }
-        if let Some(tx_variable) = clause.tx.variable_name_ref() {
-            assignment.assign(tx_variable, datom.tx);
+        if let Pattern::Variable(variable) = &pattern.tx {
+            assignment.assign(variable, datom.tx);
         }
         assignment
     }
 
     pub fn assigned_value<T>(&self, pattern: &Pattern<T>) -> Option<&Value> {
-        pattern
-            .variable_name_ref()
-            .and_then(|variable| self.assigned.get(variable))
+        match pattern {
+            Pattern::Variable(variable) => self.assigned.get(variable),
+            _ => None,
+        }
     }
 
-    pub fn assign<V: Into<Value>>(&mut self, variable: &str, value: V) {
+    fn assign<V: Into<Value>>(&mut self, variable: &str, value: V) {
         if let Some(var) = self.unassigned.take(variable) {
             self.assigned.insert(var, value.into());
         }

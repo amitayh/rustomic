@@ -33,7 +33,7 @@ impl Transactor {
         transaction: Transaction,
     ) -> Result<TransctionResult, TransactionError<S::Error>> {
         let temp_ids = self.generate_temp_ids(&transaction)?;
-        let datoms = self.transaction_datoms(storage, now, &transaction, &temp_ids)?;
+        let datoms = self.transaction_datoms(storage, now, transaction, &temp_ids)?;
 
         Ok(TransctionResult {
             tx_id: datoms[0].tx,
@@ -62,7 +62,7 @@ impl Transactor {
         &mut self,
         storage: &'a S,
         now: Instant,
-        transaction: &Transaction,
+        transaction: Transaction,
         temp_ids: &TempIds,
     ) -> Result<Vec<Datom>, TransactionError<S::Error>> {
         let mut datoms = Vec::new();

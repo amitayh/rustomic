@@ -275,8 +275,8 @@
         storage: <span class="kw-2">&amp;</span><span class="lifetime">&#39;a </span>S,
         ident: <span class="kw-2">&amp;</span>str,
     ) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="prelude-ty">Option</span>&lt;Attribute&gt;, S::Error&gt; {
-        <span class="kw">if let </span>attribute @ <span class="prelude-val">Some</span>(<span class="kw">_</span>) = <span class="self">self</span>.cache.get(ident) {
-            <span class="kw">return </span><span class="prelude-val">Ok</span>(attribute.cloned());
+        <span class="kw">if let </span><span class="prelude-val">Some</span>(attribute) = <span class="self">self</span>.cache.get(ident) {
+            <span class="kw">return </span><span class="prelude-val">Ok</span>(<span class="prelude-val">Some</span>(attribute.clone()));
         }
         <span class="kw">if let </span><span class="prelude-val">Some</span>(attribute) = resolve_ident(storage, ident)<span class="question-mark">? </span>{
             <span class="self">self</span>.update_cache(attribute.clone());

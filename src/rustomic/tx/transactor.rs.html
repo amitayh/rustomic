@@ -199,7 +199,7 @@
         transaction: Transaction,
     ) -&gt; <span class="prelude-ty">Result</span>&lt;TransctionResult, TransactionError&lt;S::Error&gt;&gt; {
         <span class="kw">let </span>temp_ids = <span class="self">self</span>.generate_temp_ids(<span class="kw-2">&amp;</span>transaction)<span class="question-mark">?</span>;
-        <span class="kw">let </span>datoms = <span class="self">self</span>.transaction_datoms(storage, now, <span class="kw-2">&amp;</span>transaction, <span class="kw-2">&amp;</span>temp_ids)<span class="question-mark">?</span>;
+        <span class="kw">let </span>datoms = <span class="self">self</span>.transaction_datoms(storage, now, transaction, <span class="kw-2">&amp;</span>temp_ids)<span class="question-mark">?</span>;
 
         <span class="prelude-val">Ok</span>(TransctionResult {
             tx_id: datoms[<span class="number">0</span>].tx,
@@ -228,7 +228,7 @@
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         storage: <span class="kw-2">&amp;</span><span class="lifetime">&#39;a </span>S,
         now: Instant,
-        transaction: <span class="kw-2">&amp;</span>Transaction,
+        transaction: Transaction,
         temp_ids: <span class="kw-2">&amp;</span>TempIds,
     ) -&gt; <span class="prelude-ty">Result</span>&lt;Vec&lt;Datom&gt;, TransactionError&lt;S::Error&gt;&gt; {
         <span class="kw">let </span><span class="kw-2">mut </span>datoms = Vec::new();

@@ -113,6 +113,7 @@
 <a href="#113" id="113">113</a>
 <a href="#114" id="114">114</a>
 <a href="#115" id="115">115</a>
+<a href="#116" id="116">116</a>
 </pre></div><pre class="rust"><code><span class="kw">use </span>std::rc::Rc;
 
 <span class="kw">use </span><span class="kw">crate</span>::datom::<span class="kw-2">*</span>;
@@ -120,14 +121,14 @@
 <span class="kw">use </span><span class="kw">crate</span>::query::pattern::<span class="kw-2">*</span>;
 
 <span class="attr">#[derive(Clone, Debug, Default)]
-</span><span class="kw">pub struct </span>Clause {
+</span><span class="kw">pub struct </span>DataPattern {
     <span class="kw">pub </span>entity: Pattern&lt;u64&gt;,
     <span class="kw">pub </span>attribute: Pattern&lt;AttributeIdentifier&gt;,
     <span class="kw">pub </span>value: Pattern&lt;Value&gt;,
     <span class="kw">pub </span>tx: Pattern&lt;u64&gt;,
 }
 
-<span class="kw">impl </span>Clause {
+<span class="kw">impl </span>DataPattern {
     <span class="kw">pub fn </span>new() -&gt; <span class="self">Self </span>{
         <span class="self">Self</span>::default()
     }
@@ -153,33 +154,34 @@
     </span>}
 
     <span class="doccomment">/// ```
+    /// use std::rc::Rc;
     /// use rustomic::query::clause::*;
     /// use rustomic::query::pattern::*;
     ///
-    /// let clause = Clause::new()
+    /// let clause = DataPattern::new()
     ///     .with_entity(Pattern::variable(&quot;foo&quot;))
     ///     .with_attribute(Pattern::variable(&quot;bar&quot;))
     ///     .with_value(Pattern::variable(&quot;baz&quot;));
     ///
     /// let free_variables = clause.free_variables();
     /// assert_eq!(3, free_variables.len());
-    /// assert!(free_variables.contains(&amp;&quot;foo&quot;));
-    /// assert!(free_variables.contains(&amp;&quot;bar&quot;));
-    /// assert!(free_variables.contains(&amp;&quot;baz&quot;));
+    /// assert!(free_variables.contains(&amp;Rc::from(&quot;foo&quot;)));
+    /// assert!(free_variables.contains(&amp;Rc::from(&quot;bar&quot;)));
+    /// assert!(free_variables.contains(&amp;Rc::from(&quot;baz&quot;)));
     /// ```
     </span><span class="kw">pub fn </span>free_variables(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; Vec&lt;Rc&lt;str&gt;&gt; {
         <span class="kw">let </span><span class="kw-2">mut </span>variables = Vec::with_capacity(<span class="number">4</span>);
-        <span class="kw">if let </span><span class="prelude-val">Some</span>(variable) = <span class="self">self</span>.entity.variable_name() {
-            variables.push(variable);
+        <span class="kw">if let </span>Pattern::Variable(variable) = <span class="kw-2">&amp;</span><span class="self">self</span>.entity {
+            variables.push(Rc::clone(variable));
         }
-        <span class="kw">if let </span><span class="prelude-val">Some</span>(variable) = <span class="self">self</span>.attribute.variable_name() {
-            variables.push(variable);
+        <span class="kw">if let </span>Pattern::Variable(variable) = <span class="kw-2">&amp;</span><span class="self">self</span>.attribute {
+            variables.push(Rc::clone(variable));
         }
-        <span class="kw">if let </span><span class="prelude-val">Some</span>(variable) = <span class="self">self</span>.value.variable_name() {
-            variables.push(variable);
+        <span class="kw">if let </span>Pattern::Variable(variable) = <span class="kw-2">&amp;</span><span class="self">self</span>.value {
+            variables.push(Rc::clone(variable));
         }
-        <span class="kw">if let </span><span class="prelude-val">Some</span>(variable) = <span class="self">self</span>.tx.variable_name() {
-            variables.push(variable);
+        <span class="kw">if let </span>Pattern::Variable(variable) = <span class="kw-2">&amp;</span><span class="self">self</span>.tx {
+            variables.push(Rc::clone(variable));
         }
         variables
     }
@@ -191,7 +193,7 @@
     /// use rustomic::query::pattern::*;
     /// use rustomic::datom::*;
     ///
-    /// let clause = Clause::new()
+    /// let clause = DataPattern::new()
     ///     .with_entity(Pattern::variable(&quot;foo&quot;))
     ///     .with_attribute(Pattern::variable(&quot;bar&quot;))
     ///     .with_value(Pattern::variable(&quot;baz&quot;))
@@ -204,14 +206,14 @@
     /// assignment.assign(&quot;baz&quot;, 3u64);
     /// assignment.assign(&quot;qux&quot;, 4u64);
     ///
-    /// let assigned = clause.assign(&amp;assignment);
+    /// let assigned = clause.bind(&amp;assignment);
     ///
     /// assert_eq!(Pattern::Constant(1), assigned.entity);
     /// assert_eq!(Pattern::id(2), assigned.attribute);
     /// assert_eq!(Pattern::value(3u64), assigned.value);
     /// assert_eq!(Pattern::Constant(4), assigned.tx);
     /// ```
-    </span><span class="kw">pub fn </span>assign(<span class="kw-2">&amp;</span><span class="self">self</span>, assignment: <span class="kw-2">&amp;</span>Assignment) -&gt; <span class="self">Self </span>{
+    </span><span class="kw">pub fn </span>bind(<span class="kw-2">&amp;</span><span class="self">self</span>, assignment: <span class="kw-2">&amp;</span>Assignment) -&gt; <span class="self">Self </span>{
         <span class="kw">let </span><span class="kw-2">mut </span>clause = <span class="self">self</span>.clone();
         <span class="kw">if let </span><span class="prelude-val">Some</span>(Value::U64(entity)) = assignment.assigned_value(<span class="kw-2">&amp;</span><span class="self">self</span>.entity) {
             clause.entity = Pattern::Constant(<span class="kw-2">*</span>entity);

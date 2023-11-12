@@ -572,7 +572,7 @@
 
         <span class="kw">let </span>query_result = sut.query(
             Query::new().wher(
-                Clause::new()
+                DataPattern::new()
                     .with_entity(Pattern::variable(<span class="string">&quot;?name&quot;</span>))
                     .with_attribute(Pattern::ident(<span class="string">&quot;person/name&quot;</span>))
                     .with_value(Pattern::value(<span class="string">&quot;Eve&quot;</span>)),
@@ -593,7 +593,7 @@
 
         <span class="kw">let </span>query_result = sut.query(
             Query::new().wher(
-                Clause::new()
+                DataPattern::new()
                     .with_entity(Pattern::variable(<span class="string">&quot;?joe&quot;</span>))
                     .with_attribute(Pattern::ident(<span class="string">&quot;person/name&quot;</span>))
                     .with_value(Pattern::value(<span class="string">&quot;Joe&quot;</span>)),
@@ -650,19 +650,19 @@
         <span class="kw">let </span>query_result = sut.query(
             Query::new()
                 .wher(
-                    Clause::new()
+                    DataPattern::new()
                         .with_entity(Pattern::variable(<span class="string">&quot;?artist&quot;</span>))
                         .with_attribute(Pattern::ident(<span class="string">&quot;artist/name&quot;</span>))
                         .with_value(Pattern::value(<span class="string">&quot;John Lenon&quot;</span>)),
                 )
                 .wher(
-                    Clause::new()
+                    DataPattern::new()
                         .with_entity(Pattern::variable(<span class="string">&quot;?release&quot;</span>))
                         .with_attribute(Pattern::ident(<span class="string">&quot;release/artists&quot;</span>))
                         .with_value(Pattern::variable(<span class="string">&quot;?artist&quot;</span>)),
                 )
                 .wher(
-                    Clause::new()
+                    DataPattern::new()
                         .with_entity(Pattern::variable(<span class="string">&quot;?release&quot;</span>))
                         .with_attribute(Pattern::ident(<span class="string">&quot;release/name&quot;</span>))
                         .with_value(Pattern::variable(<span class="string">&quot;?release-name&quot;</span>)),
@@ -706,7 +706,7 @@
 
         <span class="kw">let </span>query_result = sut.query(
             Query::new().wher(
-                Clause::new()
+                DataPattern::new()
                     .with_entity(Pattern::Constant(joe_id))
                     .with_attribute(Pattern::ident(<span class="string">&quot;person/likes&quot;</span>))
                     .with_value(Pattern::variable(<span class="string">&quot;?likes&quot;</span>)),
@@ -744,7 +744,7 @@
 
         <span class="kw">let </span>query_result = sut.query(
             Query::new().wher(
-                Clause::new()
+                DataPattern::new()
                     .with_entity(Pattern::Constant(joe_id))
                     .with_attribute(Pattern::ident(<span class="string">&quot;person/likes&quot;</span>))
                     .with_value(Pattern::variable(<span class="string">&quot;?likes&quot;</span>)),
@@ -788,7 +788,7 @@
         <span class="kw">let </span>query_result = sut.query_at_snapshot(
             first_tx_result.tx_id,
             Query::new().wher(
-                Clause::new()
+                DataPattern::new()
                     .with_entity(Pattern::Constant(joe_id))
                     .with_attribute(Pattern::ident(<span class="string">&quot;person/likes&quot;</span>))
                     .with_value(Pattern::variable(<span class="string">&quot;?likes&quot;</span>)),
@@ -816,14 +816,14 @@
         <span class="kw">let </span>query_result = sut.query(
             Query::new()
                 .wher(
-                    Clause::new()
+                    DataPattern::new()
                         .with_entity(Pattern::Blank)
                         .with_attribute(Pattern::ident(<span class="string">&quot;person/name&quot;</span>))
                         .with_value(Pattern::value(<span class="string">&quot;Joe&quot;</span>))
                         .with_tx(Pattern::variable(<span class="string">&quot;?tx&quot;</span>)),
                 )
                 .wher(
-                    Clause::new()
+                    DataPattern::new()
                         .with_entity(Pattern::variable(<span class="string">&quot;?tx&quot;</span>))
                         .with_attribute(Pattern::id(DB_TX_TIME_ID))
                         .with_value(Pattern::variable(<span class="string">&quot;?tx_time&quot;</span>)),
@@ -868,19 +868,19 @@
         <span class="kw">let </span>query_result = sut.query(
             Query::new()
                 .wher(
-                    Clause::new()
+                    DataPattern::new()
                         .with_entity(Pattern::variable(<span class="string">&quot;?person&quot;</span>))
                         .with_attribute(Pattern::ident(<span class="string">&quot;person/age&quot;</span>))
                         .with_value(Pattern::variable(<span class="string">&quot;?age&quot;</span>)),
                 )
                 .wher(
-                    Clause::new()
+                    DataPattern::new()
                         .with_entity(Pattern::variable(<span class="string">&quot;?person&quot;</span>))
                         .with_attribute(Pattern::ident(<span class="string">&quot;person/name&quot;</span>))
                         .with_value(Pattern::variable(<span class="string">&quot;?name&quot;</span>)),
                 )
                 .value_pred(<span class="string">&quot;?age&quot;</span>, |value| <span class="kw">match </span>value {
-                    Value::I64(age) =&gt; <span class="kw-2">*</span>age &gt;= <span class="number">32</span>,
+                    Value::I64(age) =&gt; age &gt;= <span class="kw-2">&amp;</span><span class="number">32</span>,
                     <span class="kw">_ </span>=&gt; <span class="bool-val">false</span>,
                 }),
         );

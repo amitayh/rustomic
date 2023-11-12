@@ -133,6 +133,7 @@
 <a href="#133" id="133">133</a>
 <a href="#134" id="134">134</a>
 <a href="#135" id="135">135</a>
+<a href="#136" id="136">136</a>
 </pre></div><pre class="rust"><code><span class="kw">use </span>std::collections::HashMap;
 <span class="kw">use </span>std::collections::HashSet;
 <span class="kw">use </span>std::rc::Rc;
@@ -164,7 +165,7 @@
     /// use rustomic::datom::*;
     ///
     /// let query = Query::new().wher(
-    ///     Clause::new()
+    ///     DataPattern::new()
     ///         .with_entity(Pattern::variable(&quot;foo&quot;))
     ///         .with_attribute(Pattern::variable(&quot;bar&quot;))
     ///         .with_value(Pattern::variable(&quot;baz&quot;)),
@@ -221,7 +222,7 @@
     /// variables.insert(Rc::from(&quot;?tx&quot;));
     /// let assignment = Assignment::new(variables);
     ///
-    /// let clause = Clause::new()
+    /// let clause = DataPattern::new()
     ///     .with_entity(Pattern::variable(&quot;?entity&quot;))
     ///     .with_attribute(Pattern::variable(&quot;?attribute&quot;))
     ///     .with_value(Pattern::variable(&quot;?value&quot;))
@@ -239,30 +240,31 @@
     /// assert_eq!(Value::U64(value), updated.assigned[&quot;?value&quot;]);
     /// assert_eq!(Value::U64(tx), updated.assigned[&quot;?tx&quot;]);
     /// ```
-    </span><span class="kw">pub fn </span>update_with(<span class="kw-2">&amp;</span><span class="self">self</span>, clause: <span class="kw-2">&amp;</span>Clause, datom: Datom) -&gt; <span class="self">Self </span>{
+    </span><span class="kw">pub fn </span>update_with(<span class="kw-2">&amp;</span><span class="self">self</span>, pattern: <span class="kw-2">&amp;</span>DataPattern, datom: Datom) -&gt; <span class="self">Self </span>{
         <span class="kw">let </span><span class="kw-2">mut </span>assignment = <span class="self">self</span>.clone();
-        <span class="kw">if let </span><span class="prelude-val">Some</span>(entity_variable) = clause.entity.variable_name_ref() {
-            assignment.assign(entity_variable, datom.entity);
+        <span class="kw">if let </span>Pattern::Variable(variable) = <span class="kw-2">&amp;</span>pattern.entity {
+            assignment.assign(variable, datom.entity);
         }
-        <span class="kw">if let </span><span class="prelude-val">Some</span>(attribute_variable) = clause.attribute.variable_name_ref() {
-            assignment.assign(attribute_variable, datom.attribute);
+        <span class="kw">if let </span>Pattern::Variable(variable) = <span class="kw-2">&amp;</span>pattern.attribute {
+            assignment.assign(variable, datom.attribute);
         }
-        <span class="kw">if let </span><span class="prelude-val">Some</span>(value_variable) = clause.value.variable_name_ref() {
-            assignment.assign(value_variable, datom.value);
+        <span class="kw">if let </span>Pattern::Variable(variable) = <span class="kw-2">&amp;</span>pattern.value {
+            assignment.assign(variable, datom.value);
         }
-        <span class="kw">if let </span><span class="prelude-val">Some</span>(tx_variable) = clause.tx.variable_name_ref() {
-            assignment.assign(tx_variable, datom.tx);
+        <span class="kw">if let </span>Pattern::Variable(variable) = <span class="kw-2">&amp;</span>pattern.tx {
+            assignment.assign(variable, datom.tx);
         }
         assignment
     }
 
     <span class="kw">pub fn </span>assigned_value&lt;T&gt;(<span class="kw-2">&amp;</span><span class="self">self</span>, pattern: <span class="kw-2">&amp;</span>Pattern&lt;T&gt;) -&gt; <span class="prelude-ty">Option</span>&lt;<span class="kw-2">&amp;</span>Value&gt; {
-        pattern
-            .variable_name_ref()
-            .and_then(|variable| <span class="self">self</span>.assigned.get(variable))
+        <span class="kw">match </span>pattern {
+            Pattern::Variable(variable) =&gt; <span class="self">self</span>.assigned.get(variable),
+            <span class="kw">_ </span>=&gt; <span class="prelude-val">None</span>,
+        }
     }
 
-    <span class="kw">pub fn </span>assign&lt;V: Into&lt;Value&gt;&gt;(<span class="kw-2">&amp;mut </span><span class="self">self</span>, variable: <span class="kw-2">&amp;</span>str, value: V) {
+    <span class="kw">fn </span>assign&lt;V: Into&lt;Value&gt;&gt;(<span class="kw-2">&amp;mut </span><span class="self">self</span>, variable: <span class="kw-2">&amp;</span>str, value: V) {
         <span class="kw">if let </span><span class="prelude-val">Some</span>(var) = <span class="self">self</span>.unassigned.take(variable) {
             <span class="self">self</span>.assigned.insert(var, value.into());
         }

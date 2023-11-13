@@ -544,7 +544,7 @@
             .with(Attribute::new(<span class="string">&quot;movie/cast&quot;</span>, ValueType::Ref).many())
             .with(Attribute::new(<span class="string">&quot;actor/name&quot;</span>, ValueType::Str))
             .with(Attribute::new(<span class="string">&quot;person/name&quot;</span>, ValueType::Str).with_doc(<span class="string">&quot;A person&#39;s name&quot;</span>))
-            .with(Attribute::new(<span class="string">&quot;person/age&quot;</span>, ValueType::I64).with_doc(<span class="string">&quot;A person&#39;s age&quot;</span>))
+            .with(Attribute::new(<span class="string">&quot;person/born&quot;</span>, ValueType::I64).with_doc(<span class="string">&quot;A person&#39;s birth year&quot;</span>))
             .with(
                 Attribute::new(<span class="string">&quot;person/likes&quot;</span>, ValueType::Str)
                     .with_doc(<span class="string">&quot;Things a person likes&quot;</span>)
@@ -846,22 +846,22 @@
                 .with(
                     Operation::on_new()
                         .set(<span class="string">&quot;person/name&quot;</span>, <span class="string">&quot;John&quot;</span>)
-                        .set(<span class="string">&quot;person/age&quot;</span>, <span class="number">33</span>),
+                        .set(<span class="string">&quot;person/born&quot;</span>, <span class="number">1940</span>),
                 )
                 .with(
                     Operation::on_new()
                         .set(<span class="string">&quot;person/name&quot;</span>, <span class="string">&quot;Paul&quot;</span>)
-                        .set(<span class="string">&quot;person/age&quot;</span>, <span class="number">31</span>),
+                        .set(<span class="string">&quot;person/born&quot;</span>, <span class="number">1942</span>),
                 )
                 .with(
                     Operation::on_new()
                         .set(<span class="string">&quot;person/name&quot;</span>, <span class="string">&quot;George&quot;</span>)
-                        .set(<span class="string">&quot;person/age&quot;</span>, <span class="number">30</span>),
+                        .set(<span class="string">&quot;person/born&quot;</span>, <span class="number">1943</span>),
                 )
                 .with(
                     Operation::on_new()
                         .set(<span class="string">&quot;person/name&quot;</span>, <span class="string">&quot;Ringo&quot;</span>)
-                        .set(<span class="string">&quot;person/age&quot;</span>, <span class="number">32</span>),
+                        .set(<span class="string">&quot;person/born&quot;</span>, <span class="number">1940</span>),
                 ),
         );
 
@@ -870,8 +870,8 @@
                 .wher(
                     DataPattern::new()
                         .with_entity(Pattern::variable(<span class="string">&quot;?person&quot;</span>))
-                        .with_attribute(Pattern::ident(<span class="string">&quot;person/age&quot;</span>))
-                        .with_value(Pattern::variable(<span class="string">&quot;?age&quot;</span>)),
+                        .with_attribute(Pattern::ident(<span class="string">&quot;person/born&quot;</span>))
+                        .with_value(Pattern::variable(<span class="string">&quot;?born&quot;</span>)),
                 )
                 .wher(
                     DataPattern::new()
@@ -879,8 +879,8 @@
                         .with_attribute(Pattern::ident(<span class="string">&quot;person/name&quot;</span>))
                         .with_value(Pattern::variable(<span class="string">&quot;?name&quot;</span>)),
                 )
-                .value_pred(<span class="string">&quot;?age&quot;</span>, |value| <span class="kw">match </span>value {
-                    Value::I64(age) =&gt; age &gt;= <span class="kw-2">&amp;</span><span class="number">32</span>,
+                .value_pred(<span class="string">&quot;?born&quot;</span>, |value| <span class="kw">match </span>value {
+                    Value::I64(born) =&gt; <span class="kw-2">*</span>born &gt; <span class="number">1940</span>,
                     <span class="kw">_ </span>=&gt; <span class="bool-val">false</span>,
                 }),
         );
@@ -892,8 +892,8 @@
             .collect();
 
         <span class="macro">assert_eq!</span>(<span class="number">2</span>, names.len());
-        <span class="macro">assert!</span>(names.contains(<span class="kw-2">&amp;</span><span class="string">&quot;John&quot;</span>));
-        <span class="macro">assert!</span>(names.contains(<span class="kw-2">&amp;</span><span class="string">&quot;Ringo&quot;</span>));
+        <span class="macro">assert!</span>(names.contains(<span class="kw-2">&amp;</span><span class="string">&quot;Paul&quot;</span>));
+        <span class="macro">assert!</span>(names.contains(<span class="kw-2">&amp;</span><span class="string">&quot;George&quot;</span>));
     }
 
     <span class="comment">// TODO retract

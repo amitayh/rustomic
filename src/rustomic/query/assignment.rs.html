@@ -264,7 +264,7 @@
         }
     }
 
-    <span class="kw">fn </span>assign&lt;V: Into&lt;Value&gt;&gt;(<span class="kw-2">&amp;mut </span><span class="self">self</span>, variable: <span class="kw-2">&amp;</span>str, value: V) {
+    <span class="kw">pub fn </span>assign&lt;V: Into&lt;Value&gt;&gt;(<span class="kw-2">&amp;mut </span><span class="self">self</span>, variable: <span class="kw-2">&amp;</span>str, value: V) {
         <span class="kw">if let </span><span class="prelude-val">Some</span>(var) = <span class="self">self</span>.unassigned.take(variable) {
             <span class="self">self</span>.assigned.insert(var, value.into());
         }

@@ -128,7 +128,7 @@ impl Assignment {
         }
     }
 
-    fn assign<V: Into<Value>>(&mut self, variable: &str, value: V) {
+    pub fn assign<V: Into<Value>>(&mut self, variable: &str, value: V) {
         if let Some(var) = self.unassigned.take(variable) {
             self.assigned.insert(var, value.into());
         }

@@ -94,7 +94,7 @@ mod tests {
             .with(Attribute::new("movie/cast", ValueType::Ref).many())
             .with(Attribute::new("actor/name", ValueType::Str))
             .with(Attribute::new("person/name", ValueType::Str).with_doc("A person's name"))
-            .with(Attribute::new("person/age", ValueType::I64).with_doc("A person's age"))
+            .with(Attribute::new("person/born", ValueType::I64).with_doc("A person's birth year"))
             .with(
                 Attribute::new("person/likes", ValueType::Str)
                     .with_doc("Things a person likes")
@@ -396,22 +396,22 @@ mod tests {
                 .with(
                     Operation::on_new()
                         .set("person/name", "John")
-                        .set("person/age", 33),
+                        .set("person/born", 1940),
                 )
                 .with(
                     Operation::on_new()
                         .set("person/name", "Paul")
-                        .set("person/age", 31),
+                        .set("person/born", 1942),
                 )
                 .with(
                     Operation::on_new()
                         .set("person/name", "George")
-                        .set("person/age", 30),
+                        .set("person/born", 1943),
                 )
                 .with(
                     Operation::on_new()
                         .set("person/name", "Ringo")
-                        .set("person/age", 32),
+                        .set("person/born", 1940),
                 ),
         );
 
@@ -420,8 +420,8 @@ mod tests {
                 .wher(
                     DataPattern::new()
                         .with_entity(Pattern::variable("?person"))
-                        .with_attribute(Pattern::ident("person/age"))
-                        .with_value(Pattern::variable("?age")),
+                        .with_attribute(Pattern::ident("person/born"))
+                        .with_value(Pattern::variable("?born")),
                 )
                 .wher(
                     DataPattern::new()
@@ -429,8 +429,8 @@ mod tests {
                         .with_attribute(Pattern::ident("person/name"))
                         .with_value(Pattern::variable("?name")),
                 )
-                .value_pred("?age", |value| match value {
-                    Value::I64(age) => age >= &32,
+                .value_pred("?born", |value| match value {
+                    Value::I64(born) => *born > 1940,
                     _ => false,
                 }),
         );
@@ -442,8 +442,8 @@ mod tests {
             .collect();
 
         assert_eq!(2, names.len());
-        assert!(names.contains(&"John"));
-        assert!(names.contains(&"Ringo"));
+        assert!(names.contains(&"Paul"));
+        assert!(names.contains(&"George"));
     }
 
     // TODO retract

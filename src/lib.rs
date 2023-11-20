@@ -430,7 +430,7 @@ mod tests {
                         .with_value(Pattern::variable("?name")),
                 )
                 .value_pred("?born", |value| match value {
-                    Value::I64(born) => *born > 1940,
+                    &Value::I64(born) => born > 1940,
                     _ => false,
                 }),
         );

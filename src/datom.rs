@@ -26,8 +26,8 @@ impl Value {
     /// assert_eq!(Some(42), u64_value.as_u64());
     /// ```
     pub fn as_u64(&self) -> Option<u64> {
-        match *self {
-            Self::U64(value) => Some(value),
+        match self {
+            &Self::U64(value) => Some(value),
             _ => None,
         }
     }
@@ -42,8 +42,8 @@ impl Value {
     /// assert_eq!(Some(42), i64_value.as_i64());
     /// ```
     pub fn as_i64(&self) -> Option<i64> {
-        match *self {
-            Self::I64(value) => Some(value),
+        match self {
+            &Self::I64(value) => Some(value),
             _ => None,
         }
     }

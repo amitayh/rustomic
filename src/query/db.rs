@@ -66,15 +66,15 @@ impl Db {
             return Ok(());
         }
         if let [pattern, rest @ ..] = patterns {
-            let bound = &pattern.bind(&assignment);
+            let bound = pattern.bind(&assignment);
             // TODO: optimize filtering in storage layer?
             let datoms = storage
-                .find(&bound.into())
+                .find(&bound.as_ref().into())
                 .filter(|datom| datom.as_ref().map_or(false, |datom| datom.tx <= self.tx));
 
             // TODO can this be parallelized?
             for datom in datoms {
-                let assignment = assignment.update_with(bound, datom?);
+                let assignment = assignment.update_with(&bound, datom?);
                 if query.test(&assignment.assigned) {
                     self.resolve(storage, query, rest, assignment, results)?;
                 }

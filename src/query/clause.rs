@@ -1,3 +1,4 @@
+use std::borrow::Cow;
 use std::rc::Rc;
 
 use crate::datom::*;
@@ -97,19 +98,19 @@ impl DataPattern {
     /// assert_eq!(Pattern::value(3u64), assigned.value);
     /// assert_eq!(Pattern::Constant(4), assigned.tx);
     /// ```
-    pub fn bind(&self, assignment: &Assignment) -> Self {
-        let mut clause = self.clone();
-        if let Some(Value::U64(entity)) = assignment.assigned_value(&self.entity) {
-            clause.entity = Pattern::Constant(*entity);
+    pub fn bind(&self, assignment: &Assignment) -> Cow<'_, Self> {
+        let mut clause = Cow::Borrowed(self);
+        if let Some(&Value::U64(entity)) = assignment.assigned_value(&self.entity) {
+            clause.to_mut().entity = Pattern::Constant(entity);
         }
-        if let Some(Value::U64(attribute)) = assignment.assigned_value(&self.attribute) {
-            clause.attribute = Pattern::id(*attribute);
+        if let Some(&Value::U64(attribute)) = assignment.assigned_value(&self.attribute) {
+            clause.to_mut().attribute = Pattern::id(attribute);
         }
         if let Some(value) = assignment.assigned_value(&self.value) {
-            clause.value = Pattern::Constant(value.clone());
+            clause.to_mut().value = Pattern::Constant(value.clone());
         }
-        if let Some(Value::U64(tx)) = assignment.assigned_value(&self.tx) {
-            clause.tx = Pattern::Constant(*tx);
+        if let Some(&Value::U64(tx)) = assignment.assigned_value(&self.tx) {
+            clause.to_mut().tx = Pattern::Constant(tx);
         }
         clause
     }

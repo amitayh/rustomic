@@ -110,9 +110,9 @@ impl Transactor {
             }
 
             let mut v = value.clone();
-            if let Some(id) = value.as_str().and_then(|str| temp_ids.get(str)) {
+            if let Some(&id) = value.as_str().and_then(|str| temp_ids.get(str)) {
                 if attribute.value_type == ValueType::Ref {
-                    v = Value::U64(*id);
+                    v = Value::U64(id);
                 }
             };
 
@@ -156,7 +156,7 @@ impl Transactor {
     ) -> Result<u64, TransactionError<Error>> {
         match entity {
             Entity::New => Ok(self.next_entity_id()),
-            Entity::Id(id) => Ok(*id),
+            &Entity::Id(id) => Ok(id),
             Entity::TempId(temp_id) => temp_ids
                 .get(temp_id)
                 .copied()

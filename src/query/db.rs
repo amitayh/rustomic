@@ -69,7 +69,7 @@ impl Db {
             let bound = pattern.bind(&assignment);
             // TODO: optimize filtering in storage layer?
             let datoms = storage
-                .find(&bound.as_ref().into())
+                .find(bound.as_ref().into())
                 .filter(|datom| datom.as_ref().map_or(false, |datom| datom.tx <= self.tx));
 
             // TODO can this be parallelized?

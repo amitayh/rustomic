@@ -46,7 +46,7 @@ fn resolve_ident<'a, S: ReadStorage<'a>>(
     let restricts = Restricts::new()
         .with_attribute(DB_ATTR_IDENT_ID)
         .with_value(ident.into());
-    if let Some(datom) = storage.find(&restricts).next() {
+    if let Some(datom) = storage.find(restricts).next() {
         return resolve_id(storage, datom?.entity);
     }
     Ok(None)
@@ -59,7 +59,7 @@ fn resolve_id<'a, S: ReadStorage<'a>>(
     let mut builder = Builder::new(attribute_id);
     // [?attribute _ _]
     let restricts = Restricts::new().with_entity(attribute_id);
-    for datom in storage.find(&restricts) {
+    for datom in storage.find(restricts) {
         builder.consume(&datom?);
     }
     Ok(builder.build())
@@ -169,7 +169,7 @@ mod tests {
         type Error = <InMemoryStorage as ReadStorage<'a>>::Error;
         type Iter = <InMemoryStorage as ReadStorage<'a>>::Iter;
 
-        fn find(&'a self, restricts: &Restricts) -> Self::Iter {
+        fn find(&'a self, restricts: Restricts) -> Self::Iter {
             self.count.set(self.count.get() + 1);
             self.inner.find(restricts)
         }

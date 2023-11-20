@@ -143,7 +143,7 @@ impl Transactor {
         let restricts = Restricts::new()
             .with_entity(entity)
             .with_attribute(attribute);
-        for datom in storage.find(&restricts) {
+        for datom in storage.find(restricts) {
             datoms.push(Datom::retract(entity, attribute, datom?.value, tx));
         }
         Ok(datoms)

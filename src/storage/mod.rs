@@ -64,7 +64,7 @@ pub trait ReadStorage<'a> {
     /// Returns an iterator that yields all *non-retracted* datoms that match the search clause.
     /// Iterator might fail with `Self::Error` during iteration.
     /// Ordering of datoms is not guaranteed.
-    fn find(&'a self, restricts: &Restricts) -> Self::Iter;
+    fn find(&'a self, restricts: Restricts) -> Self::Iter;
 }
 
 pub trait WriteStorage {

@@ -28,7 +28,7 @@ mod tests {
 
             fn find(&self, restricts: Restricts) -> Vec<Datom> {
                 self.0
-                    .find(&restricts)
+                    .find(restricts)
                     .map(|result| result.expect("Error while reading datom"))
                     .collect()
             }
@@ -107,7 +107,7 @@ mod tests {
                     .expect("Unable to open DB");
 
                 DiskStorage::new(db)
-                    .find(&restricts)
+                    .find(restricts)
                     .map(|result| result.expect("Error while reading datom"))
                     .collect()
             }

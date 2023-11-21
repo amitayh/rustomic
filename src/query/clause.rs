@@ -71,6 +71,8 @@ impl DataPattern {
         variables
     }
 
+    /// Binds free variables in data pattern in case they have an assigned value.
+    ///
     /// ```
     /// use rustomic::query::*;
     /// use rustomic::query::assignment::*;

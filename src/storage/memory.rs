@@ -46,10 +46,11 @@ pub struct InMemoryStorageIter<'a> {
 
 impl<'a> InMemoryStorageIter<'a> {
     fn new(index: &'a BTreeSet<Bytes>, restricts: Restricts) -> Self {
-        let (start, end) = index::key_range(&restricts);
+        let range = index::key_range(&restricts);
+        let end = range.end.clone();
         Self {
             index,
-            range: index.range::<Bytes, _>(&start..&end),
+            range: index.range(range),
             end,
         }
     }

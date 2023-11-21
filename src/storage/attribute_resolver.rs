@@ -95,25 +95,19 @@ impl Builder {
     fn consume(&mut self, datom: &Datom) {
         match datom {
             Datom {
-                entity: _,
                 attribute: DB_ATTR_IDENT_ID,
                 value: Value::Str(ident),
-                tx: _,
-                op: _,
+                ..
             } => self.ident = Some(Rc::clone(ident)),
             &Datom {
-                entity: _,
                 attribute: DB_ATTR_TYPE_ID,
                 value: Value::U64(value_type),
-                tx: _,
-                op: _,
+                ..
             } => self.value_type = ValueType::from(value_type),
             &Datom {
-                entity: _,
                 attribute: DB_ATTR_CARDINALITY_ID,
                 value: Value::U64(cardinality),
-                tx: _,
-                op: _,
+                ..
             } => self.cardinality = Cardinality::from(cardinality),
             _ => (),
         }

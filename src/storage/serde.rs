@@ -26,6 +26,8 @@ pub type Bytes = Vec<u8>;
 //
 // https://docs.datomic.com/pro/query/indexes.html
 pub mod index {
+    use std::ops::Range;
+
     use super::*;
 
     // The EAVT index provides efficient access to everything about a given entity. Conceptually
@@ -85,7 +87,7 @@ pub mod index {
     //   +----------------+------------------------+----+------+--------+
     pub const TAG_AVET: u8 = 0x02;
 
-    pub fn key_range(restricts: &Restricts) -> (Bytes, Bytes) {
+    pub fn key_range(restricts: &Restricts) -> Range<Bytes> {
         let start = match restricts {
             Restricts {
                 entity: Some(entity),
@@ -97,36 +99,30 @@ pub mod index {
                 entity: Some(entity),
                 attribute: Some(attribute),
                 value: Some(value),
-                tx: _,
+                ..
             } => write_to_vec!(&TAG_EAVT, entity, attribute, value),
             Restricts {
                 entity: Some(entity),
                 attribute: Some(attribute),
-                value: _,
-                tx: _,
+                ..
             } => write_to_vec!(&TAG_EAVT, entity, attribute),
             Restricts {
                 entity: Some(entity),
-                attribute: _,
-                value: _,
-                tx: _,
+                ..
             } => write_to_vec!(&TAG_EAVT, entity),
             Restricts {
-                entity: _,
                 attribute: Some(attribute),
                 value: Some(value),
-                tx: _,
+                ..
             } => write_to_vec!(&TAG_AVET, attribute, value),
             Restricts {
-                entity: _,
                 attribute: Some(attribute),
-                value: _,
-                tx: _,
+                ..
             } => write_to_vec!(&TAG_AEVT, attribute),
             _ => write_to_vec!(&TAG_AEVT),
         };
         let end = next_prefix(&start);
-        (start, end)
+        Range { start, end }
     }
 
     pub fn seek_key(datom: &Datom, datom_bytes: &[u8]) -> Bytes {

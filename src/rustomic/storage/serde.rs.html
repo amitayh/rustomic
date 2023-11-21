@@ -477,10 +477,6 @@
 <a href="#477" id="477">477</a>
 <a href="#478" id="478">478</a>
 <a href="#479" id="479">479</a>
-<a href="#480" id="480">480</a>
-<a href="#481" id="481">481</a>
-<a href="#482" id="482">482</a>
-<a href="#483" id="483">483</a>
 </pre></div><pre class="rust"><code><span class="kw">use </span>std::rc::Rc;
 <span class="kw">use </span>thiserror::Error;
 
@@ -509,6 +505,8 @@
 //
 // https://docs.datomic.com/pro/query/indexes.html
 </span><span class="kw">pub mod </span>index {
+    <span class="kw">use </span>std::ops::Range;
+
     <span class="kw">use super</span>::<span class="kw-2">*</span>;
 
     <span class="comment">// The EAVT index provides efficient access to everything about a given entity. Conceptually
@@ -568,7 +566,7 @@
     //   +----------------+------------------------+----+------+--------+
     </span><span class="kw">pub const </span>TAG_AVET: u8 = <span class="number">0x02</span>;
 
-    <span class="kw">pub fn </span>key_range(restricts: <span class="kw-2">&amp;</span>Restricts) -&gt; (Bytes, Bytes) {
+    <span class="kw">pub fn </span>key_range(restricts: <span class="kw-2">&amp;</span>Restricts) -&gt; Range&lt;Bytes&gt; {
         <span class="kw">let </span>start = <span class="kw">match </span>restricts {
             Restricts {
                 entity: <span class="prelude-val">Some</span>(entity),
@@ -580,36 +578,30 @@
                 entity: <span class="prelude-val">Some</span>(entity),
                 attribute: <span class="prelude-val">Some</span>(attribute),
                 value: <span class="prelude-val">Some</span>(value),
-                tx: <span class="kw">_</span>,
+                ..
             } =&gt; <span class="macro">write_to_vec!</span>(<span class="kw-2">&amp;</span>TAG_EAVT, entity, attribute, value),
             Restricts {
                 entity: <span class="prelude-val">Some</span>(entity),
                 attribute: <span class="prelude-val">Some</span>(attribute),
-                value: <span class="kw">_</span>,
-                tx: <span class="kw">_</span>,
+                ..
             } =&gt; <span class="macro">write_to_vec!</span>(<span class="kw-2">&amp;</span>TAG_EAVT, entity, attribute),
             Restricts {
                 entity: <span class="prelude-val">Some</span>(entity),
-                attribute: <span class="kw">_</span>,
-                value: <span class="kw">_</span>,
-                tx: <span class="kw">_</span>,
+                ..
             } =&gt; <span class="macro">write_to_vec!</span>(<span class="kw-2">&amp;</span>TAG_EAVT, entity),
             Restricts {
-                entity: <span class="kw">_</span>,
                 attribute: <span class="prelude-val">Some</span>(attribute),
                 value: <span class="prelude-val">Some</span>(value),
-                tx: <span class="kw">_</span>,
+                ..
             } =&gt; <span class="macro">write_to_vec!</span>(<span class="kw-2">&amp;</span>TAG_AVET, attribute, value),
             Restricts {
-                entity: <span class="kw">_</span>,
                 attribute: <span class="prelude-val">Some</span>(attribute),
-                value: <span class="kw">_</span>,
-                tx: <span class="kw">_</span>,
+                ..
             } =&gt; <span class="macro">write_to_vec!</span>(<span class="kw-2">&amp;</span>TAG_AEVT, attribute),
             <span class="kw">_ </span>=&gt; <span class="macro">write_to_vec!</span>(<span class="kw-2">&amp;</span>TAG_AEVT),
         };
         <span class="kw">let </span>end = next_prefix(<span class="kw-2">&amp;</span>start);
-        (start, end)
+        Range { start, end }
     }
 
     <span class="kw">pub fn </span>seek_key(datom: <span class="kw-2">&amp;</span>Datom, datom_bytes: <span class="kw-2">&amp;</span>[u8]) -&gt; Bytes {

@@ -73,6 +73,7 @@
 <a href="#73" id="73">73</a>
 <a href="#74" id="74">74</a>
 <a href="#75" id="75">75</a>
+<a href="#76" id="76">76</a>
 </pre></div><pre class="rust"><code><span class="kw">use </span>std::collections::btree_set::Range;
 <span class="kw">use </span>std::collections::BTreeSet;
 <span class="kw">use </span>std::convert::Infallible;
@@ -121,10 +122,11 @@
 
 <span class="kw">impl</span>&lt;<span class="lifetime">&#39;a</span>&gt; InMemoryStorageIter&lt;<span class="lifetime">&#39;a</span>&gt; {
     <span class="kw">fn </span>new(index: <span class="kw-2">&amp;</span><span class="lifetime">&#39;a </span>BTreeSet&lt;Bytes&gt;, restricts: Restricts) -&gt; <span class="self">Self </span>{
-        <span class="kw">let </span>(start, end) = index::key_range(<span class="kw-2">&amp;</span>restricts);
+        <span class="kw">let </span>range = index::key_range(<span class="kw-2">&amp;</span>restricts);
+        <span class="kw">let </span>end = range.end.clone();
         <span class="self">Self </span>{
             index,
-            range: index.range::&lt;Bytes, <span class="kw">_</span>&gt;(<span class="kw-2">&amp;</span>start..<span class="kw-2">&amp;</span>end),
+            range: index.range(range),
             end,
         }
     }

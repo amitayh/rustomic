@@ -31,7 +31,7 @@ impl Db {
         let mut results = Vec::new();
         self.resolve_idents(storage, &mut query)?;
         let assignment = Assignment::from_query(&query);
-        self.resolve(storage, &query, &query.wher, assignment, &mut results)?;
+        self.resolve(storage, &query, &query.wher, &assignment, &mut results)?;
         Ok(QueryResult { results })
     }
 
@@ -58,28 +58,64 @@ impl Db {
         storage: &'a S,
         query: &Query,
         patterns: &[DataPattern],
-        assignment: Assignment,
+        assignment: &Assignment,
         results: &mut Vec<HashMap<Rc<str>, Value>>,
     ) -> Result<(), QueryError<S::Error>> {
         if assignment.is_complete() {
-            results.push(assignment.assigned);
+            results.push(assignment.to_owned().assigned);
             return Ok(());
         }
         if let [pattern, rest @ ..] = patterns {
-            let bound = pattern.bind(&assignment);
             // TODO: optimize filtering in storage layer?
             let datoms = storage
-                .find(bound.as_ref().into())
+                .find(restricts(pattern, &assignment.assigned))
                 .filter(|datom| datom.as_ref().map_or(false, |datom| datom.tx <= self.tx));
 
             // TODO can this be parallelized?
             for datom in datoms {
-                let assignment = assignment.update_with(&bound, datom?);
+                let assignment = assignment.update_with(pattern, datom?);
                 if query.test(&assignment.assigned) {
-                    self.resolve(storage, query, rest, assignment, results)?;
+                    self.resolve(storage, query, rest, &assignment, results)?;
                 }
             }
         }
         Ok(())
     }
+}
+
+fn restricts(pattern: &DataPattern, assignment: &HashMap<Rc<str>, Value>) -> Restricts {
+    let mut restricts = Restricts::new();
+    restricts.entity = match pattern.entity {
+        Pattern::Constant(entity) => Some(entity),
+        Pattern::Variable(ref variable) => match assignment.get(variable) {
+            Some(&Value::Ref(entity)) => Some(entity),
+            _ => None,
+        },
+        _ => None,
+    };
+    restricts.attribute = match pattern.attribute {
+        Pattern::Constant(AttributeIdentifier::Id(attribute)) => Some(attribute),
+        Pattern::Variable(ref variable) => match assignment.get(variable) {
+            Some(&Value::Ref(entity)) => Some(entity),
+            _ => None,
+        },
+        _ => None,
+    };
+    restricts.value = match pattern.value {
+        Pattern::Constant(ref value) => Some(value.clone()),
+        Pattern::Variable(ref variable) => match assignment.get(variable) {
+            Some(value) => Some(value.clone()),
+            _ => None,
+        },
+        _ => None,
+    };
+    restricts.tx = match pattern.tx {
+        Pattern::Constant(tx) => Some(tx),
+        Pattern::Variable(ref variable) => match assignment.get(variable) {
+            Some(&Value::Ref(tx)) => Some(tx),
+            _ => None,
+        },
+        _ => None,
+    };
+    restricts
 }

@@ -152,7 +152,7 @@ mod tests {
 
         let joe_id = result.temp_ids.get("joe");
         assert!(joe_id.is_some());
-        assert_eq!(joe_id.copied(), query_result.results[0]["?joe"].as_u64());
+        assert_eq!(joe_id.copied(), query_result.results[0]["?joe"].as_ref());
     }
 
     #[test]
@@ -218,6 +218,8 @@ mod tests {
                         .with_value(Pattern::variable("?release-name")),
                 ),
         );
+
+        dbg!(&query_result);
 
         assert_eq!(
             Some("Abbey Road"),
@@ -380,9 +382,11 @@ mod tests {
                 ),
         );
 
+        dbg!(&query_result);
+
         assert_eq!(1, query_result.results.len());
         let result = &query_result.results[0];
-        assert_eq!(Some(tx_result.tx_id), result["?tx"].as_u64());
+        assert_eq!(Some(tx_result.tx_id), result["?tx"].as_ref());
         assert!(result["?tx_time"].as_u64().is_some_and(|time| time > 0));
     }
 

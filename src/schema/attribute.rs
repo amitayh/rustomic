@@ -67,17 +67,18 @@ impl Value {
     ///
     /// assert!(Value::I64(42).matches_type(ValueType::I64));
     /// assert!(Value::U64(42).matches_type(ValueType::U64));
-    /// assert!(Value::U64(42).matches_type(ValueType::Ref));
     /// assert!(Value::Decimal(42.into()).matches_type(ValueType::Decimal));
     /// assert!(Value::str("foo").matches_type(ValueType::Str));
+    /// assert!(Value::Ref(42).matches_type(ValueType::Ref));
     /// assert!(!Value::U64(42).matches_type(ValueType::Str));
     /// ```
     pub fn matches_type(&self, value_type: ValueType) -> bool {
         match self {
             Self::I64(_) => value_type == ValueType::I64,
-            Self::U64(_) => value_type == ValueType::U64 || value_type == ValueType::Ref,
+            Self::U64(_) => value_type == ValueType::U64,
             Self::Decimal(_) => value_type == ValueType::Decimal,
             Self::Str(_) => value_type == ValueType::Str,
+            Self::Ref(_) => value_type == ValueType::Ref,
         }
     }
 }

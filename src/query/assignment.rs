@@ -1,3 +1,4 @@
+use std::borrow::Cow;
 use std::collections::HashMap;
 use std::collections::HashSet;
 use std::rc::Rc;
@@ -104,33 +105,30 @@ impl Assignment {
     /// assert_eq!(Value::U64(value), updated.assigned["?value"]);
     /// assert_eq!(Value::U64(tx), updated.assigned["?tx"]);
     /// ```
-    pub fn update_with(&self, pattern: &DataPattern, datom: Datom) -> Self {
-        let mut assignment = self.clone();
+    pub fn update_with(&self, pattern: &DataPattern, datom: Datom) -> Cow<'_, Self> {
+        let mut assignment = Cow::Borrowed(self);
         if let Pattern::Variable(variable) = &pattern.entity {
-            assignment.assign(variable, datom.entity);
+            assignment.to_mut().assign_ref(variable, datom.entity);
         }
         if let Pattern::Variable(variable) = &pattern.attribute {
-            assignment.assign(variable, datom.attribute);
+            assignment.to_mut().assign_ref(variable, datom.attribute);
         }
         if let Pattern::Variable(variable) = &pattern.value {
-            assignment.assign(variable, datom.value);
+            assignment.to_mut().assign(variable, datom.value);
         }
         if let Pattern::Variable(variable) = &pattern.tx {
-            assignment.assign(variable, datom.tx);
+            assignment.to_mut().assign_ref(variable, datom.tx);
         }
         assignment
     }
 
-    pub fn assigned_value<T>(&self, pattern: &Pattern<T>) -> Option<&Value> {
-        match pattern {
-            Pattern::Variable(variable) => self.assigned.get(variable),
-            _ => None,
-        }
+    fn assign_ref(&mut self, variable: &str, entity: u64) {
+        self.assign(variable, Value::Ref(entity));
     }
 
-    pub fn assign<V: Into<Value>>(&mut self, variable: &str, value: V) {
+    fn assign(&mut self, variable: &str, value: Value) {
         if let Some(var) = self.unassigned.take(variable) {
-            self.assigned.insert(var, value.into());
+            self.assigned.insert(var, value);
         }
     }
 }

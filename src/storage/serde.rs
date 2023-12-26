@@ -163,6 +163,7 @@ mod value {
     pub const TAG_U64: u8 = 0x00;
     pub const TAG_I64: u8 = 0x01;
     pub const TAG_STR: u8 = 0x02;
+    pub const TAG_REF: u8 = 0x03;
 }
 
 mod op {
@@ -339,6 +340,7 @@ impl Writable for Value {
             Self::U64(value) => value.size(),
             Self::I64(value) => value.size(),
             Self::Str(value) => value.size(),
+            Self::Ref(value) => value.size(),
             _ => unimplemented!(),
         }
     }
@@ -355,6 +357,10 @@ impl Writable for Value {
             }
             Self::Str(value) => {
                 value::TAG_STR.write(buffer);
+                value.write(buffer);
+            }
+            Self::Ref(value) => {
+                value::TAG_REF.write(buffer);
                 value.write(buffer);
             }
             _ => unimplemented!(),
@@ -463,6 +469,7 @@ impl<'a> Readable<Value> for Reader<'a> {
             value::TAG_U64 => Ok(Value::U64(self.read()?)),
             value::TAG_I64 => Ok(Value::I64(self.read()?)),
             value::TAG_STR => Ok(Value::Str(self.read()?)),
+            value::TAG_REF => Ok(Value::Ref(self.read()?)),
             _ => Err(ReadError::InvalidInput),
         }
     }

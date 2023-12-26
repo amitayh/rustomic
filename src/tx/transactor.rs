@@ -112,7 +112,7 @@ impl Transactor {
             let mut v = value.clone();
             if let Some(&id) = value.as_str().and_then(|str| temp_ids.get(str)) {
                 if attribute.value_type == ValueType::Ref {
-                    v = Value::U64(id);
+                    v = Value::Ref(id);
                 }
             };
 

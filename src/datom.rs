@@ -9,6 +9,7 @@ pub enum Value {
     U64(u64),
     Decimal(Decimal),
     Str(Rc<str>),
+    Ref(u64),
 }
 
 impl Value {
@@ -60,6 +61,13 @@ impl Value {
     pub fn as_str(&self) -> Option<&str> {
         match self {
             Self::Str(value) => Some(value),
+            _ => None,
+        }
+    }
+
+    pub fn as_ref(&self) -> Option<u64> {
+        match self {
+            &Self::Ref(value) => Some(value),
             _ => None,
         }
     }
@@ -146,10 +154,11 @@ impl Datom {
 
 impl Arbitrary for Value {
     fn arbitrary(u: &mut Gen) -> Self {
-        match u.choose(&[0, 1, 2]) {
+        match u.choose(&[0, 1, 2, 3]) {
             Some(0) => Self::I64(i64::arbitrary(u)),
             Some(1) => Self::U64(u64::arbitrary(u)),
             Some(2) => Self::Str(String::arbitrary(u).into()),
+            Some(3) => Self::Ref(u64::arbitrary(u)),
             _ => unreachable!(),
         }
     }

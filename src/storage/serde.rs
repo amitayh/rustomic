@@ -122,7 +122,7 @@ pub mod index {
             _ => write_to_vec!(&TAG_AEVT),
         };
         let end = next_prefix(&start);
-        Range { start, end }
+        start..end
     }
 
     pub fn seek_key(datom: &Datom, datom_bytes: &[u8]) -> Bytes {

@@ -44,7 +44,7 @@ impl Db {
             if let Pattern::Constant(AttributeIdentifier::Ident(ident)) = &clause.attribute {
                 let attribute = self
                     .attribute_resolver
-                    .resolve(storage, ident)?
+                    .resolve(storage, ident, self.tx)?
                     .ok_or_else(|| QueryError::IdentNotFound(Rc::clone(ident)))?;
 
                 clause.attribute = Pattern::id(attribute.id);
@@ -66,10 +66,7 @@ impl Db {
             return Ok(());
         }
         if let [pattern, rest @ ..] = patterns {
-            // TODO: optimize filtering in storage layer?
-            let datoms = storage
-                .find(restricts(pattern, &assignment.assigned))
-                .filter(|datom| datom.as_ref().map_or(false, |datom| datom.tx <= self.tx));
+            let datoms = storage.find(restricts(pattern, &assignment.assigned, self.tx));
 
             // TODO can this be parallelized?
             for datom in datoms {
@@ -83,8 +80,8 @@ impl Db {
     }
 }
 
-fn restricts(pattern: &DataPattern, assignment: &HashMap<Rc<str>, Value>) -> Restricts {
-    let mut restricts = Restricts::new();
+fn restricts(pattern: &DataPattern, assignment: &HashMap<Rc<str>, Value>, tx: u64) -> Restricts {
+    let mut restricts = Restricts::new(tx);
     restricts.entity = match pattern.entity {
         Pattern::Constant(entity) => Some(entity),
         Pattern::Variable(ref variable) => match assignment.get(variable) {

@@ -87,6 +87,10 @@ pub mod index {
     //   +----------------+------------------------+----+------+--------+
     pub const TAG_AVET: u8 = 0x02;
 
+    const BASE_KEY_SIZE: usize = std::mem::size_of::<u8>() // Index tag
+            + std::mem::size_of::<u64>() // Entity
+            + std::mem::size_of::<u64>(); // Attribute
+
     pub fn key_range(restricts: &Restricts) -> Range<Bytes> {
         let start = match restricts {
             Restricts {
@@ -94,6 +98,7 @@ pub mod index {
                 attribute: Some(attribute),
                 value: Some(value),
                 tx: Some(tx),
+                ..
             } => write_to_vec!(&TAG_EAVT, entity, attribute, value, &!tx),
             Restricts {
                 entity: Some(entity),
@@ -125,15 +130,14 @@ pub mod index {
         start..end
     }
 
-    pub fn seek_key(datom: &Datom, datom_bytes: &[u8]) -> Bytes {
-        next_prefix(&datom_bytes[..key_size(datom)])
+    pub fn seek_key(value: &Value, datom_bytes: &[u8], tx: u64) -> Bytes {
+        let mut key = next_prefix(&datom_bytes[..key_size(value)]);
+        (!tx).write(&mut key);
+        key
     }
 
-    fn key_size(datom: &Datom) -> usize {
-        std::mem::size_of::<u8>() // Index tag
-            + datom.entity.size()
-            + datom.attribute.size()
-            + datom.value.size()
+    fn key_size(value: &Value) -> usize {
+        BASE_KEY_SIZE + value.size()
     }
 
     /// Returns lowest value following largest value with given prefix.
@@ -153,7 +157,7 @@ pub mod index {
         let mut next = prefix[..(prefix.len() - ffs)].to_vec();
         let last = next
             .last_mut()
-            .expect("There should have at least non-0xFF byte");
+            .expect("There should be at least one non-0xFF byte");
         *last += 1;
         next
     }

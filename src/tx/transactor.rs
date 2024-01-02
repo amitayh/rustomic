@@ -100,7 +100,8 @@ impl Transactor {
             value,
         } in &operation.attributes
         {
-            let attribute = match self.attribute_resolver.resolve(storage, ident)? {
+            // TODO restrict to previous tx?
+            let attribute = match self.attribute_resolver.resolve(storage, ident, tx)? {
                 Some(attr) => attr,
                 None => return Err(TransactionError::IdentNotFound(Rc::clone(ident))),
             };
@@ -140,7 +141,7 @@ impl Transactor {
     ) -> Result<Vec<Datom>, TransactionError<S::Error>> {
         let mut datoms = Vec::new();
         // Retract previous values
-        let restricts = Restricts::new()
+        let restricts = Restricts::new(u64::MAX)
             .with_entity(entity)
             .with_attribute(attribute);
         for datom in storage.find(restricts) {

@@ -158,7 +158,7 @@ mod tests {
         let storage = S::create();
 
         let entity = 100;
-        let clause = Restricts::new().with_entity(entity);
+        let clause = Restricts::new(u64::MAX).with_entity(entity);
         let read_result = storage.find(clause);
 
         assert!(read_result.is_empty());
@@ -176,7 +176,7 @@ mod tests {
         storage.save(&datoms);
 
         let read_result = storage.find(
-            Restricts::new()
+            Restricts::new(u64::MAX)
                 .with_entity(entity)
                 .with_attribute(attribute)
                 .with_value(Value::U64(value)),
@@ -196,7 +196,7 @@ mod tests {
         ];
         storage.save(&datoms);
 
-        let read_result = storage.find(Restricts::new().with_entity(entity));
+        let read_result = storage.find(Restricts::new(u64::MAX).with_entity(entity));
 
         assert_eq!(datoms, read_result);
     }
@@ -218,7 +218,7 @@ mod tests {
         ];
         storage.save(&datoms);
 
-        let read_result = storage.find(Restricts::new().with_attribute(attribute1));
+        let read_result = storage.find(Restricts::new(u64::MAX).with_attribute(attribute1));
 
         let expected = vec![
             Datom::add(entity1, attribute1, 2u64, 1001),
@@ -242,7 +242,7 @@ mod tests {
         ];
         storage.save(&datoms);
 
-        let read_result = storage.find(Restricts::new().with_entity(entity));
+        let read_result = storage.find(Restricts::new(u64::MAX).with_entity(entity));
 
         assert_eq!(datoms, read_result);
     }
@@ -260,7 +260,7 @@ mod tests {
         ];
         storage.save(&datoms);
 
-        let read_result = storage.find(Restricts::new().with_entity(entity1));
+        let read_result = storage.find(Restricts::new(u64::MAX).with_entity(entity1));
 
         assert_eq!(datoms[0..1], read_result);
     }
@@ -279,7 +279,7 @@ mod tests {
         storage.save(&datoms);
 
         let read_result = storage.find(
-            Restricts::new()
+            Restricts::new(u64::MAX)
                 .with_entity(entity)
                 .with_attribute(attribute),
         );
@@ -302,7 +302,7 @@ mod tests {
         storage.save(&datoms);
 
         let read_result = storage.find(
-            Restricts::new()
+            Restricts::new(u64::MAX)
                 .with_entity(entity)
                 .with_attribute(attribute),
         );

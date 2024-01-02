@@ -22,11 +22,13 @@ impl AttributeResolver {
         &mut self,
         storage: &'a S,
         ident: &str,
+        tx: u64,
     ) -> Result<Option<Attribute>, S::Error> {
         if let Some(attribute) = self.cache.get(ident) {
+            // TODO: add tx
             return Ok(Some(attribute.clone()));
         }
-        if let Some(attribute) = resolve_ident(storage, ident)? {
+        if let Some(attribute) = resolve_ident(storage, ident, tx)? {
             self.update_cache(attribute.clone());
             return Ok(Some(attribute));
         }
@@ -41,13 +43,14 @@ impl AttributeResolver {
 fn resolve_ident<'a, S: ReadStorage<'a>>(
     storage: &'a S,
     ident: &str,
+    tx: u64,
 ) -> Result<Option<Attribute>, S::Error> {
     // [?attribute :db/attr/ident ?ident]
-    let restricts = Restricts::new()
+    let restricts = Restricts::new(tx)
         .with_attribute(DB_ATTR_IDENT_ID)
         .with_value(ident.into());
     if let Some(datom) = storage.find(restricts).next() {
-        return resolve_id(storage, datom?.entity);
+        return resolve_id(storage, datom?.entity, tx);
     }
     Ok(None)
 }
@@ -55,12 +58,13 @@ fn resolve_ident<'a, S: ReadStorage<'a>>(
 fn resolve_id<'a, S: ReadStorage<'a>>(
     storage: &'a S,
     attribute_id: u64,
+    tx: u64,
 ) -> Result<Option<Attribute>, S::Error> {
     let mut builder = Builder::new(attribute_id);
     // [?attribute _ _]
-    let restricts = Restricts::new().with_entity(attribute_id);
+    let restricts = Restricts::new(tx).with_entity(attribute_id);
     for datom in storage.find(restricts) {
-        builder.consume(&datom?);
+        builder.consume(datom?);
     }
     Ok(builder.build())
 }
@@ -92,19 +96,19 @@ impl Builder {
         }
     }
 
-    fn consume(&mut self, datom: &Datom) {
+    fn consume(&mut self, datom: Datom) {
         match datom {
             Datom {
                 attribute: DB_ATTR_IDENT_ID,
                 value: Value::Str(ident),
                 ..
-            } => self.ident = Some(Rc::clone(ident)),
-            &Datom {
+            } => self.ident = Some(ident),
+            Datom {
                 attribute: DB_ATTR_TYPE_ID,
                 value: Value::U64(value_type),
                 ..
             } => self.value_type = ValueType::from(value_type),
-            &Datom {
+            Datom {
                 attribute: DB_ATTR_CARDINALITY_ID,
                 value: Value::U64(cardinality),
                 ..
@@ -186,7 +190,7 @@ mod tests {
     fn returns_none_when_attribute_does_not_exist() {
         let storage = create_storage();
         let mut resolver = AttributeResolver::new();
-        let result = resolver.resolve(&storage, "foo/bar");
+        let result = resolver.resolve(&storage, "foo/bar", u64::MAX);
         assert!(result.is_ok());
         assert!(result.unwrap().is_none());
     }
@@ -203,7 +207,7 @@ mod tests {
         assert!(storage.save(&tx_result.unwrap().tx_data).is_ok());
 
         let mut resolver = AttributeResolver::new();
-        let result = resolver.resolve(&storage, "foo/bar");
+        let result = resolver.resolve(&storage, "foo/bar", u64::MAX);
         assert!(result.is_ok());
 
         let result = result.unwrap().unwrap();
@@ -226,7 +230,7 @@ mod tests {
         assert!(storage.save(&tx_result.unwrap().tx_data).is_ok());
 
         let mut resolver = AttributeResolver::new();
-        let result1 = resolver.resolve(&storage, "foo/bar");
+        let result1 = resolver.resolve(&storage, "foo/bar", u64::MAX);
         assert!(result1.is_ok());
         let result1 = result1.unwrap();
         assert!(result1.is_some());
@@ -235,7 +239,7 @@ mod tests {
         let queries = storage.current_count();
         assert!(queries > 0);
 
-        let result2 = resolver.resolve(&storage, "foo/bar");
+        let result2 = resolver.resolve(&storage, "foo/bar", u64::MAX);
         assert!(result2.is_ok());
         let result2 = result2.unwrap();
         assert_eq!(result1, result2);

@@ -44,6 +44,7 @@ impl<'a> ReadStorage<'a> for DiskStorage {
 pub struct DiskStorageIter<'a> {
     iterator: DBRawIteratorWithThreadMode<'a, DBWithThreadMode<SingleThreaded>>,
     end: Bytes,
+    tx: u64,
 }
 
 impl<'a> DiskStorageIter<'a> {
@@ -52,7 +53,11 @@ impl<'a> DiskStorageIter<'a> {
         let read_options = ReadOptions::default();
         let mut iterator = db.raw_iterator_opt(read_options);
         iterator.seek(&start);
-        Self { iterator, end }
+        Self {
+            iterator,
+            end,
+            tx: restricts.tx2,
+        }
     }
 }
 
@@ -73,8 +78,9 @@ impl Iterator for DiskStorageIter<'_> {
         }
 
         match datom::deserialize(datom_bytes) {
-            Ok(datom) if datom.op == Op::Retracted => {
-                self.iterator.seek(index::seek_key(&datom, datom_bytes));
+            Ok(datom) if datom.op == Op::Retracted || datom.tx > self.tx => {
+                self.iterator
+                    .seek(index::seek_key(&datom.value, datom_bytes, self.tx));
                 self.next()
             }
             Ok(datom) => {

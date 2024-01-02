@@ -42,6 +42,7 @@ pub struct InMemoryStorageIter<'a> {
     index: &'a BTreeSet<Bytes>,
     range: Range<'a, Bytes>,
     end: Bytes,
+    tx: u64,
 }
 
 impl<'a> InMemoryStorageIter<'a> {
@@ -52,6 +53,7 @@ impl<'a> InMemoryStorageIter<'a> {
             index,
             range: index.range(range),
             end,
+            tx: restricts.tx2,
         }
     }
 
@@ -66,8 +68,8 @@ impl<'a> Iterator for InMemoryStorageIter<'a> {
     fn next(&mut self) -> Option<Self::Item> {
         let datom_bytes = self.range.next()?;
         match datom::deserialize(datom_bytes) {
-            Ok(datom) if datom.op == Op::Retracted => {
-                self.seek(index::seek_key(&datom, datom_bytes));
+            Ok(datom) if datom.op == Op::Retracted || datom.tx > self.tx => {
+                self.seek(index::seek_key(&datom.value, datom_bytes, self.tx));
                 self.next()
             }
             result => Some(result),

@@ -25,7 +25,7 @@ impl AttributeResolver {
         tx: u64,
     ) -> Result<Option<Attribute>, S::Error> {
         if let Some(attribute) = self.cache.get(ident) {
-            // TODO: add tx
+            // TODO: this implementation doesn't take schema changes into account
             return Ok(Some(attribute.clone()));
         }
         if let Some(attribute) = resolve_ident(storage, ident, tx)? {
@@ -36,7 +36,8 @@ impl AttributeResolver {
     }
 
     fn update_cache(&mut self, attribute: Attribute) {
-        self.cache.insert(Rc::clone(&attribute.ident), attribute);
+        self.cache
+            .insert(Rc::clone(&attribute.definition.ident), attribute);
     }
 }
 
@@ -71,19 +72,13 @@ fn resolve_id<'a, S: ReadStorage<'a>>(
 
 // ------------------------------------------------------------------------------------------------
 
-#[derive(Clone, Debug, PartialEq)]
-pub struct Attribute {
-    pub id: u64,
-    pub ident: Rc<str>,
-    pub value_type: ValueType,
-    pub cardinality: Cardinality,
-}
-
 struct Builder {
     id: u64,
     ident: Option<Rc<str>>,
     value_type: Option<ValueType>,
     cardinality: Option<Cardinality>,
+    doc: Option<Rc<str>>,
+    unique: bool,
 }
 
 impl Builder {
@@ -93,6 +88,8 @@ impl Builder {
             ident: None,
             value_type: None,
             cardinality: None,
+            doc: None,
+            unique: false,
         }
     }
 
@@ -113,6 +110,16 @@ impl Builder {
                 value: Value::U64(cardinality),
                 ..
             } => self.cardinality = Cardinality::from(cardinality),
+            Datom {
+                attribute: DB_ATTR_DOC_ID,
+                value: Value::Str(doc),
+                ..
+            } => self.doc = Some(doc),
+            Datom {
+                attribute: DB_ATTR_UNIQUE_ID,
+                value: Value::U64(1),
+                ..
+            } => self.unique = true,
             _ => (),
         }
     }
@@ -123,9 +130,13 @@ impl Builder {
         let cardinality = self.cardinality?;
         Some(Attribute {
             id: self.id,
-            ident,
-            value_type,
-            cardinality,
+            definition: AttributeDefinition {
+                ident,
+                value_type,
+                cardinality,
+                doc: self.doc,
+                unique: self.unique,
+            },
         })
     }
 }
@@ -137,7 +148,7 @@ mod tests {
     use std::cell::Cell;
 
     use crate::clock::Instant;
-    use crate::schema::attribute::{Attribute, ValueType};
+    use crate::schema::attribute::{AttributeDefinition, ValueType};
     use crate::schema::default::default_datoms;
     use crate::storage::attribute_resolver::*;
     use crate::storage::memory::InMemoryStorage;
@@ -200,7 +211,7 @@ mod tests {
         let mut storage = create_storage();
         let mut transactor = Transactor::new();
 
-        let attribute = Attribute::new("foo/bar", ValueType::U64);
+        let attribute = AttributeDefinition::new("foo/bar", ValueType::U64);
         let transaction = Transaction::new().with(attribute);
         let tx_result = transactor.transact(&storage, Instant(0), transaction);
         assert!(tx_result.is_ok());
@@ -211,8 +222,8 @@ mod tests {
         assert!(result.is_ok());
 
         let result = result.unwrap().unwrap();
-        assert_eq!(Rc::from("foo/bar"), result.ident);
-        assert_eq!(ValueType::U64, result.value_type);
+        assert_eq!(Rc::from("foo/bar"), result.definition.ident);
+        assert_eq!(ValueType::U64, result.definition.value_type);
     }
 
     #[test]
@@ -223,7 +234,7 @@ mod tests {
         // No calls to `CountingStorage::find` yet.
         assert_eq!(0, storage.current_count());
 
-        let attribute = Attribute::new("foo/bar", ValueType::U64);
+        let attribute = AttributeDefinition::new("foo/bar", ValueType::U64);
         let transaction = Transaction::new().with(attribute);
         let tx_result = transactor.transact(&storage, Instant(0), transaction);
         assert!(tx_result.is_ok());

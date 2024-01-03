@@ -47,14 +47,7 @@ impl TryFrom<u64> for ValueType {
     type Error = InvalidValue;
 
     fn try_from(value: u64) -> Result<Self, Self::Error> {
-        match value {
-            1 => Ok(Self::I64),
-            2 => Ok(Self::U64),
-            3 => Ok(Self::Decimal),
-            4 => Ok(Self::Str),
-            5 => Ok(Self::Ref),
-            _ => Err(InvalidValue(value)),
-        }
+        ValueType::from(value).ok_or(InvalidValue(value))
     }
 }
 
@@ -89,6 +82,14 @@ pub enum Cardinality {
     Many = 1,
 }
 
+impl TryFrom<u64> for Cardinality {
+    type Error = InvalidValue;
+
+    fn try_from(value: u64) -> Result<Self, Self::Error> {
+        Cardinality::from(value).ok_or(InvalidValue(value))
+    }
+}
+
 impl Cardinality {
     /// ```
     /// use rustomic::schema::attribute::Cardinality;
@@ -106,8 +107,14 @@ impl Cardinality {
     }
 }
 
-#[derive(Debug)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct Attribute {
+    pub id: u64,
+    pub definition: AttributeDefinition,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct AttributeDefinition {
     pub ident: Rc<str>,
     pub value_type: ValueType,
     pub cardinality: Cardinality,
@@ -115,9 +122,9 @@ pub struct Attribute {
     pub unique: bool,
 }
 
-impl Attribute {
+impl AttributeDefinition {
     pub fn new(ident: &str, value_type: ValueType) -> Self {
-        Attribute {
+        AttributeDefinition {
             ident: Rc::from(ident),
             value_type,
             cardinality: Cardinality::One,
@@ -142,8 +149,8 @@ impl Attribute {
     }
 }
 
-impl From<Attribute> for tx::Operation {
-    fn from(attribute: Attribute) -> Self {
+impl From<AttributeDefinition> for tx::Operation {
+    fn from(attribute: AttributeDefinition) -> Self {
         let mut operation = Self::on_new()
             .set(DB_ATTR_IDENT_IDENT, attribute.ident)
             .set(DB_ATTR_CARDINALITY_IDENT, attribute.cardinality as u64)

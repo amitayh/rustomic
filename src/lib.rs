@@ -88,22 +88,33 @@ mod tests {
 
     fn create_schema() -> Transaction {
         Transaction::new()
-            .with(Attribute::new("movie/name", ValueType::Str))
-            .with(Attribute::new("movie/year", ValueType::U64))
-            .with(Attribute::new("movie/director", ValueType::Ref).many())
-            .with(Attribute::new("movie/cast", ValueType::Ref).many())
-            .with(Attribute::new("actor/name", ValueType::Str))
-            .with(Attribute::new("person/name", ValueType::Str).with_doc("A person's name"))
-            .with(Attribute::new("person/born", ValueType::I64).with_doc("A person's birth year"))
+            .with(AttributeDefinition::new("movie/name", ValueType::Str))
+            .with(AttributeDefinition::new("movie/year", ValueType::U64))
+            .with(AttributeDefinition::new("movie/director", ValueType::Ref).many())
+            .with(AttributeDefinition::new("movie/cast", ValueType::Ref).many())
+            .with(AttributeDefinition::new("actor/name", ValueType::Str))
             .with(
-                Attribute::new("person/likes", ValueType::Str)
+                AttributeDefinition::new("person/name", ValueType::Str).with_doc("A person's name"),
+            )
+            .with(
+                AttributeDefinition::new("person/born", ValueType::I64)
+                    .with_doc("A person's birth year"),
+            )
+            .with(
+                AttributeDefinition::new("person/likes", ValueType::Str)
                     .with_doc("Things a person likes")
                     .many(),
             )
-            .with(Attribute::new("artist/name", ValueType::Str).with_doc("An artist's name"))
-            .with(Attribute::new("release/name", ValueType::Str).with_doc("A release's name"))
             .with(
-                Attribute::new("release/artists", ValueType::Ref)
+                AttributeDefinition::new("artist/name", ValueType::Str)
+                    .with_doc("An artist's name"),
+            )
+            .with(
+                AttributeDefinition::new("release/name", ValueType::Str)
+                    .with_doc("A release's name"),
+            )
+            .with(
+                AttributeDefinition::new("release/artists", ValueType::Ref)
                     .with_doc("Artists of release")
                     .many(),
             )
@@ -234,9 +245,12 @@ mod tests {
         // Create the schema
         sut.transact(
             Transaction::new()
-                .with(Attribute::new("person/name", ValueType::Str).with_doc("A person's name"))
                 .with(
-                    Attribute::new("person/likes", ValueType::Str)
+                    AttributeDefinition::new("person/name", ValueType::Str)
+                        .with_doc("A person's name"),
+                )
+                .with(
+                    AttributeDefinition::new("person/likes", ValueType::Str)
                         .with_doc("Things a person likes"),
                 ),
         );

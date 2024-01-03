@@ -10,7 +10,7 @@ use super::Restricts;
 
 #[derive(Default)]
 pub struct AttributeResolver {
-    cache: HashMap<Rc<str>, Attribute>,
+    cache: HashMap<Rc<str>, Option<Attribute>>,
 }
 
 impl AttributeResolver {
@@ -21,34 +21,33 @@ impl AttributeResolver {
     pub fn resolve<'a, S: ReadStorage<'a>>(
         &mut self,
         storage: &'a S,
-        ident: &str,
+        ident: Rc<str>,
         tx: u64,
-    ) -> Result<Option<Attribute>, S::Error> {
-        if let Some(attribute) = self.cache.get(ident) {
-            // TODO: add tx
-            return Ok(Some(attribute.clone()));
-        }
-        if let Some(attribute) = resolve_ident(storage, ident, tx)? {
-            self.update_cache(attribute.clone());
-            return Ok(Some(attribute));
-        }
-        Ok(None)
-    }
+    ) -> Result<Option<&Attribute>, S::Error> {
+        let mut error = None;
+        let result = self.cache.entry(Rc::clone(&ident)).or_insert_with(|| {
+            match resolve_ident(storage, ident, tx) {
+                Ok(attribute) => attribute,
+                Err(err) => {
+                    error = Some(err);
+                    None
+                }
+            }
+        });
 
-    fn update_cache(&mut self, attribute: Attribute) {
-        self.cache.insert(Rc::clone(&attribute.ident), attribute);
+        error.map_or_else(|| Ok(result.as_ref()), Err)
     }
 }
 
 fn resolve_ident<'a, S: ReadStorage<'a>>(
     storage: &'a S,
-    ident: &str,
+    ident: Rc<str>,
     tx: u64,
 ) -> Result<Option<Attribute>, S::Error> {
     // [?attribute :db/attr/ident ?ident]
     let restricts = Restricts::new(tx)
         .with_attribute(DB_ATTR_IDENT_ID)
-        .with_value(ident.into());
+        .with_value(Value::Str(ident));
     if let Some(datom) = storage.find(restricts).next() {
         return resolve_id(storage, datom?.entity, tx);
     }
@@ -71,19 +70,13 @@ fn resolve_id<'a, S: ReadStorage<'a>>(
 
 // ------------------------------------------------------------------------------------------------
 
-#[derive(Clone, Debug, PartialEq)]
-pub struct Attribute {
-    pub id: u64,
-    pub ident: Rc<str>,
-    pub value_type: ValueType,
-    pub cardinality: Cardinality,
-}
-
 struct Builder {
     id: u64,
     ident: Option<Rc<str>>,
     value_type: Option<ValueType>,
     cardinality: Option<Cardinality>,
+    doc: Option<Rc<str>>,
+    unique: bool,
 }
 
 impl Builder {
@@ -93,6 +86,8 @@ impl Builder {
             ident: None,
             value_type: None,
             cardinality: None,
+            doc: None,
+            unique: false,
         }
     }
 
@@ -113,6 +108,16 @@ impl Builder {
                 value: Value::U64(cardinality),
                 ..
             } => self.cardinality = Cardinality::from(cardinality),
+            Datom {
+                attribute: DB_ATTR_DOC_ID,
+                value: Value::Str(doc),
+                ..
+            } => self.doc = Some(doc),
+            Datom {
+                attribute: DB_ATTR_UNIQUE_ID,
+                value: Value::U64(1),
+                ..
+            } => self.unique = true,
             _ => (),
         }
     }
@@ -123,9 +128,13 @@ impl Builder {
         let cardinality = self.cardinality?;
         Some(Attribute {
             id: self.id,
-            ident,
-            value_type,
-            cardinality,
+            definition: AttributeDefinition {
+                ident,
+                value_type,
+                cardinality,
+                doc: self.doc,
+                unique: self.unique,
+            },
         })
     }
 }
@@ -137,7 +146,7 @@ mod tests {
     use std::cell::Cell;
 
     use crate::clock::Instant;
-    use crate::schema::attribute::{Attribute, ValueType};
+    use crate::schema::attribute::{AttributeDefinition, ValueType};
     use crate::schema::default::default_datoms;
     use crate::storage::attribute_resolver::*;
     use crate::storage::memory::InMemoryStorage;
@@ -190,7 +199,7 @@ mod tests {
     fn returns_none_when_attribute_does_not_exist() {
         let storage = create_storage();
         let mut resolver = AttributeResolver::new();
-        let result = resolver.resolve(&storage, "foo/bar", u64::MAX);
+        let result = resolver.resolve(&storage, Rc::from("foo/bar"), u64::MAX);
         assert!(result.is_ok());
         assert!(result.unwrap().is_none());
     }
@@ -200,19 +209,19 @@ mod tests {
         let mut storage = create_storage();
         let mut transactor = Transactor::new();
 
-        let attribute = Attribute::new("foo/bar", ValueType::U64);
+        let attribute = AttributeDefinition::new("foo/bar", ValueType::U64);
         let transaction = Transaction::new().with(attribute);
         let tx_result = transactor.transact(&storage, Instant(0), transaction);
         assert!(tx_result.is_ok());
         assert!(storage.save(&tx_result.unwrap().tx_data).is_ok());
 
         let mut resolver = AttributeResolver::new();
-        let result = resolver.resolve(&storage, "foo/bar", u64::MAX);
+        let result = resolver.resolve(&storage, Rc::from("foo/bar"), u64::MAX);
         assert!(result.is_ok());
 
         let result = result.unwrap().unwrap();
-        assert_eq!(Rc::from("foo/bar"), result.ident);
-        assert_eq!(ValueType::U64, result.value_type);
+        assert_eq!(Rc::from("foo/bar"), result.definition.ident);
+        assert_eq!(ValueType::U64, result.definition.value_type);
     }
 
     #[test]
@@ -223,25 +232,25 @@ mod tests {
         // No calls to `CountingStorage::find` yet.
         assert_eq!(0, storage.current_count());
 
-        let attribute = Attribute::new("foo/bar", ValueType::U64);
+        let attribute = AttributeDefinition::new("foo/bar", ValueType::U64);
         let transaction = Transaction::new().with(attribute);
         let tx_result = transactor.transact(&storage, Instant(0), transaction);
         assert!(tx_result.is_ok());
         assert!(storage.save(&tx_result.unwrap().tx_data).is_ok());
 
         let mut resolver = AttributeResolver::new();
-        let result1 = resolver.resolve(&storage, "foo/bar", u64::MAX);
+        let result1 = resolver.resolve(&storage, Rc::from("foo/bar"), u64::MAX);
         assert!(result1.is_ok());
-        let result1 = result1.unwrap();
+        let result1 = result1.unwrap().cloned();
         assert!(result1.is_some());
 
         // Storage was used to resolve `foo/bar`.
         let queries = storage.current_count();
         assert!(queries > 0);
 
-        let result2 = resolver.resolve(&storage, "foo/bar", u64::MAX);
+        let result2 = resolver.resolve(&storage, Rc::from("foo/bar"), u64::MAX);
         assert!(result2.is_ok());
-        let result2 = result2.unwrap();
+        let result2 = result2.unwrap().cloned();
         assert_eq!(result1, result2);
 
         // No additional calls to storage were needed to resolve cached attribute.

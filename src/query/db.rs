@@ -44,7 +44,7 @@ impl Db {
             if let Pattern::Constant(AttributeIdentifier::Ident(ident)) = &clause.attribute {
                 let attribute = self
                     .attribute_resolver
-                    .resolve(storage, ident, self.tx)?
+                    .resolve(storage, Rc::clone(ident), self.tx)?
                     .ok_or_else(|| QueryError::IdentNotFound(Rc::clone(ident)))?;
 
                 clause.attribute = Pattern::id(attribute.id);
@@ -100,10 +100,7 @@ fn restricts(pattern: &DataPattern, assignment: &HashMap<Rc<str>, Value>, tx: u6
     };
     restricts.value = match pattern.value {
         Pattern::Constant(ref value) => Some(value.clone()),
-        Pattern::Variable(ref variable) => match assignment.get(variable) {
-            Some(value) => Some(value.clone()),
-            _ => None,
-        },
+        Pattern::Variable(ref variable) => assignment.get(variable).cloned(),
         _ => None,
     };
     restricts.tx = match pattern.tx {

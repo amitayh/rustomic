@@ -101,23 +101,26 @@ impl Transactor {
         } in &operation.attributes
         {
             // TODO restrict to previous tx?
-            let attribute = match self.attribute_resolver.resolve(storage, ident, tx)? {
+            let attribute = match self
+                .attribute_resolver
+                .resolve(storage, Rc::clone(ident), tx)?
+            {
                 Some(attr) => attr,
                 None => return Err(TransactionError::IdentNotFound(Rc::clone(ident))),
             };
 
-            if attribute.cardinality == Cardinality::One {
+            if attribute.definition.cardinality == Cardinality::One {
                 retract_attributes.push(attribute.id);
             }
 
             let mut v = value.clone();
             if let Some(&id) = value.as_str().and_then(|str| temp_ids.get(str)) {
-                if attribute.value_type == ValueType::Ref {
+                if attribute.definition.value_type == ValueType::Ref {
                     v = Value::Ref(id);
                 }
             };
 
-            if !v.matches_type(attribute.value_type) {
+            if !v.matches_type(attribute.definition.value_type) {
                 return Err(TransactionError::InvalidAttributeType);
             }
 

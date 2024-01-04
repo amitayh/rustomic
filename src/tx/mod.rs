@@ -14,9 +14,14 @@ pub enum Entity {
     TempId(Rc<str>), // Use a temp ID within transaction.
 }
 
+pub enum Foo {
+    Value(Value),
+    TempId(Rc<str>),
+}
+
 pub struct AttributeValue {
     pub attribute: Rc<str>,
-    pub value: Value,
+    pub value: Foo,
 }
 
 pub struct Operation {
@@ -47,7 +52,14 @@ impl Operation {
     pub fn set<V: Into<Value>>(mut self, attribute: &str, value: V) -> Self {
         self.attributes.push(AttributeValue {
             attribute: Rc::from(attribute),
-            value: value.into(),
+            value: Foo::Value(value.into()),
+        });
+        self
+    }
+    pub fn set_temp_id(mut self, attribute: &str, temp_id: &str) -> Self {
+        self.attributes.push(AttributeValue {
+            attribute: Rc::from(attribute),
+            value: Foo::TempId(Rc::from(temp_id)),
         });
         self
     }

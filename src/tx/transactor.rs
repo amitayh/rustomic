@@ -67,7 +67,7 @@ impl Transactor {
     ) -> Result<Vec<Datom>, TransactionError<S::Error>> {
         let mut datoms = Vec::new();
         let tx = self.create_tx_datom(now);
-        for operation in &transaction.operations {
+        for operation in transaction.operations {
             let mut op_datoms = self.operation_datoms(storage, tx.entity, operation, temp_ids)?;
             datoms.append(&mut op_datoms);
         }
@@ -89,14 +89,14 @@ impl Transactor {
         &mut self,
         storage: &'a S,
         tx: u64,
-        operation: &Operation,
+        operation: Operation,
         temp_ids: &TempIds,
     ) -> Result<Vec<Datom>, TransactionError<S::Error>> {
         let operation_attributes = operation.attributes.len();
         let mut datoms = Vec::with_capacity(operation_attributes);
         let entity = self.resolve_entity(&operation.entity, temp_ids)?;
         let mut retract_attributes = Vec::with_capacity(operation_attributes);
-        for attribute_value in &operation.attributes {
+        for attribute_value in operation.attributes {
             // TODO restrict to previous tx?
             let ident = Rc::clone(&attribute_value.attribute);
             let attribute = self.attribute_resolver.resolve(storage, ident, tx)?;
@@ -105,22 +105,19 @@ impl Transactor {
                 retract_attributes.push(attribute.id);
             }
 
-            let mut v = attribute_value.value.clone();
-            if let Some(&id) = attribute_value
-                .value
-                .as_str()
-                .and_then(|str| temp_ids.get(str))
-            {
-                if attribute.definition.value_type == ValueType::Ref {
-                    v = Value::Ref(id);
-                }
+            let value = match attribute_value.value {
+                Foo::Value(value) => value,
+                Foo::TempId(ref temp_id) => temp_ids
+                    .get(temp_id)
+                    .map(|id| Value::Ref(*id))
+                    .ok_or(TransactionError::TempIdNotFound(Rc::clone(temp_id)))?,
             };
 
-            if !v.matches_type(attribute.definition.value_type) {
+            if !value.matches_type(attribute.definition.value_type) {
                 return Err(TransactionError::InvalidAttributeType);
             }
 
-            datoms.push(Datom::add(entity, attribute.id, v, tx));
+            datoms.push(Datom::add(entity, attribute.id, value, tx));
         }
 
         for attribute_id in retract_attributes {

@@ -110,6 +110,7 @@ impl Cardinality {
 #[derive(Clone, Debug, PartialEq)]
 pub struct Attribute {
     pub id: u64,
+    pub version: u64,
     pub definition: AttributeDefinition,
 }
 

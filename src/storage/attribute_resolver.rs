@@ -85,6 +85,7 @@ fn resolve_id<'a, S: ReadStorage<'a>>(
 
 struct Builder {
     id: u64,
+    version: u64,
     ident: Option<Rc<str>>,
     value_type: Option<ValueType>,
     cardinality: Option<Cardinality>,
@@ -96,6 +97,7 @@ impl Builder {
     fn new(id: u64) -> Self {
         Self {
             id,
+            version: 0,
             ident: None,
             value_type: None,
             cardinality: None,
@@ -105,6 +107,7 @@ impl Builder {
     }
 
     fn consume(&mut self, datom: Datom) {
+        self.version = self.version.max(datom.tx);
         match datom {
             Datom {
                 attribute: DB_ATTR_IDENT_ID,
@@ -141,6 +144,7 @@ impl Builder {
         let cardinality = self.cardinality?;
         Some(Attribute {
             id: self.id,
+            version: self.version,
             definition: AttributeDefinition {
                 ident,
                 value_type,

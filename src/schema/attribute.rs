@@ -51,27 +51,27 @@ impl TryFrom<u64> for ValueType {
     }
 }
 
-impl Value {
+impl From<&Value> for ValueType {
     /// ```
     /// use std::rc::Rc;
     /// use rustomic::datom::Value;
     /// use rustomic::schema::attribute::ValueType;
     /// use rust_decimal::prelude::*;
     ///
-    /// assert!(Value::I64(42).matches_type(ValueType::I64));
-    /// assert!(Value::U64(42).matches_type(ValueType::U64));
-    /// assert!(Value::Decimal(42.into()).matches_type(ValueType::Decimal));
-    /// assert!(Value::str("foo").matches_type(ValueType::Str));
-    /// assert!(Value::Ref(42).matches_type(ValueType::Ref));
-    /// assert!(!Value::U64(42).matches_type(ValueType::Str));
+    /// assert_eq!(Value::I64(42).value_type(), ValueType::I64);
+    /// assert_eq!(Value::U64(42).value_type(), ValueType::U64);
+    /// assert_eq!(Value::Decimal(42.into()).value_type(), ValueType::Decimal);
+    /// assert_eq!(Value::str("foo").value_type(), ValueType::Str);
+    /// assert_eq!(Value::Ref(42).value_type(), ValueType::Ref);
+    /// assert_ne!(Value::U64(42).value_type(), ValueType::Str);
     /// ```
-    pub fn matches_type(&self, value_type: ValueType) -> bool {
-        match self {
-            Self::I64(_) => value_type == ValueType::I64,
-            Self::U64(_) => value_type == ValueType::U64,
-            Self::Decimal(_) => value_type == ValueType::Decimal,
-            Self::Str(_) => value_type == ValueType::Str,
-            Self::Ref(_) => value_type == ValueType::Ref,
+    fn from(value: &Value) -> Self {
+        match value {
+            Value::I64(_) => Self::I64,
+            Value::U64(_) => Self::U64,
+            Value::Decimal(_) => Self::Decimal,
+            Value::Str(_) => Self::Str,
+            Value::Ref(_) => Self::Ref,
         }
     }
 }

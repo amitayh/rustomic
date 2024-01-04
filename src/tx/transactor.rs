@@ -68,8 +68,7 @@ impl Transactor {
         let mut datoms = Vec::new();
         let tx = self.create_tx_datom(now);
         for operation in transaction.operations {
-            let mut op_datoms = self.operation_datoms(storage, tx.entity, operation, temp_ids)?;
-            datoms.append(&mut op_datoms);
+            self.operation_datoms(storage, tx.entity, operation, temp_ids, &mut datoms)?;
         }
         datoms.push(tx);
         Ok(datoms)
@@ -91,29 +90,32 @@ impl Transactor {
         tx: u64,
         operation: Operation,
         temp_ids: &TempIds,
-    ) -> Result<Vec<Datom>, TransactionError<S::Error>> {
+        datoms: &mut Vec<Datom>,
+    ) -> Result<(), TransactionError<S::Error>> {
         let operation_attributes = operation.attributes.len();
-        let mut datoms = Vec::with_capacity(operation_attributes);
         let entity = self.resolve_entity(&operation.entity, temp_ids)?;
         let mut retract_attributes = Vec::with_capacity(operation_attributes);
         for attribute_value in operation.attributes {
-            // TODO restrict to previous tx?
-            let ident = Rc::clone(&attribute_value.attribute);
-            let attribute = self.attribute_resolver.resolve(storage, ident, tx)?;
+            let attribute =
+                self.attribute_resolver
+                    .resolve(storage, attribute_value.attribute, tx)?;
 
             if attribute.definition.cardinality == Cardinality::One {
+                // Values of attributes with cardinality `Cardinality::One` should be retracted
+                // before asserting new values.
                 retract_attributes.push(attribute.id);
             }
 
             let value = match attribute_value.value {
-                Foo::Value(value) => value,
-                Foo::TempId(ref temp_id) => temp_ids
-                    .get(temp_id)
-                    .map(|id| Value::Ref(*id))
-                    .ok_or(TransactionError::TempIdNotFound(Rc::clone(temp_id)))?,
-            };
+                AttributeValue::Value(value) => Ok(value),
+                AttributeValue::ReferenceTempId(temp_id) => match temp_ids.get(&temp_id) {
+                    Some(&entity) => Ok(Value::Ref(entity)),
+                    None => Err(TransactionError::TempIdNotFound(temp_id)),
+                },
+            }?;
 
-            if !value.matches_type(attribute.definition.value_type) {
+            if attribute.definition.value_type != (&value).into() {
+                // Value type is incompatible with attribute, reject transaction.
                 return Err(TransactionError::InvalidAttributeType);
             }
 
@@ -121,11 +123,10 @@ impl Transactor {
         }
 
         for attribute_id in retract_attributes {
-            let mut retracted = self.retract_old_values(storage, entity, attribute_id, tx)?;
-            datoms.append(&mut retracted);
+            self.retract_old_values(storage, entity, attribute_id, tx, datoms)?;
         }
 
-        Ok(datoms)
+        Ok(())
     }
 
     fn retract_old_values<'a, S: ReadStorage<'a>>(
@@ -134,8 +135,8 @@ impl Transactor {
         entity: u64,
         attribute: u64,
         tx: u64,
-    ) -> Result<Vec<Datom>, TransactionError<S::Error>> {
-        let mut datoms = Vec::new();
+        datoms: &mut Vec<Datom>,
+    ) -> Result<(), TransactionError<S::Error>> {
         // Retract previous values
         let restricts = Restricts::new(tx)
             .with_entity(entity)
@@ -143,7 +144,7 @@ impl Transactor {
         for datom in storage.find(restricts) {
             datoms.push(Datom::retract(entity, attribute, datom?.value, tx));
         }
-        Ok(datoms)
+        Ok(())
     }
 
     fn resolve_entity<Error>(

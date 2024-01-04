@@ -14,19 +14,19 @@ pub enum Entity {
     TempId(Rc<str>), // Use a temp ID within transaction.
 }
 
-pub enum Foo {
+pub enum AttributeValue {
     Value(Value),
-    TempId(Rc<str>),
+    ReferenceTempId(Rc<str>),
 }
 
-pub struct AttributeValue {
+pub struct EntityAttributeValue {
     pub attribute: Rc<str>,
-    pub value: Foo,
+    pub value: AttributeValue,
 }
 
 pub struct Operation {
     pub entity: Entity,
-    pub attributes: Vec<AttributeValue>,
+    pub attributes: Vec<EntityAttributeValue>,
 }
 
 impl Operation {
@@ -49,18 +49,20 @@ impl Operation {
         Self::new(Entity::TempId(Rc::from(temp_id)))
     }
 
-    pub fn set<V: Into<Value>>(mut self, attribute: &str, value: V) -> Self {
-        self.attributes.push(AttributeValue {
-            attribute: Rc::from(attribute),
-            value: Foo::Value(value.into()),
-        });
-        self
+    pub fn set<V: Into<Value>>(self, attribute: &str, value: V) -> Self {
+        self.foo(Rc::from(attribute), AttributeValue::Value(value.into()))
     }
-    pub fn set_temp_id(mut self, attribute: &str, temp_id: &str) -> Self {
-        self.attributes.push(AttributeValue {
-            attribute: Rc::from(attribute),
-            value: Foo::TempId(Rc::from(temp_id)),
-        });
+
+    pub fn set_reference(self, attribute: &str, temp_id: &str) -> Self {
+        self.foo(
+            Rc::from(attribute),
+            AttributeValue::ReferenceTempId(Rc::from(temp_id)),
+        )
+    }
+
+    fn foo(mut self, attribute: Rc<str>, value: AttributeValue) -> Self {
+        self.attributes
+            .push(EntityAttributeValue { attribute, value });
         self
     }
 }

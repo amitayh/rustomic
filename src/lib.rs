@@ -203,8 +203,8 @@ mod tests {
                     Operation::on_temp_id("abbey-road")
                         .set("release/name", "Abbey Road")
                         // "release/artists" has type `Ref`, should resolve temp IDs
-                        .set_temp_id("release/artists", "john")
-                        .set_temp_id("release/artists", "paul"),
+                        .set_reference("release/artists", "john")
+                        .set_reference("release/artists", "paul"),
                 ),
         );
 

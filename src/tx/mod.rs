@@ -5,6 +5,7 @@ use std::rc::Rc;
 
 use crate::datom::Datom;
 use crate::datom::Value;
+use crate::storage::attribute_resolver::ResolveError;
 use thiserror::Error;
 
 pub enum Entity {
@@ -85,6 +86,6 @@ pub enum TransactionError<S> {
     DuplicateTempId(Rc<str>),
     #[error("temp ID `{0}` not found")]
     TempIdNotFound(Rc<str>),
-    #[error("ident `{0}` not found")]
-    IdentNotFound(Rc<str>),
+    #[error("resolve error")]
+    ResolveError(#[from] ResolveError<S>),
 }

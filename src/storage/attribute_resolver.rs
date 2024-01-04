@@ -1,5 +1,6 @@
 use std::collections::HashMap;
 use std::rc::Rc;
+use thiserror::Error;
 
 use crate::datom::*;
 use crate::schema::attribute::*;
@@ -23,20 +24,32 @@ impl AttributeResolver {
         storage: &'a S,
         ident: Rc<str>,
         tx: u64,
-    ) -> Result<Option<&Attribute>, S::Error> {
-        let mut error = None;
+    ) -> Result<&Attribute, ResolveError<S::Error>> {
+        let mut storage_error = None;
         let result = self.cache.entry(Rc::clone(&ident)).or_insert_with(|| {
-            match resolve_ident(storage, ident, tx) {
+            match resolve_ident(storage, Rc::clone(&ident), tx) {
                 Ok(attribute) => attribute,
-                Err(err) => {
-                    error = Some(err);
+                Err(error) => {
+                    storage_error = Some(error);
                     None
                 }
             }
         });
 
-        error.map_or_else(|| Ok(result.as_ref()), Err)
+        match (storage_error, result) {
+            (_, Some(attribute)) => Ok(attribute),
+            (Some(error), _) => Err(ResolveError::StorageError(error)),
+            _ => Err(ResolveError::IdentNotFound(ident)),
+        }
     }
+}
+
+#[derive(Debug, Error, PartialEq)]
+pub enum ResolveError<S> {
+    #[error("storage error")]
+    StorageError(#[from] S),
+    #[error("ident `{0}` not found")]
+    IdentNotFound(Rc<str>),
 }
 
 fn resolve_ident<'a, S: ReadStorage<'a>>(
@@ -146,7 +159,6 @@ mod tests {
     use std::cell::Cell;
 
     use crate::clock::Instant;
-    use crate::schema::attribute::{AttributeDefinition, ValueType};
     use crate::schema::default::default_datoms;
     use crate::storage::attribute_resolver::*;
     use crate::storage::memory::InMemoryStorage;
@@ -199,9 +211,9 @@ mod tests {
     fn returns_none_when_attribute_does_not_exist() {
         let storage = create_storage();
         let mut resolver = AttributeResolver::new();
-        let result = resolver.resolve(&storage, Rc::from("foo/bar"), u64::MAX);
-        assert!(result.is_ok());
-        assert!(result.unwrap().is_none());
+        let ident = Rc::from("foo/bar");
+        let result = resolver.resolve(&storage, Rc::clone(&ident), u64::MAX);
+        assert!(result.is_err_and(|err| err == ResolveError::IdentNotFound(ident)));
     }
 
     #[test]
@@ -219,7 +231,7 @@ mod tests {
         let result = resolver.resolve(&storage, Rc::from("foo/bar"), u64::MAX);
         assert!(result.is_ok());
 
-        let result = result.unwrap().unwrap();
+        let result = result.unwrap();
         assert_eq!(Rc::from("foo/bar"), result.definition.ident);
         assert_eq!(ValueType::U64, result.definition.value_type);
     }
@@ -239,18 +251,15 @@ mod tests {
         assert!(storage.save(&tx_result.unwrap().tx_data).is_ok());
 
         let mut resolver = AttributeResolver::new();
-        let result1 = resolver.resolve(&storage, Rc::from("foo/bar"), u64::MAX);
+        let result1 = resolver.resolve(&storage, Rc::from("foo/bar"), u64::MAX).cloned();
         assert!(result1.is_ok());
-        let result1 = result1.unwrap().cloned();
-        assert!(result1.is_some());
 
         // Storage was used to resolve `foo/bar`.
         let queries = storage.current_count();
         assert!(queries > 0);
 
-        let result2 = resolver.resolve(&storage, Rc::from("foo/bar"), u64::MAX);
+        let result2 = resolver.resolve(&storage, Rc::from("foo/bar"), u64::MAX).cloned();
         assert!(result2.is_ok());
-        let result2 = result2.unwrap().cloned();
         assert_eq!(result1, result2);
 
         // No additional calls to storage were needed to resolve cached attribute.

@@ -92,29 +92,25 @@ impl Transactor {
         operation: &Operation,
         temp_ids: &TempIds,
     ) -> Result<Vec<Datom>, TransactionError<S::Error>> {
-        let mut datoms = Vec::new();
+        let operation_attributes = operation.attributes.len();
+        let mut datoms = Vec::with_capacity(operation_attributes);
         let entity = self.resolve_entity(&operation.entity, temp_ids)?;
-        let mut retract_attributes = Vec::new();
-        for AttributeValue {
-            attribute: ident,
-            value,
-        } in &operation.attributes
-        {
+        let mut retract_attributes = Vec::with_capacity(operation_attributes);
+        for attribute_value in &operation.attributes {
             // TODO restrict to previous tx?
-            let attribute = match self
-                .attribute_resolver
-                .resolve(storage, Rc::clone(ident), tx)?
-            {
-                Some(attr) => attr,
-                None => return Err(TransactionError::IdentNotFound(Rc::clone(ident))),
-            };
+            let ident = Rc::clone(&attribute_value.attribute);
+            let attribute = self.attribute_resolver.resolve(storage, ident, tx)?;
 
             if attribute.definition.cardinality == Cardinality::One {
                 retract_attributes.push(attribute.id);
             }
 
-            let mut v = value.clone();
-            if let Some(&id) = value.as_str().and_then(|str| temp_ids.get(str)) {
+            let mut v = attribute_value.value.clone();
+            if let Some(&id) = attribute_value
+                .value
+                .as_str()
+                .and_then(|str| temp_ids.get(str))
+            {
                 if attribute.definition.value_type == ValueType::Ref {
                     v = Value::Ref(id);
                 }
@@ -144,7 +140,7 @@ impl Transactor {
     ) -> Result<Vec<Datom>, TransactionError<S::Error>> {
         let mut datoms = Vec::new();
         // Retract previous values
-        let restricts = Restricts::new(u64::MAX)
+        let restricts = Restricts::new(tx)
             .with_entity(entity)
             .with_attribute(attribute);
         for datom in storage.find(restricts) {

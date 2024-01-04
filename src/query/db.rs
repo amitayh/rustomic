@@ -42,10 +42,9 @@ impl Db {
     ) -> Result<(), QueryError<S::Error>> {
         for clause in &mut query.wher {
             if let Pattern::Constant(AttributeIdentifier::Ident(ident)) = &clause.attribute {
-                let attribute = self
-                    .attribute_resolver
-                    .resolve(storage, Rc::clone(ident), self.tx)?
-                    .ok_or_else(|| QueryError::IdentNotFound(Rc::clone(ident)))?;
+                let attribute =
+                    self.attribute_resolver
+                        .resolve(storage, Rc::clone(ident), self.tx)?;
 
                 clause.attribute = Pattern::id(attribute.id);
             }

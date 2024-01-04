@@ -410,7 +410,7 @@ impl<'a> Reader<'a> {
     }
 }
 
-#[derive(Debug, Error)]
+#[derive(Debug, Error, PartialEq)]
 pub enum ReadError {
     #[error("end of input")]
     EndOfInput,

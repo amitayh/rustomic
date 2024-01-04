@@ -25,22 +25,11 @@ impl AttributeResolver {
         ident: Rc<str>,
         tx: u64,
     ) -> Result<&Attribute, ResolveError<S::Error>> {
-        let mut storage_error = None;
-        let result = self.cache.entry(Rc::clone(&ident)).or_insert_with(|| {
-            match resolve_ident(storage, Rc::clone(&ident), tx) {
-                Ok(attribute) => attribute,
-                Err(error) => {
-                    storage_error = Some(error);
-                    None
-                }
-            }
-        });
-
-        match (storage_error, result) {
-            (_, Some(attribute)) => Ok(attribute),
-            (Some(error), _) => Err(ResolveError::StorageError(error)),
-            _ => Err(ResolveError::IdentNotFound(ident)),
+        let result = self.cache.entry(Rc::clone(&ident)).or_default();
+        if result.is_none() {
+            *result = resolve_ident(storage, Rc::clone(&ident), tx)?;
         }
+        result.as_ref().ok_or(ResolveError::IdentNotFound(ident))
     }
 }
 
@@ -255,14 +244,18 @@ mod tests {
         assert!(storage.save(&tx_result.unwrap().tx_data).is_ok());
 
         let mut resolver = AttributeResolver::new();
-        let result1 = resolver.resolve(&storage, Rc::from("foo/bar"), u64::MAX).cloned();
+        let result1 = resolver
+            .resolve(&storage, Rc::from("foo/bar"), u64::MAX)
+            .cloned();
         assert!(result1.is_ok());
 
         // Storage was used to resolve `foo/bar`.
         let queries = storage.current_count();
         assert!(queries > 0);
 
-        let result2 = resolver.resolve(&storage, Rc::from("foo/bar"), u64::MAX).cloned();
+        let result2 = resolver
+            .resolve(&storage, Rc::from("foo/bar"), u64::MAX)
+            .cloned();
         assert!(result2.is_ok());
         assert_eq!(result1, result2);
 

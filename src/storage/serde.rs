@@ -131,7 +131,10 @@ pub mod index {
     }
 
     pub fn seek_key(value: &Value, datom_bytes: &[u8], tx: u64) -> Bytes {
+        // For bytes of a given datom [e a v _ _], seek to the next immediate datom in the index
+        // which differs in the [e a v] combination.
         let mut key = next_prefix(&datom_bytes[..key_size(value)]);
+        // Also include the tx ID to quickly skip datoms that don't belong to DB snapshot.
         (!tx).write(&mut key);
         key
     }

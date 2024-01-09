@@ -71,9 +71,11 @@ mod tests {
             self.query_at_snapshot(self.last_tx, query)
         }
 
-        fn query_at_snapshot(&self, snapshot_tx: u64, query: Query) -> QueryResult {
+        fn query_at_snapshot(&self, snapshot_tx: u64, mut query: Query) -> QueryResult {
             let mut db = Db::new(snapshot_tx);
-            db.query(&self.storage, query).expect("Unable to query")
+            //db.query(&self.storage, query).expect("Unable to query")
+            let results = db.query2(&self.storage, &mut query).expect("Unable to query");
+            QueryResult { results: results.collect() }
         }
     }
 
@@ -127,8 +129,8 @@ mod tests {
         // Insert data
         sut.transact(
             Transaction::new()
-                .with(Operation::on_new().set("person/name", "Alice"))
-                .with(Operation::on_new().set("person/name", "Bob")),
+                .with(EntityOperation::on_new().set_value("person/name", "Alice"))
+                .with(EntityOperation::on_new().set_value("person/name", "Bob")),
         );
 
         let query_result = sut.query(
@@ -149,7 +151,8 @@ mod tests {
 
         // Insert data
         let result = sut.transact(
-            Transaction::new().with(Operation::on_temp_id("joe").set("person/name", "Joe")),
+            Transaction::new()
+                .with(EntityOperation::on_temp_id("joe").set_value("person/name", "Joe")),
         );
 
         let query_result = sut.query(
@@ -171,7 +174,7 @@ mod tests {
         let mut sut = SUT::new();
 
         // This transaction should fail: "person/name" is of type `ValueType::Str`.
-        let tx = Transaction::new().with(Operation::on_new().set("person/name", 42));
+        let tx = Transaction::new().with(EntityOperation::on_new().set_value("person/name", 42));
         let tx_result = sut.try_transact(tx);
 
         assert!(tx_result.is_none());
@@ -183,8 +186,8 @@ mod tests {
 
         // This transaction should fail: temp ID "duplicate" should only be used once.
         let tx = Transaction::new()
-            .with(Operation::on_temp_id("duplicate").set("person/name", "Alice"))
-            .with(Operation::on_temp_id("duplicate").set("person/name", "Bob"));
+            .with(EntityOperation::on_temp_id("duplicate").set_value("person/name", "Alice"))
+            .with(EntityOperation::on_temp_id("duplicate").set_value("person/name", "Bob"));
         let tx_result = sut.try_transact(tx);
 
         assert!(tx_result.is_none());
@@ -197,11 +200,13 @@ mod tests {
         // Insert data
         sut.transact(
             Transaction::new()
-                .with(Operation::on_temp_id("john").set("artist/name", "John Lenon"))
-                .with(Operation::on_temp_id("paul").set("artist/name", "Paul McCartney"))
+                .with(EntityOperation::on_temp_id("john").set_value("artist/name", "John Lenon"))
                 .with(
-                    Operation::on_temp_id("abbey-road")
-                        .set("release/name", "Abbey Road")
+                    EntityOperation::on_temp_id("paul").set_value("artist/name", "Paul McCartney"),
+                )
+                .with(
+                    EntityOperation::on_temp_id("abbey-road")
+                        .set_value("release/name", "Abbey Road")
                         // "release/artists" has type `Ref`, should resolve temp IDs
                         .set_reference("release/artists", "john")
                         .set_reference("release/artists", "paul"),
@@ -230,8 +235,6 @@ mod tests {
                 ),
         );
 
-        dbg!(&query_result);
-
         assert_eq!(
             Some("Abbey Road"),
             query_result.results[0]["?release-name"].as_str()
@@ -258,16 +261,17 @@ mod tests {
         // Insert initial data
         let tx_result = sut.transact(
             Transaction::new().with(
-                Operation::on_temp_id("joe")
-                    .set("person/name", "Joe")
-                    .set("person/likes", "Pizza"),
+                EntityOperation::on_temp_id("joe")
+                    .set_value("person/name", "Joe")
+                    .set_value("person/likes", "Pizza"),
             ),
         );
         let joe_id = tx_result.temp_ids["joe"];
 
         // Update what Joe likes
         sut.transact(
-            Transaction::new().with(Operation::on_id(joe_id).set("person/likes", "Ice cream")),
+            Transaction::new()
+                .with(EntityOperation::on_id(joe_id).set_value("person/likes", "Ice cream")),
         );
 
         let query_result = sut.query(
@@ -296,16 +300,17 @@ mod tests {
         // Insert initial data
         let tx_result = sut.transact(
             Transaction::new().with(
-                Operation::on_temp_id("joe")
-                    .set("person/name", "Joe")
-                    .set("person/likes", "Pizza"),
+                EntityOperation::on_temp_id("joe")
+                    .set_value("person/name", "Joe")
+                    .set_value("person/likes", "Pizza"),
             ),
         );
         let joe_id = tx_result.temp_ids["joe"];
 
         // Update what Joe likes
         sut.transact(
-            Transaction::new().with(Operation::on_id(joe_id).set("person/likes", "Ice cream")),
+            Transaction::new()
+                .with(EntityOperation::on_id(joe_id).set_value("person/likes", "Ice cream")),
         );
 
         let query_result = sut.query(
@@ -335,9 +340,9 @@ mod tests {
         // Insert initial data
         let first_tx_result = sut.transact(
             Transaction::new().with(
-                Operation::on_temp_id("joe")
-                    .set("person/name", "Joe")
-                    .set("person/likes", "Pizza"),
+                EntityOperation::on_temp_id("joe")
+                    .set_value("person/name", "Joe")
+                    .set_value("person/likes", "Pizza"),
             ),
         );
         let joe_id = first_tx_result.temp_ids["joe"];
@@ -345,9 +350,9 @@ mod tests {
         // Update what Joe likes
         sut.transact(
             Transaction::new().with(
-                Operation::on_id(joe_id)
-                    .set("person/name", "Joe")
-                    .set("person/likes", "Ice cream"),
+                EntityOperation::on_id(joe_id)
+                    .set_value("person/name", "Joe")
+                    .set_value("person/likes", "Ice cream"),
             ),
         );
 
@@ -376,8 +381,9 @@ mod tests {
         let mut sut = SUT::new();
 
         // Insert initial data
-        let tx_result =
-            sut.transact(Transaction::new().with(Operation::on_new().set("person/name", "Joe")));
+        let tx_result = sut.transact(
+            Transaction::new().with(EntityOperation::on_new().set_value("person/name", "Joe")),
+        );
 
         let query_result = sut.query(
             Query::new()
@@ -396,13 +402,82 @@ mod tests {
                 ),
         );
 
-        dbg!(&query_result);
-
         assert_eq!(1, query_result.results.len());
         let result = &query_result.results[0];
         assert_eq!(Some(tx_result.tx_id), result["?tx"].as_ref());
         assert!(result["?tx_time"].as_u64().is_some_and(|time| time > 0));
     }
+
+    /*
+    #[test]
+    fn aggregation_single_entity() {
+        let mut sut = SUT::new();
+
+        // Insert data
+        sut.transact(
+            Transaction::new().with(EntityOperation::on_new().set_value("person/name", "John")),
+        );
+
+        let query_result = sut.query(
+            Query::new()
+                .find(Find::variable("?person"))
+                .find(Find::count())
+                .wher(
+                    DataPattern::new()
+                        .with_entity(Pattern::variable("?person"))
+                        .with_attribute(Pattern::ident("person/name")),
+                ),
+        );
+    }
+
+    #[test]
+    fn aggregation_multi_entity() {
+        let mut sut = SUT::new();
+
+        // Insert data
+        sut.transact(
+            Transaction::new()
+                .with(
+                    EntityOperation::on_new()
+                        .set_value("person/name", "John")
+                        .set_value("person/born", 1940),
+                )
+                .with(
+                    EntityOperation::on_new()
+                        .set_value("person/name", "Paul")
+                        .set_value("person/born", 1942),
+                )
+                .with(
+                    EntityOperation::on_new()
+                        .set_value("person/name", "George")
+                        .set_value("person/born", 1943),
+                )
+                .with(
+                    EntityOperation::on_new()
+                        .set_value("person/name", "Ringo")
+                        .set_value("person/born", 1940),
+                ),
+        );
+
+        let query_result = sut.query(
+            Query::new()
+                .find(Find::variable("?born"))
+                .find(Find::count())
+                .wher(
+                    DataPattern::new()
+                        .with_entity(Pattern::variable("?person"))
+                        .with_attribute(Pattern::ident("person/born"))
+                        .with_value(Pattern::variable("?born")),
+                )
+                .wher(
+                    DataPattern::new()
+                        .with_entity(Pattern::variable("?person"))
+                        .with_attribute(Pattern::ident("person/name"))
+                        .with_value(Pattern::variable("?name")),
+                )
+        );
+    }
+    */
 
     #[test]
     fn support_query_predicates() {
@@ -412,24 +487,24 @@ mod tests {
         sut.transact(
             Transaction::new()
                 .with(
-                    Operation::on_new()
-                        .set("person/name", "John")
-                        .set("person/born", 1940),
+                    EntityOperation::on_new()
+                        .set_value("person/name", "John")
+                        .set_value("person/born", 1940),
                 )
                 .with(
-                    Operation::on_new()
-                        .set("person/name", "Paul")
-                        .set("person/born", 1942),
+                    EntityOperation::on_new()
+                        .set_value("person/name", "Paul")
+                        .set_value("person/born", 1942),
                 )
                 .with(
-                    Operation::on_new()
-                        .set("person/name", "George")
-                        .set("person/born", 1943),
+                    EntityOperation::on_new()
+                        .set_value("person/name", "George")
+                        .set_value("person/born", 1943),
                 )
                 .with(
-                    Operation::on_new()
-                        .set("person/name", "Ringo")
-                        .set("person/born", 1940),
+                    EntityOperation::on_new()
+                        .set_value("person/name", "Ringo")
+                        .set_value("person/born", 1940),
                 ),
         );
 

@@ -5,7 +5,7 @@ pub mod serde;
 
 use crate::datom::*;
 
-#[derive(Default)]
+#[derive(Default, Debug)]
 pub struct Restricts {
     pub entity: Option<u64>,
     pub attribute: Option<u64>,

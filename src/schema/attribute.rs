@@ -150,17 +150,17 @@ impl AttributeDefinition {
     }
 }
 
-impl From<AttributeDefinition> for tx::Operation {
+impl From<AttributeDefinition> for tx::EntityOperation {
     fn from(attribute: AttributeDefinition) -> Self {
         let mut operation = Self::on_new()
-            .set(DB_ATTR_IDENT_IDENT, attribute.ident)
-            .set(DB_ATTR_CARDINALITY_IDENT, attribute.cardinality as u64)
-            .set(DB_ATTR_TYPE_IDENT, attribute.value_type as u64);
+            .set_value(DB_ATTR_IDENT_IDENT, attribute.ident)
+            .set_value(DB_ATTR_CARDINALITY_IDENT, attribute.cardinality as u64)
+            .set_value(DB_ATTR_TYPE_IDENT, attribute.value_type as u64);
         if let Some(doc) = attribute.doc {
-            operation = operation.set(DB_ATTR_DOC_IDENT, doc);
+            operation = operation.set_value(DB_ATTR_DOC_IDENT, doc);
         }
         if attribute.unique {
-            operation = operation.set(DB_ATTR_UNIQUE_IDENT, 1u64);
+            operation = operation.set_value(DB_ATTR_UNIQUE_IDENT, 1u64);
         }
         operation
     }

@@ -8,29 +8,29 @@ use crate::datom::Value;
 use crate::storage::attribute_resolver::ResolveError;
 use thiserror::Error;
 
-pub enum Entity {
+pub enum OperatedEntity {
     New,             // Create a new entity and assign ID automatically.
     Id(u64),         // Update existing entity by ID.
     TempId(Rc<str>), // Use a temp ID within transaction.
 }
 
 pub enum AttributeValue {
-    Value(Value),
-    ReferenceTempId(Rc<str>),
+    Value(Value),    // Set a concrete value to attribute.
+    TempId(Rc<str>), // Reference a temp ID within transaction.
 }
 
-pub struct EntityAttributeValue {
+pub struct AttributeOperation {
     pub attribute: Rc<str>,
     pub value: AttributeValue,
 }
 
-pub struct Operation {
-    pub entity: Entity,
-    pub attributes: Vec<EntityAttributeValue>,
+pub struct EntityOperation {
+    pub entity: OperatedEntity,
+    pub attributes: Vec<AttributeOperation>,
 }
 
-impl Operation {
-    pub fn new(entity: Entity) -> Self {
+impl EntityOperation {
+    pub fn new(entity: OperatedEntity) -> Self {
         Self {
             entity,
             attributes: Vec::new(),
@@ -38,38 +38,38 @@ impl Operation {
     }
 
     pub fn on_new() -> Self {
-        Self::new(Entity::New)
+        Self::new(OperatedEntity::New)
     }
 
     pub fn on_id(entity_id: u64) -> Self {
-        Self::new(Entity::Id(entity_id))
+        Self::new(OperatedEntity::Id(entity_id))
     }
 
     pub fn on_temp_id(temp_id: &str) -> Self {
-        Self::new(Entity::TempId(Rc::from(temp_id)))
+        Self::new(OperatedEntity::TempId(Rc::from(temp_id)))
     }
 
-    pub fn set<V: Into<Value>>(self, attribute: &str, value: V) -> Self {
-        self.foo(Rc::from(attribute), AttributeValue::Value(value.into()))
+    pub fn set_value<V: Into<Value>>(self, attribute: &str, value: V) -> Self {
+        self.set(Rc::from(attribute), AttributeValue::Value(value.into()))
     }
 
     pub fn set_reference(self, attribute: &str, temp_id: &str) -> Self {
-        self.foo(
+        self.set(
             Rc::from(attribute),
-            AttributeValue::ReferenceTempId(Rc::from(temp_id)),
+            AttributeValue::TempId(Rc::from(temp_id)),
         )
     }
 
-    fn foo(mut self, attribute: Rc<str>, value: AttributeValue) -> Self {
+    fn set(mut self, attribute: Rc<str>, value: AttributeValue) -> Self {
         self.attributes
-            .push(EntityAttributeValue { attribute, value });
+            .push(AttributeOperation { attribute, value });
         self
     }
 }
 
 #[derive(Default)]
 pub struct Transaction {
-    pub operations: Vec<Operation>,
+    pub operations: Vec<EntityOperation>,
 }
 
 impl Transaction {
@@ -77,7 +77,7 @@ impl Transaction {
         Self::default()
     }
 
-    pub fn with<O: Into<Operation>>(mut self, o: O) -> Self {
+    pub fn with<O: Into<EntityOperation>>(mut self, o: O) -> Self {
         self.operations.push(o.into());
         self
     }

@@ -48,7 +48,7 @@ impl Transactor {
     ) -> Result<TempIds, TransactionError<Error>> {
         let mut temp_ids = HashMap::new();
         for operation in &transaction.operations {
-            if let Entity::TempId(temp_id) = &operation.entity {
+            if let OperatedEntity::TempId(temp_id) = &operation.entity {
                 let entity_id = self.next_entity_id();
                 if temp_ids.insert(Rc::clone(temp_id), entity_id).is_some() {
                     return Err(TransactionError::DuplicateTempId(Rc::clone(temp_id)));
@@ -88,7 +88,7 @@ impl Transactor {
         &mut self,
         storage: &'a S,
         tx: u64,
-        operation: Operation,
+        operation: EntityOperation,
         temp_ids: &TempIds,
         datoms: &mut Vec<Datom>,
     ) -> Result<(), TransactionError<S::Error>> {
@@ -108,7 +108,7 @@ impl Transactor {
 
             let value = match attribute_value.value {
                 AttributeValue::Value(value) => Ok(value),
-                AttributeValue::ReferenceTempId(temp_id) => match temp_ids.get(&temp_id) {
+                AttributeValue::TempId(temp_id) => match temp_ids.get(&temp_id) {
                     Some(&entity) => Ok(Value::Ref(entity)),
                     None => Err(TransactionError::TempIdNotFound(temp_id)),
                 },
@@ -117,6 +117,10 @@ impl Transactor {
             if attribute.definition.value_type != (&value).into() {
                 // Value type is incompatible with attribute, reject transaction.
                 return Err(TransactionError::InvalidAttributeType);
+            }
+
+            if attribute.definition.unique {
+                // TODO
             }
 
             datoms.push(Datom::add(entity, attribute.id, value, tx));
@@ -149,13 +153,13 @@ impl Transactor {
 
     fn resolve_entity<Error>(
         &mut self,
-        entity: &Entity,
+        entity: &OperatedEntity,
         temp_ids: &TempIds,
     ) -> Result<u64, TransactionError<Error>> {
         match entity {
-            Entity::New => Ok(self.next_entity_id()),
-            &Entity::Id(id) => Ok(id),
-            Entity::TempId(temp_id) => temp_ids
+            OperatedEntity::New => Ok(self.next_entity_id()),
+            &OperatedEntity::Id(id) => Ok(id),
+            OperatedEntity::TempId(temp_id) => temp_ids
                 .get(temp_id)
                 .copied()
                 .ok_or_else(|| TransactionError::TempIdNotFound(Rc::clone(temp_id))),

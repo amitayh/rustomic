@@ -35,6 +35,22 @@ impl Db {
         Ok(QueryResult { results })
     }
 
+    pub fn query2<'a, S: ReadStorage<'a>>(
+        &mut self,
+        storage: &'a S,
+        query: &'a mut Query,
+    ) -> Result<impl Iterator<Item = PartialAssignment> + 'a, QueryError<S::Error>> {
+        self.resolve_idents(storage, query)?;
+        let assignment = Assignment::from_query(&query);
+        Ok(DbIterator {
+            storage,
+            stack: vec![StackState { patterns: &query.wher, assignment }],
+            complete: Vec::new(),
+            predicates: &query.predicates,
+            tx: self.tx,
+        })
+    }
+
     fn resolve_idents<'a, S: ReadStorage<'a>>(
         &mut self,
         storage: &'a S,
@@ -60,22 +76,74 @@ impl Db {
         assignment: &Assignment,
         results: &mut Vec<HashMap<Rc<str>, Value>>,
     ) -> Result<(), QueryError<S::Error>> {
-        if assignment.is_complete() {
-            results.push(assignment.to_owned().assigned);
-            return Ok(());
-        }
         if let [pattern, rest @ ..] = patterns {
-            let datoms = storage.find(restricts(pattern, &assignment.assigned, self.tx));
-
+            let restricts = restricts(pattern, &assignment.assigned, self.tx);
             // TODO can this be parallelized?
-            for datom in datoms {
+            for datom in storage.find(restricts) {
                 let assignment = assignment.update_with(pattern, datom?);
-                if query.test(&assignment.assigned) {
+                if !query.test(&assignment.assigned) {
+                    continue;
+                }
+                if assignment.is_complete() {
+                    results.push(assignment.assigned);
+                } else {
                     self.resolve(storage, query, rest, &assignment, results)?;
                 }
             }
         }
         Ok(())
+    }
+}
+
+#[derive(Debug)]
+struct StackState<'a> {
+    patterns: &'a [DataPattern],
+    assignment: Assignment,
+}
+
+struct DbIterator<'a, S: ReadStorage<'a>> {
+    storage: &'a S,
+    stack: Vec<StackState<'a>>,
+    complete: Vec<PartialAssignment>,
+    predicates: &'a Vec<Predicate>,
+    tx: u64,
+}
+
+impl<'a, S: ReadStorage<'a>> DbIterator<'a, S> {
+    fn test(&self, assignment: &PartialAssignment) -> bool {
+        self.predicates
+            .iter()
+            .all(|predicate| predicate(assignment))
+    }
+}
+
+impl<'a, S: ReadStorage<'a>> Iterator for DbIterator<'a, S> {
+    type Item = PartialAssignment;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        if !self.complete.is_empty() {
+            return self.complete.pop();
+        }
+        while let Some(state) = self.stack.pop() {
+            if let [pattern, rest @ ..] = state.patterns {
+                let restricts = restricts(pattern, &state.assignment.assigned, self.tx);
+                for datom in self.storage.find(restricts) {
+                    let assignment = state.assignment.update_with(pattern, datom.unwrap());
+                    if !self.test(&assignment.assigned) {
+                        continue;
+                    }
+                    if assignment.is_complete() {
+                        self.complete.push(assignment.assigned);
+                    } else {
+                        self.stack.push(StackState { patterns: rest, assignment });
+                    }
+                }
+                if !self.complete.is_empty() {
+                    return self.complete.pop();
+                }
+            }
+        }
+        self.complete.pop()
     }
 }
 

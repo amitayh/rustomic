@@ -105,19 +105,19 @@ impl Assignment {
     /// assert_eq!(Value::U64(value), updated.assigned["?value"]);
     /// assert_eq!(Value::U64(tx), updated.assigned["?tx"]);
     /// ```
-    pub fn update_with(&self, pattern: &DataPattern, datom: Datom) -> Cow<'_, Self> {
-        let mut assignment = Cow::Borrowed(self);
+    pub fn update_with(&self, pattern: &DataPattern, datom: Datom) -> Self {
+        let mut assignment = self.clone();
         if let Pattern::Variable(variable) = &pattern.entity {
-            assignment.to_mut().assign_ref(variable, datom.entity);
+            assignment.assign_ref(variable, datom.entity);
         }
         if let Pattern::Variable(variable) = &pattern.attribute {
-            assignment.to_mut().assign_ref(variable, datom.attribute);
+            assignment.assign_ref(variable, datom.attribute);
         }
         if let Pattern::Variable(variable) = &pattern.value {
-            assignment.to_mut().assign(variable, datom.value);
+            assignment.assign(variable, datom.value);
         }
         if let Pattern::Variable(variable) = &pattern.tx {
-            assignment.to_mut().assign_ref(variable, datom.tx);
+            assignment.assign_ref(variable, datom.tx);
         }
         assignment
     }

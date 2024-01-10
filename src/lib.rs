@@ -74,9 +74,9 @@ mod tests {
         fn query_at_snapshot(&self, snapshot_tx: u64, query: Query) -> QueryResult {
             let mut db = Db::new(snapshot_tx);
             //db.query(&self.storage, query).expect("Unable to query")
-            let results = db.query2(&self.storage, query).expect("Unable to query");
+            let results = db.query(&self.storage, query).expect("Unable to query");
             QueryResult {
-                results: results.collect(),
+                results: results.filter_map(|result| result.ok()).collect(),
             }
         }
     }

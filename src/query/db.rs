@@ -27,7 +27,10 @@ impl Db {
         &mut self,
         storage: &'a S,
         mut query: Query,
-    ) -> Result<impl Iterator<Item = PartialAssignment> + 'a, QueryError<S::Error>> {
+    ) -> Result<
+        impl Iterator<Item = Result<PartialAssignment, QueryError<S::Error>>> + 'a,
+        QueryError<S::Error>,
+    > {
         self.resolve_idents(storage, &mut query)?;
         Ok(DbIterator::new(storage, query, self.tx))
     }
@@ -52,7 +55,7 @@ impl Db {
 
 #[derive(Debug)]
 struct StackState {
-    pattern: usize,
+    pattern_index: usize,
     assignment: Assignment,
 }
 
@@ -70,7 +73,7 @@ impl<'a, S: ReadStorage<'a>> DbIterator<'a, S> {
         DbIterator {
             storage,
             stack: vec![StackState {
-                pattern: 0,
+                pattern_index: 0,
                 assignment,
             }],
             complete: Vec::new(),
@@ -78,30 +81,48 @@ impl<'a, S: ReadStorage<'a>> DbIterator<'a, S> {
             tx,
         }
     }
+
+    fn next_pattern(&mut self) -> Option<(StackState, &DataPattern)> {
+        self.stack.pop().and_then(|state| {
+            self.query
+                .wher
+                .get(state.pattern_index)
+                .map(|pattern| (state, pattern))
+        })
+    }
 }
 
 impl<'a, S: ReadStorage<'a>> Iterator for DbIterator<'a, S> {
-    type Item = PartialAssignment;
+    type Item = Result<PartialAssignment, QueryError<S::Error>>;
 
     fn next(&mut self) -> Option<Self::Item> {
-        if !self.complete.is_empty() {
-            return self.complete.pop();
+        if let Some(result) = self.complete.pop() {
+            return Some(Ok(result));
         }
-        if let Some(state) = self.stack.pop() {
-            if let Some(pattern) = self.query.wher.get(state.pattern) {
-                let restricts = restricts(pattern, &state.assignment.assigned, self.tx);
+        if let Some(StackState {
+            pattern_index,
+            assignment,
+        }) = self.stack.pop()
+        {
+            if let Some(pattern) = self.query.wher.get(pattern_index) {
+                let restricts = restricts(pattern, &assignment.assigned, self.tx);
                 for datom in self.storage.find(restricts) {
-                    let assignment = state.assignment.update_with(pattern, datom.unwrap());
-                    if !self.query.test(&assignment.assigned) {
-                        continue;
-                    }
-                    if assignment.is_complete() {
-                        self.complete.push(assignment.assigned);
-                    } else {
-                        self.stack.push(StackState {
-                            pattern: state.pattern + 1,
-                            assignment,
-                        });
+                    match datom {
+                        Ok(datom) => {
+                            let assignment = assignment.update_with(pattern, datom);
+                            if !self.query.test(&assignment.assigned) {
+                                continue;
+                            }
+                            if assignment.is_complete() {
+                                self.complete.push(assignment.assigned);
+                            } else {
+                                self.stack.push(StackState {
+                                    pattern_index: pattern_index + 1,
+                                    assignment,
+                                });
+                            }
+                        }
+                        Err(err) => return Some(Err(QueryError::StorageError(err))),
                     }
                 }
                 return self.next();

@@ -27,28 +27,9 @@ impl Db {
         &mut self,
         storage: &'a S,
         mut query: Query,
-    ) -> Result<QueryResult, QueryError<S::Error>> {
-        let mut results = Vec::new();
-        self.resolve_idents(storage, &mut query)?;
-        let assignment = Assignment::from_query(&query);
-        self.resolve(storage, &query, &query.wher, &assignment, &mut results)?;
-        Ok(QueryResult { results })
-    }
-
-    pub fn query2<'a, S: ReadStorage<'a>>(
-        &mut self,
-        storage: &'a S,
-        query: &'a mut Query,
     ) -> Result<impl Iterator<Item = PartialAssignment> + 'a, QueryError<S::Error>> {
-        self.resolve_idents(storage, query)?;
-        let assignment = Assignment::from_query(&query);
-        Ok(DbIterator {
-            storage,
-            stack: vec![StackState { patterns: &query.wher, assignment }],
-            complete: Vec::new(),
-            predicates: &query.predicates,
-            tx: self.tx,
-        })
+        self.resolve_idents(storage, &mut query)?;
+        Ok(DbIterator::new(storage, query, self.tx))
     }
 
     fn resolve_idents<'a, S: ReadStorage<'a>>(
@@ -67,53 +48,35 @@ impl Db {
         }
         Ok(())
     }
-
-    fn resolve<'a, S: ReadStorage<'a>>(
-        &self,
-        storage: &'a S,
-        query: &Query,
-        patterns: &[DataPattern],
-        assignment: &Assignment,
-        results: &mut Vec<HashMap<Rc<str>, Value>>,
-    ) -> Result<(), QueryError<S::Error>> {
-        if let [pattern, rest @ ..] = patterns {
-            let restricts = restricts(pattern, &assignment.assigned, self.tx);
-            // TODO can this be parallelized?
-            for datom in storage.find(restricts) {
-                let assignment = assignment.update_with(pattern, datom?);
-                if !query.test(&assignment.assigned) {
-                    continue;
-                }
-                if assignment.is_complete() {
-                    results.push(assignment.assigned);
-                } else {
-                    self.resolve(storage, query, rest, &assignment, results)?;
-                }
-            }
-        }
-        Ok(())
-    }
 }
 
 #[derive(Debug)]
-struct StackState<'a> {
-    patterns: &'a [DataPattern],
+struct StackState {
+    pattern: usize,
     assignment: Assignment,
 }
 
 struct DbIterator<'a, S: ReadStorage<'a>> {
     storage: &'a S,
-    stack: Vec<StackState<'a>>,
+    stack: Vec<StackState>,
     complete: Vec<PartialAssignment>,
-    predicates: &'a Vec<Predicate>,
+    query: Query,
     tx: u64,
 }
 
 impl<'a, S: ReadStorage<'a>> DbIterator<'a, S> {
-    fn test(&self, assignment: &PartialAssignment) -> bool {
-        self.predicates
-            .iter()
-            .all(|predicate| predicate(assignment))
+    fn new(storage: &'a S, query: Query, tx: u64) -> Self {
+        let assignment = Assignment::from_query(&query);
+        DbIterator {
+            storage,
+            stack: vec![StackState {
+                pattern: 0,
+                assignment,
+            }],
+            complete: Vec::new(),
+            query,
+            tx,
+        }
     }
 }
 
@@ -124,26 +87,27 @@ impl<'a, S: ReadStorage<'a>> Iterator for DbIterator<'a, S> {
         if !self.complete.is_empty() {
             return self.complete.pop();
         }
-        while let Some(state) = self.stack.pop() {
-            if let [pattern, rest @ ..] = state.patterns {
+        if let Some(state) = self.stack.pop() {
+            if let Some(pattern) = self.query.wher.get(state.pattern) {
                 let restricts = restricts(pattern, &state.assignment.assigned, self.tx);
                 for datom in self.storage.find(restricts) {
                     let assignment = state.assignment.update_with(pattern, datom.unwrap());
-                    if !self.test(&assignment.assigned) {
+                    if !self.query.test(&assignment.assigned) {
                         continue;
                     }
                     if assignment.is_complete() {
                         self.complete.push(assignment.assigned);
                     } else {
-                        self.stack.push(StackState { patterns: rest, assignment });
+                        self.stack.push(StackState {
+                            pattern: state.pattern + 1,
+                            assignment,
+                        });
                     }
                 }
-                if !self.complete.is_empty() {
-                    return self.complete.pop();
-                }
+                return self.next();
             }
         }
-        self.complete.pop()
+        None
     }
 }
 

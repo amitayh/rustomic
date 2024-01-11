@@ -27,13 +27,13 @@ mod tests {
     use super::tx::transactor::*;
     use super::tx::*;
 
-    struct SUT {
+    struct Sut {
         transactor: Transactor,
         storage: InMemoryStorage,
         last_tx: u64,
     }
 
-    impl SUT {
+    impl Sut {
         fn new() -> Self {
             let mut sut = Self::new_without_schema();
             sut.transact(create_schema());
@@ -126,7 +126,7 @@ mod tests {
 
     #[test]
     fn return_empty_result() {
-        let mut sut = SUT::new();
+        let mut sut = Sut::new();
 
         // Insert data
         sut.transact(
@@ -149,7 +149,7 @@ mod tests {
 
     #[test]
     fn create_entity_by_temp_id() {
-        let mut sut = SUT::new();
+        let mut sut = Sut::new();
 
         // Insert data
         let result = sut.transact(
@@ -173,7 +173,7 @@ mod tests {
 
     #[test]
     fn reject_transaction_with_invalid_attribute_type() {
-        let mut sut = SUT::new();
+        let mut sut = Sut::new();
 
         // This transaction should fail: "person/name" is of type `ValueType::Str`.
         let tx = Transaction::new().with(EntityOperation::on_new().set_value("person/name", 42));
@@ -184,7 +184,7 @@ mod tests {
 
     #[test]
     fn reject_transaction_with_duplicate_temp_ids() {
-        let mut sut = SUT::new();
+        let mut sut = Sut::new();
 
         // This transaction should fail: temp ID "duplicate" should only be used once.
         let tx = Transaction::new()
@@ -197,7 +197,7 @@ mod tests {
 
     #[test]
     fn reference_temp_id_in_transaction() {
-        let mut sut = SUT::new();
+        let mut sut = Sut::new();
 
         // Insert data
         sut.transact(
@@ -245,7 +245,7 @@ mod tests {
 
     #[test]
     fn return_latest_value_with_cardinality_one() {
-        let mut sut = SUT::new_without_schema();
+        let mut sut = Sut::new_without_schema();
 
         // Create the schema
         sut.transact(
@@ -297,7 +297,7 @@ mod tests {
 
     #[test]
     fn return_all_values_with_cardinality_many() {
-        let mut sut = SUT::new();
+        let mut sut = Sut::new();
 
         // Insert initial data
         let tx_result = sut.transact(
@@ -337,7 +337,7 @@ mod tests {
 
     #[test]
     fn return_correct_value_for_database_snapshot() {
-        let mut sut = SUT::new();
+        let mut sut = Sut::new();
 
         // Insert initial data
         let first_tx_result = sut.transact(
@@ -380,7 +380,7 @@ mod tests {
 
     #[test]
     fn search_for_tx_pattern() {
-        let mut sut = SUT::new();
+        let mut sut = Sut::new();
 
         // Insert initial data
         let tx_result = sut.transact(
@@ -483,7 +483,7 @@ mod tests {
 
     #[test]
     fn support_query_predicates() {
-        let mut sut = SUT::new();
+        let mut sut = Sut::new();
 
         // Insert data
         sut.transact(

@@ -19,9 +19,9 @@ impl AttributeResolver {
         Self::default()
     }
 
-    pub fn resolve<'a, S: ReadStorage<'a>>(
+    pub fn resolve<S: ReadStorage>(
         &mut self,
-        storage: &'a S,
+        storage: &S,
         ident: Rc<str>,
         tx: u64,
     ) -> Result<&Attribute, ResolveError<S::Error>> {
@@ -41,8 +41,8 @@ pub enum ResolveError<S> {
     IdentNotFound(Rc<str>),
 }
 
-fn resolve_ident<'a, S: ReadStorage<'a>>(
-    storage: &'a S,
+fn resolve_ident<S: ReadStorage>(
+    storage: &S,
     ident: Rc<str>,
     tx: u64,
 ) -> Result<Option<Attribute>, S::Error> {
@@ -56,8 +56,8 @@ fn resolve_ident<'a, S: ReadStorage<'a>>(
     Ok(None)
 }
 
-fn resolve_id<'a, S: ReadStorage<'a>>(
-    storage: &'a S,
+fn resolve_id<S: ReadStorage>(
+    storage: &S,
     attribute_id: u64,
     tx: u64,
 ) -> Result<Option<Attribute>, S::Error> {
@@ -154,7 +154,7 @@ mod tests {
     use crate::clock::Instant;
     use crate::schema::default::default_datoms;
     use crate::storage::attribute_resolver::*;
-    use crate::storage::memory::InMemoryStorage;
+    use crate::storage::memory::*;
     use crate::storage::*;
     use crate::tx::transactor::Transactor;
     use crate::tx::Transaction;
@@ -177,11 +177,10 @@ mod tests {
         }
     }
 
-    impl<'a> ReadStorage<'a> for CountingStorage {
-        type Error = <InMemoryStorage as ReadStorage<'a>>::Error;
-        type Iter = <InMemoryStorage as ReadStorage<'a>>::Iter;
+    impl ReadStorage for CountingStorage {
+        type Error = <InMemoryStorage as ReadStorage>::Error;
 
-        fn find(&'a self, restricts: Restricts) -> Self::Iter {
+        fn find(&self, restricts: Restricts) -> impl Iterator<Item = Result<Datom, Self::Error>> {
             self.count.set(self.count.get() + 1);
             self.inner.find(restricts)
         }

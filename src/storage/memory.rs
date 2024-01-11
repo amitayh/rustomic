@@ -29,11 +29,10 @@ impl WriteStorage for InMemoryStorage {
     }
 }
 
-impl<'a> ReadStorage<'a> for InMemoryStorage {
+impl ReadStorage for InMemoryStorage {
     type Error = ReadError;
-    type Iter = InMemoryStorageIter<'a>;
 
-    fn find(&'a self, restricts: Restricts) -> Self::Iter {
+    fn find(&self, restricts: Restricts) -> impl Iterator<Item = Result<Datom, Self::Error>> {
         InMemoryStorageIter::new(&self.index, restricts)
     }
 }

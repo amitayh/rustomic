@@ -23,7 +23,7 @@ impl Db {
         }
     }
 
-    pub fn query<'a, S: ReadStorage<'a>>(
+    pub fn query<'a, S: ReadStorage>(
         &mut self,
         storage: &'a S,
         mut query: Query,
@@ -35,9 +35,9 @@ impl Db {
         Ok(DbIterator::new(storage, query, self.tx))
     }
 
-    fn resolve_idents<'a, S: ReadStorage<'a>>(
+    fn resolve_idents<S: ReadStorage>(
         &mut self,
-        storage: &'a S,
+        storage: &S,
         query: &mut Query,
     ) -> Result<(), QueryError<S::Error>> {
         for clause in &mut query.wher {
@@ -59,7 +59,7 @@ struct StackState {
     assignment: Assignment,
 }
 
-struct DbIterator<'a, S: ReadStorage<'a>> {
+struct DbIterator<'a, S: ReadStorage> {
     storage: &'a S,
     stack: Vec<StackState>,
     complete: Vec<PartialAssignment>,
@@ -67,7 +67,7 @@ struct DbIterator<'a, S: ReadStorage<'a>> {
     tx: u64,
 }
 
-impl<'a, S: ReadStorage<'a>> DbIterator<'a, S> {
+impl<'a, S: ReadStorage> DbIterator<'a, S> {
     fn new(storage: &'a S, query: Query, tx: u64) -> Self {
         let assignment = Assignment::from_query(&query);
         DbIterator {
@@ -81,54 +81,39 @@ impl<'a, S: ReadStorage<'a>> DbIterator<'a, S> {
             tx,
         }
     }
-
-    fn next_pattern(&mut self) -> Option<(StackState, &DataPattern)> {
-        self.stack.pop().and_then(|state| {
-            self.query
-                .wher
-                .get(state.pattern_index)
-                .map(|pattern| (state, pattern))
-        })
-    }
 }
 
-impl<'a, S: ReadStorage<'a>> Iterator for DbIterator<'a, S> {
+impl<'a, S: ReadStorage> Iterator for DbIterator<'a, S> {
     type Item = Result<PartialAssignment, QueryError<S::Error>>;
 
     fn next(&mut self) -> Option<Self::Item> {
         if let Some(result) = self.complete.pop() {
             return Some(Ok(result));
         }
-        if let Some(StackState {
-            pattern_index,
-            assignment,
-        }) = self.stack.pop()
-        {
-            if let Some(pattern) = self.query.wher.get(pattern_index) {
-                let restricts = restricts(pattern, &assignment.assigned, self.tx);
-                for datom in self.storage.find(restricts) {
-                    match datom {
-                        Ok(datom) => {
-                            let assignment = assignment.update_with(pattern, datom);
-                            if !self.query.test(&assignment.assigned) {
-                                continue;
-                            }
-                            if assignment.is_complete() {
-                                self.complete.push(assignment.assigned);
-                            } else {
-                                self.stack.push(StackState {
-                                    pattern_index: pattern_index + 1,
-                                    assignment,
-                                });
-                            }
-                        }
-                        Err(err) => return Some(Err(QueryError::StorageError(err))),
+
+        let state = self.stack.pop()?;
+        let pattern = self.query.wher.get(state.pattern_index)?;
+        let restricts = restricts(pattern, &state.assignment.assigned, self.tx);
+        for datom in self.storage.find(restricts) {
+            match datom {
+                Ok(datom) => {
+                    let assignment = state.assignment.update_with(pattern, datom);
+                    if !assignment.satisfies(&self.query) {
+                        continue;
+                    }
+                    if assignment.is_complete() {
+                        self.complete.push(assignment.assigned);
+                    } else {
+                        self.stack.push(StackState {
+                            pattern_index: state.pattern_index + 1,
+                            assignment,
+                        });
                     }
                 }
-                return self.next();
+                Err(err) => return Some(Err(QueryError::StorageError(err))),
             }
         }
-        None
+        return self.next();
     }
 }
 

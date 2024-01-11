@@ -71,6 +71,13 @@ impl Assignment {
         self.unassigned.is_empty()
     }
 
+    pub fn satisfies(&self, query: &Query) -> bool {
+        query
+            .predicates
+            .iter()
+            .all(|predicate| predicate(&self.assigned))
+    }
+
     /// ```
     /// use std::collections::HashSet;
     /// use std::rc::Rc;

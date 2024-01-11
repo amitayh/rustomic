@@ -32,11 +32,10 @@ impl WriteStorage for DiskStorage {
     }
 }
 
-impl<'a> ReadStorage<'a> for DiskStorage {
+impl ReadStorage for DiskStorage {
     type Error = DiskStorageError;
-    type Iter = DiskStorageIter<'a>;
 
-    fn find(&'a self, restricts: Restricts) -> Self::Iter {
+    fn find(&self, restricts: Restricts) -> impl Iterator<Item = Result<Datom, Self::Error>> {
         DiskStorageIter::new(restricts, &self.db)
     }
 }

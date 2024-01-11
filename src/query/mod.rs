@@ -71,12 +71,6 @@ impl Query {
             value.map_or(true, &predicate)
         })
     }
-
-    pub fn test(&self, assignment: &PartialAssignment) -> bool {
-        self.predicates
-            .iter()
-            .all(|predicate| predicate(assignment))
-    }
 }
 
 #[derive(Debug)]

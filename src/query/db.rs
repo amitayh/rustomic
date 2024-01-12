@@ -1,8 +1,4 @@
-use std::collections::HashMap;
-
-use crate::datom::Value;
 use crate::query::assignment::*;
-use crate::query::clause::*;
 use crate::query::*;
 use crate::storage::attribute_resolver::*;
 use crate::storage::*;
@@ -35,6 +31,8 @@ impl Db {
         Ok(DbIterator::new(storage, query, self.tx))
     }
 
+    /// Resolves attribute idents. Mutates input `query` such that clauses with
+    /// `AttributeIdentifier::Ident` will be replaced with `AttributeIdentifier::Id`.
     fn resolve_idents<S: ReadStorage>(
         &mut self,
         storage: &S,
@@ -54,14 +52,14 @@ impl Db {
 }
 
 #[derive(Debug)]
-struct StackState {
+struct Frame {
     pattern_index: usize,
     assignment: Assignment,
 }
 
 struct DbIterator<'a, S: ReadStorage> {
     storage: &'a S,
-    stack: Vec<StackState>,
+    stack: Vec<Frame>,
     complete: Vec<PartialAssignment>,
     query: Query,
     tx: u64,
@@ -72,7 +70,7 @@ impl<'a, S: ReadStorage> DbIterator<'a, S> {
         let assignment = Assignment::from_query(&query);
         DbIterator {
             storage,
-            stack: vec![StackState {
+            stack: vec![Frame {
                 pattern_index: 0,
                 assignment,
             }],
@@ -91,21 +89,23 @@ impl<'a, S: ReadStorage> Iterator for DbIterator<'a, S> {
             return Some(Ok(result));
         }
 
-        let state = self.stack.pop()?;
-        let pattern = self.query.wher.get(state.pattern_index)?;
-        let restricts = restricts(pattern, &state.assignment.assigned, self.tx);
+        let Frame {
+            pattern_index,
+            assignment,
+        } = self.stack.pop()?;
+        let pattern = self.query.wher.get(pattern_index)?;
+        let restricts = Restricts::from(pattern, &assignment.assigned, self.tx);
         for datom in self.storage.find(restricts) {
             match datom {
                 Ok(datom) => {
-                    let assignment = state.assignment.update_with(pattern, datom);
+                    let assignment = assignment.update_with(pattern, datom);
                     if !assignment.satisfies(&self.query) {
                         continue;
-                    }
-                    if assignment.is_complete() {
+                    } else if assignment.is_complete() {
                         self.complete.push(assignment.assigned);
                     } else {
-                        self.stack.push(StackState {
-                            pattern_index: state.pattern_index + 1,
+                        self.stack.push(Frame {
+                            pattern_index: pattern_index + 1,
                             assignment,
                         });
                     }
@@ -115,38 +115,4 @@ impl<'a, S: ReadStorage> Iterator for DbIterator<'a, S> {
         }
         return self.next();
     }
-}
-
-fn restricts(pattern: &DataPattern, assignment: &HashMap<Rc<str>, Value>, tx: u64) -> Restricts {
-    let mut restricts = Restricts::new(tx);
-    restricts.entity = match pattern.entity {
-        Pattern::Constant(entity) => Some(entity),
-        Pattern::Variable(ref variable) => match assignment.get(variable) {
-            Some(&Value::Ref(entity)) => Some(entity),
-            _ => None,
-        },
-        _ => None,
-    };
-    restricts.attribute = match pattern.attribute {
-        Pattern::Constant(AttributeIdentifier::Id(attribute)) => Some(attribute),
-        Pattern::Variable(ref variable) => match assignment.get(variable) {
-            Some(&Value::Ref(entity)) => Some(entity),
-            _ => None,
-        },
-        _ => None,
-    };
-    restricts.value = match pattern.value {
-        Pattern::Constant(ref value) => Some(value.clone()),
-        Pattern::Variable(ref variable) => assignment.get(variable).cloned(),
-        _ => None,
-    };
-    restricts.tx = match pattern.tx {
-        Pattern::Constant(tx) => Some(tx),
-        Pattern::Variable(ref variable) => match assignment.get(variable) {
-            Some(&Value::Ref(tx)) => Some(tx),
-            _ => None,
-        },
-        _ => None,
-    };
-    restricts
 }

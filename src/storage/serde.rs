@@ -139,6 +139,8 @@ pub mod index {
         key
     }
 
+    /// Number of bytes used to encode a datom with value `value`.
+    /// Excluding `tx` and `op` (prefix only).
     fn key_size(value: &Value) -> usize {
         BASE_KEY_SIZE + value.size()
     }

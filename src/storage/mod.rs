@@ -3,7 +3,12 @@ pub mod disk;
 pub mod memory;
 pub mod serde;
 
+use std::collections::HashMap;
+use std::rc::Rc;
+
 use crate::datom::*;
+use crate::query::clause::*;
+use crate::query::pattern::*;
 
 #[derive(Default, Debug)]
 pub struct Restricts {
@@ -22,6 +27,45 @@ impl Restricts {
             value: None,
             tx: None,
             tx2: tx,
+        }
+    }
+
+    pub fn from(pattern: &DataPattern, assignment: &HashMap<Rc<str>, Value>, tx2: u64) -> Self {
+        let entity = match pattern.entity {
+            Pattern::Constant(entity) => Some(entity),
+            Pattern::Variable(ref variable) => match assignment.get(variable) {
+                Some(&Value::Ref(entity)) => Some(entity),
+                _ => None,
+            },
+            _ => None,
+        };
+        let attribute = match pattern.attribute {
+            Pattern::Constant(AttributeIdentifier::Id(attribute)) => Some(attribute),
+            Pattern::Variable(ref variable) => match assignment.get(variable) {
+                Some(&Value::Ref(entity)) => Some(entity),
+                _ => None,
+            },
+            _ => None,
+        };
+        let value = match pattern.value {
+            Pattern::Constant(ref value) => Some(value.clone()),
+            Pattern::Variable(ref variable) => assignment.get(variable).cloned(),
+            _ => None,
+        };
+        let tx = match pattern.tx {
+            Pattern::Constant(tx) => Some(tx),
+            Pattern::Variable(ref variable) => match assignment.get(variable) {
+                Some(&Value::Ref(tx)) => Some(tx),
+                _ => None,
+            },
+            _ => None,
+        };
+        Self {
+            entity,
+            attribute,
+            value,
+            tx,
+            tx2,
         }
     }
 

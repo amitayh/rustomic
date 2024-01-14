@@ -52,7 +52,7 @@ impl<'a> InMemoryStorageIter<'a> {
             index,
             range: index.range(range),
             end,
-            tx: restricts.tx2,
+            tx: restricts.tx,
         }
     }
 

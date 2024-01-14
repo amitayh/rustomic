@@ -158,7 +158,7 @@ mod tests {
         let storage = S::create();
 
         let entity = 100;
-        let clause = Restricts::new(u64::MAX).with_entity(entity);
+        let clause = Restricts::new(0).with_entity(entity);
         let read_result = storage.find(clause);
 
         assert!(read_result.is_empty());
@@ -176,7 +176,7 @@ mod tests {
         storage.save(&datoms);
 
         let read_result = storage.find(
-            Restricts::new(u64::MAX)
+            Restricts::new(tx)
                 .with_entity(entity)
                 .with_attribute(attribute)
                 .with_value(Value::U64(value)),
@@ -196,7 +196,7 @@ mod tests {
         ];
         storage.save(&datoms);
 
-        let read_result = storage.find(Restricts::new(u64::MAX).with_entity(entity));
+        let read_result = storage.find(Restricts::new(tx).with_entity(entity));
 
         assert_eq!(datoms, read_result);
     }

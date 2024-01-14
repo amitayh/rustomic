@@ -55,7 +55,7 @@ impl<'a> DiskStorageIter<'a> {
         Self {
             iterator,
             end,
-            tx: restricts.tx2,
+            tx: restricts.tx,
         }
     }
 }

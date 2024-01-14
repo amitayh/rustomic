@@ -97,15 +97,9 @@ pub mod index {
                 entity: Some(entity),
                 attribute: Some(attribute),
                 value: Some(value),
-                tx: Some(tx),
+                tx,
                 ..
             } => write_to_vec!(&TAG_EAVT, entity, attribute, value, &!tx),
-            Restricts {
-                entity: Some(entity),
-                attribute: Some(attribute),
-                value: Some(value),
-                ..
-            } => write_to_vec!(&TAG_EAVT, entity, attribute, value),
             Restricts {
                 entity: Some(entity),
                 attribute: Some(attribute),

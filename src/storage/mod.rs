@@ -15,8 +15,7 @@ pub struct Restricts {
     pub entity: Option<u64>,
     pub attribute: Option<u64>,
     pub value: Option<Value>,
-    pub tx: Option<u64>,
-    pub tx2: u64,
+    pub tx: u64,
 }
 
 impl Restricts {
@@ -25,12 +24,11 @@ impl Restricts {
             entity: None,
             attribute: None,
             value: None,
-            tx: None,
-            tx2: tx,
+            tx,
         }
     }
 
-    pub fn from(pattern: &DataPattern, assignment: &HashMap<Rc<str>, Value>, tx2: u64) -> Self {
+    pub fn from(pattern: &DataPattern, assignment: &HashMap<Rc<str>, Value>, tx: u64) -> Self {
         let entity = match pattern.entity {
             Pattern::Constant(entity) => Some(entity),
             Pattern::Variable(ref variable) => match assignment.get(variable) {
@@ -52,20 +50,11 @@ impl Restricts {
             Pattern::Variable(ref variable) => assignment.get(variable).cloned(),
             _ => None,
         };
-        let tx = match pattern.tx {
-            Pattern::Constant(tx) => Some(tx),
-            Pattern::Variable(ref variable) => match assignment.get(variable) {
-                Some(&Value::Ref(tx)) => Some(tx),
-                _ => None,
-            },
-            _ => None,
-        };
         Self {
             entity,
             attribute,
             value,
             tx,
-            tx2,
         }
     }
 
@@ -81,11 +70,6 @@ impl Restricts {
 
     pub fn with_value(mut self, value: Value) -> Self {
         self.value = Some(value);
-        self
-    }
-
-    pub fn with_tx(mut self, tx: u64) -> Self {
-        self.tx = Some(tx);
         self
     }
 }

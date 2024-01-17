@@ -7,8 +7,7 @@ pub mod tx;
 
 #[cfg(test)]
 mod tests {
-
-    use std::collections::HashSet;
+    use googletest::prelude::*;
     use std::time::SystemTime;
 
     use crate::clock::Instant;
@@ -168,7 +167,11 @@ mod tests {
 
         let joe_id = result.temp_ids.get("joe");
         assert!(joe_id.is_some());
-        assert_eq!(joe_id.copied(), query_result.results[0]["?joe"].as_ref());
+
+        assert_that!(
+            query_result.results,
+            unordered_elements_are!(has_entry("?joe".into(), eq(Value::Ref(*joe_id.unwrap()))))
+        );
     }
 
     #[test]
@@ -237,9 +240,12 @@ mod tests {
                 ),
         );
 
-        assert_eq!(
-            Some("Abbey Road"),
-            query_result.results[0]["?release-name"].as_str()
+        assert_that!(
+            query_result.results,
+            unordered_elements_are!(has_entry(
+                "?release-name".into(),
+                eq(Value::str("Abbey Road"))
+            ))
         );
     }
 
@@ -285,14 +291,10 @@ mod tests {
             ),
         );
 
-        let likes: HashSet<&str> = query_result
-            .results
-            .iter()
-            .flat_map(|assignment| assignment["?likes"].as_str().into_iter())
-            .collect();
-
-        assert_eq!(1, likes.len());
-        assert!(likes.contains("Ice cream"));
+        assert_that!(
+            query_result.results,
+            unordered_elements_are!(has_entry("?likes".into(), eq(Value::str("Ice cream"))))
+        );
     }
 
     #[test]
@@ -324,15 +326,13 @@ mod tests {
             ),
         );
 
-        let likes: HashSet<&str> = query_result
-            .results
-            .iter()
-            .flat_map(|assignment| assignment["?likes"].as_str().into_iter())
-            .collect();
-
-        assert_eq!(2, likes.len());
-        assert!(likes.contains("Pizza"));
-        assert!(likes.contains("Ice cream"));
+        assert_that!(
+            query_result.results,
+            unordered_elements_are!(
+                has_entry("?likes".into(), eq(Value::str("Pizza"))),
+                has_entry("?likes".into(), eq(Value::str("Ice cream"))),
+            )
+        );
     }
 
     #[test]
@@ -368,14 +368,10 @@ mod tests {
             ),
         );
 
-        let likes: HashSet<&str> = query_result
-            .results
-            .iter()
-            .flat_map(|assignment| assignment["?likes"].as_str().into_iter())
-            .collect();
-
-        assert_eq!(1, likes.len());
-        assert!(likes.contains("Pizza"));
+        assert_that!(
+            query_result.results,
+            unordered_elements_are!(has_entry("?likes".into(), eq(Value::str("Pizza"))))
+        );
     }
 
     #[test]
@@ -391,7 +387,6 @@ mod tests {
             Query::new()
                 .wher(
                     DataPattern::new()
-                        .with_entity(Pattern::Blank)
                         .with_attribute(Pattern::ident("person/name"))
                         .with_value(Pattern::value("Joe"))
                         .with_tx(Pattern::variable("?tx")),
@@ -404,10 +399,47 @@ mod tests {
                 ),
         );
 
-        assert_eq!(1, query_result.results.len());
-        let result = &query_result.results[0];
-        assert_eq!(Some(tx_result.tx_id), result["?tx"].as_ref());
-        assert!(result["?tx_time"].as_u64().is_some_and(|time| time > 0));
+        assert_that!(
+            query_result.results,
+            unordered_elements_are!(all!(
+                has_entry("?tx".into(), eq(Value::Ref(tx_result.tx_id))),
+                has_entry("?tx_time".into(), matches_pattern!(Value::U64(gt(0)))),
+            ))
+        );
+    }
+
+    #[test]
+    fn restrict_result_by_tx() {
+        let mut sut = Sut::new();
+
+        // Insert initial data
+        let tx_result = sut.transact(
+            Transaction::new().with(EntityOperation::on_new().set_value("person/name", "Joe")),
+        );
+
+        // Find all datoms belonging to transaction
+        let query_result = sut.query(
+            Query::new().wher(
+                DataPattern::new()
+                    .with_entity(Pattern::variable("?e"))
+                    .with_attribute(Pattern::variable("?a"))
+                    .with_value(Pattern::variable("?v"))
+                    .with_tx(Pattern::Constant(tx_result.tx_id)),
+            ),
+        );
+
+        assert_that!(
+            query_result.results,
+            unordered_elements_are!(
+                // person/name datom
+                has_entry("?v".into(), eq(Value::str("Joe"))),
+                // tx time datom
+                all!(
+                    has_entry("?e".into(), eq(Value::Ref(tx_result.tx_id))),
+                    has_entry("?a".into(), eq(Value::Ref(DB_TX_TIME_ID)))
+                ),
+            )
+        );
     }
 
     /*
@@ -530,15 +562,13 @@ mod tests {
                 }),
         );
 
-        let names: Vec<&str> = query_result
-            .results
-            .iter()
-            .flat_map(|assignment| assignment["?name"].as_str().into_iter())
-            .collect();
-
-        assert_eq!(2, names.len());
-        assert!(names.contains(&"Paul"));
-        assert!(names.contains(&"George"));
+        assert_that!(
+            query_result.results,
+            unordered_elements_are!(
+                has_entry("?name".into(), eq(Value::str("Paul"))),
+                has_entry("?name".into(), eq(Value::str("George"))),
+            )
+        );
     }
 
     // TODO retract

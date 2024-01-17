@@ -50,6 +50,16 @@ mod tests {
         }
 
         #[test]
+        fn find_multiple_datoms_by_tx() {
+            find_multiple_datoms_by_tx_impl::<InMemory>();
+        }
+
+        //#[test]
+        //fn stack_safety_test() {
+        //    stack_safety_test_impl::<InMemory>();
+        //}
+
+        #[test]
         fn find_multiple_datoms_by_attribute_for_different_entity() {
             find_multiple_datoms_by_attribute_for_different_entity_impl::<InMemory>();
         }
@@ -129,6 +139,16 @@ mod tests {
         }
 
         #[test]
+        fn find_multiple_datoms_by_tx() {
+            find_multiple_datoms_by_tx_impl::<Disk>();
+        }
+
+        //#[test]
+        //fn stack_safety_test() {
+        //    stack_safety_test_impl::<Disk>();
+        //}
+
+        #[test]
         fn find_multiple_datoms_by_attribute_for_different_entity() {
             find_multiple_datoms_by_attribute_for_different_entity_impl::<Disk>();
         }
@@ -200,6 +220,44 @@ mod tests {
 
         assert_eq!(datoms, read_result);
     }
+
+    fn find_multiple_datoms_by_tx_impl<S: TestStorage>() {
+        let mut storage = S::create();
+
+        let entity = 100;
+        let tx = 1000;
+        let datoms = vec![
+            Datom::add(entity, 101, 1u64, tx - 1),
+            Datom::add(entity, 102, 2u64, tx),
+            Datom::add(entity, 103, 3u64, tx + 1),
+        ];
+        storage.save(&datoms);
+
+        let read_result = storage.find(Restricts::new(u64::MAX).with_tx(tx));
+
+        assert_eq!(datoms[1..2], read_result);
+    }
+
+    //fn stack_safety_test_impl<S: TestStorage>() {
+    //    let mut storage = S::create();
+
+    //    let entity = 100;
+    //    let attribute = 101;
+    //    let tx = 1000;
+    //
+    //    let size = 2_000_000;
+    //    let mut datoms = Vec::with_capacity(size + 1);
+    //    for i in 0..size {
+    //        datoms.push(Datom::add(entity, attribute, i as u64, tx - 1));
+    //    }
+    //    datoms.push(Datom::add(entity, attribute, 0, tx));
+    //
+    //    storage.save(&datoms);
+
+    //    let read_result = storage.find(Restricts::new(tx).with_tx(tx));
+
+    //    assert_eq!(datoms[size..], read_result);
+    //}
 
     fn find_multiple_datoms_by_attribute_for_different_entity_impl<S: TestStorage>() {
         let mut storage = S::create();

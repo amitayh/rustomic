@@ -97,7 +97,7 @@ pub mod index {
                 entity: Some(entity),
                 attribute: Some(attribute),
                 value: Some(value),
-                tx,
+                tx: Some(tx),
                 ..
             } => write_to_vec!(&TAG_EAVT, entity, attribute, value, &!tx),
             Restricts {
@@ -118,18 +118,22 @@ pub mod index {
                 attribute: Some(attribute),
                 ..
             } => write_to_vec!(&TAG_AEVT, attribute),
+            //Restricts {
+            //    tx: Some(tx),
+            //    ..
+            //} => write_to_vec!(&TAG_EAVT, 0u64, 0u64, 0u64, &!tx),
             _ => write_to_vec!(&TAG_AEVT),
         };
         let end = next_prefix(&start);
         start..end
     }
 
-    pub fn seek_key(value: &Value, datom_bytes: &[u8], tx: u64) -> Bytes {
+    pub fn seek_key(value: &Value, datom_bytes: &[u8], basis_tx: u64) -> Bytes {
         // For bytes of a given datom [e a v _ _], seek to the next immediate datom in the index
         // which differs in the [e a v] combination.
         let mut key = next_prefix(&datom_bytes[..key_size(value)]);
         // Also include the tx ID to quickly skip datoms that don't belong to DB snapshot.
-        (!tx).write(&mut key);
+        (!basis_tx).write(&mut key);
         key
     }
 

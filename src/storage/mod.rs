@@ -10,25 +10,31 @@ use crate::datom::*;
 use crate::query::clause::*;
 use crate::query::pattern::*;
 
-#[derive(Default, Debug)]
+#[derive(Default, Debug, Clone)]
 pub struct Restricts {
     pub entity: Option<u64>,
     pub attribute: Option<u64>,
     pub value: Option<Value>,
-    pub tx: u64,
+    pub tx: Option<u64>,
+    pub basis_tx: u64,
 }
 
 impl Restricts {
-    pub fn new(tx: u64) -> Self {
+    pub fn new(basis_tx: u64) -> Self {
         Self {
             entity: None,
             attribute: None,
             value: None,
-            tx,
+            tx: None,
+            basis_tx,
         }
     }
 
-    pub fn from(pattern: &DataPattern, assignment: &HashMap<Rc<str>, Value>, tx: u64) -> Self {
+    pub fn from(
+        pattern: &DataPattern,
+        assignment: &HashMap<Rc<str>, Value>,
+        basis_tx: u64,
+    ) -> Self {
         let entity = match pattern.entity {
             Pattern::Constant(entity) => Some(entity),
             Pattern::Variable(ref variable) => match assignment.get(variable) {
@@ -50,11 +56,20 @@ impl Restricts {
             Pattern::Variable(ref variable) => assignment.get(variable).cloned(),
             _ => None,
         };
+        let tx = match pattern.tx {
+            Pattern::Constant(tx) => Some(tx),
+            Pattern::Variable(ref variable) => match assignment.get(variable) {
+                Some(&Value::Ref(entity)) => Some(entity),
+                _ => None,
+            },
+            _ => None,
+        };
         Self {
             entity,
             attribute,
             value,
             tx,
+            basis_tx,
         }
     }
 
@@ -71,6 +86,29 @@ impl Restricts {
     pub fn with_value(mut self, value: Value) -> Self {
         self.value = Some(value);
         self
+    }
+
+    pub fn with_tx(mut self, tx: u64) -> Self {
+        self.tx = Some(tx);
+        self
+    }
+}
+
+impl Datom {
+    pub fn satisfies(&self, restricts: &Restricts) -> bool {
+        self.op == Op::Added
+            && self.tx <= restricts.basis_tx
+            && restricts
+                .entity
+                .map_or(true, |entity| self.entity == entity)
+            && restricts
+                .attribute
+                .map_or(true, |attribute| self.attribute == attribute)
+            && restricts
+                .value
+                .as_ref()
+                .map_or(true, |value| &self.value == value)
+            && restricts.tx.map_or(true, |tx| self.tx == tx)
     }
 }
 

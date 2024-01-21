@@ -7,14 +7,14 @@ use super::pattern::AttributeIdentifier;
 use super::pattern::Pattern;
 
 pub struct Db {
-    tx: u64,
+    basis_tx: u64,
     attribute_resolver: AttributeResolver,
 }
 
 impl Db {
-    pub fn new(tx: u64) -> Self {
+    pub fn new(basis_tx: u64) -> Self {
         Self {
-            tx,
+            basis_tx,
             attribute_resolver: AttributeResolver::new(),
         }
     }
@@ -28,7 +28,7 @@ impl Db {
         QueryError<S::Error>,
     > {
         self.resolve_idents(storage, &mut query)?;
-        Ok(DbIterator::new(storage, query, self.tx))
+        Ok(DbIterator::new(storage, query, self.basis_tx))
     }
 
     /// Resolves attribute idents. Mutates input `query` such that clauses with
@@ -42,7 +42,7 @@ impl Db {
             if let Pattern::Constant(AttributeIdentifier::Ident(ident)) = &clause.attribute {
                 let attribute =
                     self.attribute_resolver
-                        .resolve(storage, Rc::clone(ident), self.tx)?;
+                        .resolve(storage, Rc::clone(ident), self.basis_tx)?;
 
                 clause.attribute = Pattern::id(attribute.id);
             }
@@ -62,11 +62,11 @@ struct DbIterator<'a, S: ReadStorage> {
     stack: Vec<Frame>,
     complete: Vec<PartialAssignment>,
     query: Query,
-    tx: u64,
+    basis_tx: u64,
 }
 
 impl<'a, S: ReadStorage> DbIterator<'a, S> {
-    fn new(storage: &'a S, query: Query, tx: u64) -> Self {
+    fn new(storage: &'a S, query: Query, basis_tx: u64) -> Self {
         let assignment = Assignment::from_query(&query);
         DbIterator {
             storage,
@@ -76,7 +76,7 @@ impl<'a, S: ReadStorage> DbIterator<'a, S> {
             }],
             complete: Vec::new(),
             query,
-            tx,
+            basis_tx,
         }
     }
 }
@@ -94,7 +94,7 @@ impl<'a, S: ReadStorage> Iterator for DbIterator<'a, S> {
             assignment,
         } = self.stack.pop()?;
         let pattern = self.query.wher.get(pattern_index)?;
-        let restricts = Restricts::from(pattern, &assignment.assigned, self.tx);
+        let restricts = Restricts::from(pattern, &assignment.assigned, self.basis_tx);
         for datom in self.storage.find(restricts) {
             match datom {
                 Ok(datom) => {
@@ -113,6 +113,6 @@ impl<'a, S: ReadStorage> Iterator for DbIterator<'a, S> {
                 Err(err) => return Some(Err(QueryError::StorageError(err))),
             }
         }
-        return self.next();
+        self.next()
     }
 }

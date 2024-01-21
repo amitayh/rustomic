@@ -97,9 +97,9 @@ pub mod index {
                 entity: Some(entity),
                 attribute: Some(attribute),
                 value: Some(value),
-                tx: Some(tx),
+                tx,
                 ..
-            } => write_to_vec!(&TAG_EAVT, entity, attribute, value, &!tx),
+            } => write_to_vec!(&TAG_EAVT, entity, attribute, value, &!(tx.value())),
             Restricts {
                 entity: Some(entity),
                 attribute: Some(attribute),
@@ -118,10 +118,6 @@ pub mod index {
                 attribute: Some(attribute),
                 ..
             } => write_to_vec!(&TAG_AEVT, attribute),
-            //Restricts {
-            //    tx: Some(tx),
-            //    ..
-            //} => write_to_vec!(&TAG_EAVT, 0u64, 0u64, 0u64, &!tx),
             _ => write_to_vec!(&TAG_AEVT),
         };
         let end = next_prefix(&start);

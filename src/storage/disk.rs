@@ -77,8 +77,8 @@ impl Iterator for DiskStorageIter<'_> {
         }
 
         match datom::deserialize(bytes) {
-            Ok(datom) if !datom.satisfies(&self.restricts) => {
-                let key = index::seek_key(&datom.value, bytes, self.restricts.basis_tx);
+            Ok(datom) if !self.restricts.test(&datom) => {
+                let key = index::seek_key(&datom.value, bytes, self.restricts.tx.value());
                 self.iterator.seek(key);
                 self.next()
             }

@@ -67,8 +67,8 @@ impl<'a> Iterator for InMemoryStorageIter<'a> {
     fn next(&mut self) -> Option<Self::Item> {
         let bytes = self.range.next()?;
         match datom::deserialize(bytes) {
-            Ok(datom) if !datom.satisfies(&self.restricts) => {
-                let key = index::seek_key(&datom.value, bytes, self.restricts.basis_tx);
+            Ok(datom) if !self.restricts.test(&datom) => {
+                let key = index::seek_key(&datom.value, bytes, self.restricts.tx.value());
                 self.seek(key);
                 self.next()
             }

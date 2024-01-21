@@ -10,13 +10,34 @@ use crate::datom::*;
 use crate::query::clause::*;
 use crate::query::pattern::*;
 
-#[derive(Default, Debug, Clone)]
+#[derive(Debug, Clone)]
 pub struct Restricts {
     pub entity: Option<u64>,
     pub attribute: Option<u64>,
     pub value: Option<Value>,
-    pub tx: Option<u64>,
-    pub basis_tx: u64,
+    pub tx: TxRestrict,
+}
+
+#[derive(Debug, Clone)]
+pub enum TxRestrict {
+    Exact(u64),
+    AtMost(u64),
+}
+
+impl TxRestrict {
+    fn value(&self) -> u64 {
+        match *self {
+            TxRestrict::Exact(tx) => tx,
+            TxRestrict::AtMost(tx) => tx,
+        }
+    }
+
+    fn test(&self, tx: u64) -> bool {
+        match *self {
+            TxRestrict::Exact(tx0) => tx == tx0,
+            TxRestrict::AtMost(tx0) => tx <= tx0,
+        }
+    }
 }
 
 impl Restricts {
@@ -25,8 +46,7 @@ impl Restricts {
             entity: None,
             attribute: None,
             value: None,
-            tx: None,
-            basis_tx,
+            tx: TxRestrict::AtMost(basis_tx),
         }
     }
 
@@ -57,19 +77,18 @@ impl Restricts {
             _ => None,
         };
         let tx = match pattern.tx {
-            Pattern::Constant(tx) => Some(tx),
+            Pattern::Constant(tx) => TxRestrict::Exact(tx),
             Pattern::Variable(ref variable) => match assignment.get(variable) {
-                Some(&Value::Ref(entity)) => Some(entity),
-                _ => None,
+                Some(&Value::Ref(entity)) => TxRestrict::Exact(entity),
+                _ => TxRestrict::AtMost(basis_tx),
             },
-            _ => None,
+            _ => TxRestrict::AtMost(basis_tx),
         };
         Self {
             entity,
             attribute,
             value,
             tx,
-            basis_tx,
         }
     }
 
@@ -89,26 +108,16 @@ impl Restricts {
     }
 
     pub fn with_tx(mut self, tx: u64) -> Self {
-        self.tx = Some(tx);
+        self.tx = TxRestrict::Exact(tx);
         self
     }
-}
 
-impl Datom {
-    pub fn satisfies(&self, restricts: &Restricts) -> bool {
-        self.op == Op::Added
-            && self.tx <= restricts.basis_tx
-            && restricts
-                .entity
-                .map_or(true, |entity| self.entity == entity)
-            && restricts
-                .attribute
-                .map_or(true, |attribute| self.attribute == attribute)
-            && restricts
-                .value
-                .as_ref()
-                .map_or(true, |value| &self.value == value)
-            && restricts.tx.map_or(true, |tx| self.tx == tx)
+    pub fn test(&self, datom: &Datom) -> bool {
+        datom.op == Op::Added
+            && self.entity.map_or(true, |e| datom.entity == e)
+            && self.attribute.map_or(true, |a| datom.attribute == a)
+            && self.value.as_ref().map_or(true, |v| &datom.value == v)
+            && self.tx.test(datom.tx)
     }
 }
 

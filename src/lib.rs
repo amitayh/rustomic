@@ -467,16 +467,6 @@ mod tests {
     fn aggregation_multi_entity() {
         let mut sut = Sut::new();
 
-        // find: [Var(?born), Agg(Count)]
-        // res: [
-        //  [?born => 1940, ?name => John, ?person => 12]
-        //  [?born => 1942, ?name => Paul, ?person => 34]
-        //  [?born => 1943, ?name => George, ?person => 56]
-        //  [?born => 1940, ?name => Ringo, ?person => 78]
-        // ]
-        //
-        // key = [1940]
-
         // Insert data
         sut.transact(
             Transaction::new()
@@ -505,6 +495,65 @@ mod tests {
         let query = Query::new()
             .find(Find::variable("?born"))
             .find(Find::count())
+            .wher(
+                DataPattern::new()
+                    .with_entity(Pattern::variable("?person"))
+                    .with_attribute(Pattern::ident("person/born"))
+                    .with_value(Pattern::variable("?born")),
+            )
+            .wher(
+                DataPattern::new()
+                    .with_entity(Pattern::variable("?person"))
+                    .with_attribute(Pattern::ident("person/name"))
+                    .with_value(Pattern::variable("?name")),
+            );
+
+        let query_result = sut.query(query.clone());
+
+        let foo = TempQueryResult::from(query, query_result.results);
+        dbg!(foo);
+    }
+
+    #[test]
+    fn aggregation_multi_entity2() {
+        let mut sut = Sut::new();
+
+        // Insert data
+        sut.transact(
+            Transaction::new()
+                .with(
+                    EntityOperation::on_new()
+                        .set_value("person/name", "John")
+                        .set_value("person/born", 1940),
+                )
+                .with(
+                    EntityOperation::on_new()
+                        .set_value("person/name", "Paul")
+                        .set_value("person/born", 1942),
+                )
+                .with(
+                    EntityOperation::on_new()
+                        .set_value("person/name", "George")
+                        .set_value("person/born", 1943),
+                )
+                .with(
+                    EntityOperation::on_new()
+                        .set_value("person/name", "Ringo")
+                        .set_value("person/born", 1940),
+                ),
+        );
+
+        // [?born (distinct ?name)]
+        // [
+        //  [?born => 1940, ?name => John]
+        //  [?born => 1942, ?name => Paul]
+        //  [?born => 1943, ?name => George]
+        //  [?born => 1940, ?name => Ringo]
+        // ]
+
+        let query = Query::new()
+            .find(Find::variable("?born"))
+            .find(Find::distinct("?name"))
             .wher(
                 DataPattern::new()
                     .with_entity(Pattern::variable("?person"))

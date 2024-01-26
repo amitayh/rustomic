@@ -48,6 +48,16 @@ impl Aggregator for Sum {
     }
 }
 
+struct Distinct(Rc<str>);
+
+impl Aggregator for Distinct {
+    fn init(&self) -> Value {
+        Value::U64(0)
+    }
+
+    fn consume(&self, acc: &mut Value, assignment: &PartialAssignment) {}
+}
+
 #[derive(Clone)]
 pub enum Find {
     Variable(Rc<str>),
@@ -65,6 +75,10 @@ impl Find {
 
     pub fn sum(variable: &str) -> Self {
         Self::Aggregate(Rc::new(Sum(Rc::from(variable))))
+    }
+
+    pub fn distinct(variable: &str) -> Self {
+        Self::Aggregate(Rc::new(Distinct(Rc::from(variable))))
     }
 
     pub fn value(&self, assignment: &PartialAssignment) -> Option<Value> {

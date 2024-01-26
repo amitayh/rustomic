@@ -10,7 +10,6 @@ use crate::tx::*;
 
 type TempId = Rc<str>;
 type EntityId = u64;
-type TempIds = HashMap<TempId, EntityId>;
 
 #[derive(Default)]
 pub struct Transactor {
@@ -38,7 +37,7 @@ impl Transactor {
         Ok(TransctionResult {
             tx_id: datoms[0].tx,
             tx_data: datoms,
-            temp_ids,
+            temp_ids: temp_ids.0,
         })
     }
 
@@ -55,7 +54,7 @@ impl Transactor {
                 }
             };
         }
-        Ok(temp_ids)
+        Ok(TempIds(temp_ids))
     }
 
     fn transaction_datoms<S: ReadStorage>(
@@ -93,7 +92,7 @@ impl Transactor {
         datoms: &mut Vec<Datom>,
     ) -> Result<(), TransactionError<S::Error>> {
         let operation_attributes = operation.attributes.len();
-        let entity = self.resolve_entity(&operation.entity, temp_ids)?;
+        let entity = self.resolve_entity(operation.entity, temp_ids)?;
         let mut retract_attributes = Vec::with_capacity(operation_attributes);
         for attribute_value in operation.attributes {
             let attribute =
@@ -108,10 +107,7 @@ impl Transactor {
 
             let value = match attribute_value.value {
                 AttributeValue::Value(value) => Ok(value),
-                AttributeValue::TempId(temp_id) => match temp_ids.get(&temp_id) {
-                    Some(&entity) => Ok(Value::Ref(entity)),
-                    None => Err(TransactionError::TempIdNotFound(temp_id)),
-                },
+                AttributeValue::TempId(temp_id) => temp_ids.get(&temp_id).map(Value::Ref),
             }?;
 
             if attribute.definition.value_type != (&value).into() {
@@ -153,16 +149,25 @@ impl Transactor {
 
     fn resolve_entity<Error>(
         &mut self,
-        entity: &OperatedEntity,
+        entity: OperatedEntity,
         temp_ids: &TempIds,
-    ) -> Result<u64, TransactionError<Error>> {
+    ) -> Result<EntityId, TransactionError<Error>> {
         match entity {
             OperatedEntity::New => Ok(self.next_entity_id()),
-            &OperatedEntity::Id(id) => Ok(id),
-            OperatedEntity::TempId(temp_id) => temp_ids
-                .get(temp_id)
-                .copied()
-                .ok_or_else(|| TransactionError::TempIdNotFound(Rc::clone(temp_id))),
+            OperatedEntity::Id(id) => Ok(id),
+            OperatedEntity::TempId(temp_id) => temp_ids.get(&temp_id),
         }
     }
 }
+
+struct TempIds(HashMap<TempId, EntityId>);
+
+impl TempIds {
+    fn get<Error>(&self, temp_id: &Rc<str>) -> Result<EntityId, TransactionError<Error>> {
+        self.0
+            .get(temp_id)
+            .copied()
+            .ok_or_else(|| TransactionError::TempIdNotFound(Rc::clone(temp_id)))
+    }
+}
+

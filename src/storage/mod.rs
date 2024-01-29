@@ -121,13 +121,14 @@ impl Restricts {
     }
 }
 
-pub trait ReadStorage {
+pub trait ReadStorage<'a> {
     type Error: std::error::Error;
+    type Iter: Iterator<Item = Result<Datom, Self::Error>>;
 
     /// Returns an iterator that yields all *non-retracted* datoms that match the restircts.
     /// Iterator might fail with `Self::Error` during iteration.
     /// Ordering of datoms is not guaranteed.
-    fn find(&self, restricts: Restricts) -> impl Iterator<Item = Result<Datom, Self::Error>>;
+    fn find(&'a self, restricts: Restricts) -> Self::Iter;
 }
 
 pub trait WriteStorage {

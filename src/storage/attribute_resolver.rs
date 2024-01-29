@@ -19,9 +19,9 @@ impl AttributeResolver {
         Self::default()
     }
 
-    pub fn resolve<S: ReadStorage>(
+    pub fn resolve<'a, S: ReadStorage<'a>>(
         &mut self,
-        storage: &S,
+        storage: &'a S,
         ident: Rc<str>,
         tx: u64,
     ) -> Result<&Attribute, ResolveError<S::Error>> {
@@ -41,8 +41,8 @@ pub enum ResolveError<S> {
     IdentNotFound(Rc<str>),
 }
 
-fn resolve_ident<S: ReadStorage>(
-    storage: &S,
+fn resolve_ident<'a, S: ReadStorage<'a>>(
+    storage: &'a S,
     ident: Rc<str>,
     tx: u64,
 ) -> Result<Option<Attribute>, S::Error> {
@@ -56,8 +56,8 @@ fn resolve_ident<S: ReadStorage>(
     Ok(None)
 }
 
-fn resolve_id<S: ReadStorage>(
-    storage: &S,
+fn resolve_id<'a, S: ReadStorage<'a>>(
+    storage: &'a S,
     attribute_id: u64,
     tx: u64,
 ) -> Result<Option<Attribute>, S::Error> {
@@ -159,12 +159,12 @@ mod tests {
     use crate::tx::transactor::Transactor;
     use crate::tx::Transaction;
 
-    struct CountingStorage {
-        inner: InMemoryStorage,
+    struct CountingStorage<'a> {
+        inner: InMemoryStorage<'a>,
         count: Cell<usize>,
     }
 
-    impl CountingStorage {
+    impl<'a> CountingStorage<'a> {
         fn new() -> Self {
             Self {
                 inner: InMemoryStorage::new(),
@@ -177,23 +177,24 @@ mod tests {
         }
     }
 
-    impl ReadStorage for CountingStorage {
-        type Error = <InMemoryStorage as ReadStorage>::Error;
+    impl<'a> ReadStorage<'a> for CountingStorage<'a> {
+        type Error = <InMemoryStorage<'a> as ReadStorage<'a>>::Error;
+        type Iter = <InMemoryStorage<'a> as ReadStorage<'a>>::Iter;
 
-        fn find(&self, restricts: Restricts) -> impl Iterator<Item = Result<Datom, Self::Error>> {
+        fn find(&'a self, restricts: Restricts) -> Self::Iter {
             self.count.set(self.count.get() + 1);
             self.inner.find(restricts)
         }
     }
 
-    impl WriteStorage for CountingStorage {
-        type Error = <InMemoryStorage as WriteStorage>::Error;
+    impl<'a> WriteStorage for CountingStorage<'a> {
+        type Error = <InMemoryStorage<'a> as WriteStorage>::Error;
         fn save(&mut self, datoms: &[Datom]) -> Result<(), Self::Error> {
             self.inner.save(datoms)
         }
     }
 
-    fn create_storage() -> CountingStorage {
+    fn create_storage<'a>() -> CountingStorage<'a> {
         let mut storage = CountingStorage::new();
         storage.save(&default_datoms()).unwrap();
         storage

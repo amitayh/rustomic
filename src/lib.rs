@@ -26,13 +26,13 @@ mod tests {
     use super::tx::transactor::*;
     use super::tx::*;
 
-    struct Sut {
+    struct Sut<'a> {
         transactor: Transactor,
-        storage: InMemoryStorage,
+        storage: InMemoryStorage<'a>,
         last_tx: u64,
     }
 
-    impl Sut {
+    impl<'a> Sut<'a> {
         fn new() -> Self {
             let mut sut = Self::new_without_schema();
             sut.transact(create_schema());
@@ -550,6 +550,23 @@ mod tests {
         //  [?born => 1943, ?name => George]
         //  [?born => 1940, ?name => Ringo]
         // ]
+        //
+        // # Input
+        //
+        // +----------+------+
+        // | name     | born |
+        // +----------+------+
+        // | John     | 1940 |
+        // | Paul     | 1942 |
+        // | George   | 1943 |
+        // | Ringo    | 1940 |
+        // +----------+------+
+        //
+        // # Output
+        //
+        // [1940 2]
+        // [1942 1]
+        // [1943 1]
 
         let query = Query::new()
             .find(Find::variable("?born"))

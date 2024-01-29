@@ -1,3 +1,4 @@
+use crate::datom::Datom;
 use crate::query::assignment::*;
 use crate::query::*;
 use crate::storage::attribute_resolver::*;
@@ -19,7 +20,7 @@ impl Db {
         }
     }
 
-    pub fn query<'a, S: ReadStorage>(
+    pub fn query<'a, S: ReadStorage<'a>>(
         &mut self,
         storage: &'a S,
         mut query: Query,
@@ -33,9 +34,9 @@ impl Db {
 
     /// Resolves attribute idents. Mutates input `query` such that clauses with
     /// `AttributeIdentifier::Ident` will be replaced with `AttributeIdentifier::Id`.
-    fn resolve_idents<S: ReadStorage>(
+    fn resolve_idents<'a, S: ReadStorage<'a>>(
         &mut self,
-        storage: &S,
+        storage: &'a S,
         query: &mut Query,
     ) -> Result<(), QueryError<S::Error>> {
         for clause in &mut query.wher {
@@ -57,34 +58,82 @@ struct Frame {
     assignment: Assignment,
 }
 
-struct DbIterator<'a, S: ReadStorage> {
+struct DbIterator<'a, S: ReadStorage<'a>> {
     storage: &'a S,
+    inner: S::Iter,
+    frame: Frame,
     stack: Vec<Frame>,
-    complete: Vec<PartialAssignment>,
+    //stacks: NonEmptyVec<Frame>,
     query: Query,
     basis_tx: u64,
 }
 
-impl<'a, S: ReadStorage> DbIterator<'a, S> {
+struct NonEmptyVec<T> {
+    head: T,
+    tail: Vec<T>
+}
+
+impl<T> NonEmptyVec<T> {
+    fn new(head: T) -> Self {
+        Self { head, tail: Vec::new() }
+    }
+
+    fn push(&mut self, item: T) {
+        self.tail.push(item);
+    }
+}
+
+impl<'a, S: ReadStorage<'a>> DbIterator<'a, S> {
     fn new(storage: &'a S, query: Query, basis_tx: u64) -> Self {
         let assignment = Assignment::from_query(&query);
+        let pattern = query.wher.get(0).unwrap();
+        let restricts = Restricts::from(pattern, &assignment.assigned, basis_tx);
+        let inner = storage.find(restricts);
         DbIterator {
             storage,
-            stack: vec![Frame {
+            inner,
+            frame: Frame {
                 pattern_index: 0,
                 assignment,
-            }],
-            complete: Vec::new(),
+            },
+            stack: Vec::new(),
+            //stack: NonEmptyVec::new(Frame {
+            //    pattern_index: 0,
+            //    assignment,
+            //}),
             query,
             basis_tx,
         }
     }
 }
 
-impl<'a, S: ReadStorage> Iterator for DbIterator<'a, S> {
+impl<'a, S: ReadStorage<'a>> Iterator for DbIterator<'a, S> {
     type Item = Result<PartialAssignment, QueryError<S::Error>>;
 
     fn next(&mut self) -> Option<Self::Item> {
+        if let Some(datom) = self.inner.next() {
+            let pattern = self.query.wher.get(self.frame.pattern_index)?;
+            let assignment = self.frame.assignment.update_with(pattern, datom.unwrap());
+            if !assignment.satisfies(&self.query) {
+                return self.next();
+            }
+            if assignment.is_complete() {
+                return Some(Ok(assignment.assigned));
+            }
+            self.stack.push(Frame { pattern_index: self.frame.pattern_index + 1, assignment });
+            return self.next();
+        } else {
+            // Inner iterator is exhausted, try next stack frame
+            self.frame = self.stack.pop()?;
+            let pattern = self.query.wher.get(self.frame.pattern_index)?;
+            let restricts = Restricts::from(pattern, &self.frame.assignment.assigned, self.basis_tx);
+            self.inner = self.storage.find(restricts);
+            return self.next();
+        }
+
+        // ----------------------------------------------------------------------------------------
+
+        /*
         if let Some(result) = self.complete.pop() {
             return Some(Ok(result));
         }
@@ -114,5 +163,6 @@ impl<'a, S: ReadStorage> Iterator for DbIterator<'a, S> {
             }
         }
         self.next()
+        */
     }
 }

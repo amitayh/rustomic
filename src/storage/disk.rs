@@ -1,3 +1,4 @@
+use std::marker::PhantomData;
 use std::ops::Range;
 
 use rocksdb::*;
@@ -6,17 +7,18 @@ use crate::storage::serde::*;
 use crate::storage::*;
 use thiserror::Error;
 
-pub struct DiskStorage {
+pub struct DiskStorage<'a> {
     db: rocksdb::DB,
+    marker: PhantomData<&'a Self>,
 }
 
-impl DiskStorage {
+impl<'a> DiskStorage<'a> {
     pub fn new(db: rocksdb::DB) -> Self {
-        Self { db }
+        Self { db, marker: PhantomData }
     }
 }
 
-impl WriteStorage for DiskStorage {
+impl<'a> WriteStorage for DiskStorage<'a> {
     type Error = rocksdb::Error;
 
     fn save(&mut self, datoms: &[Datom]) -> Result<(), Self::Error> {
@@ -32,10 +34,11 @@ impl WriteStorage for DiskStorage {
     }
 }
 
-impl ReadStorage for DiskStorage {
+impl<'a> ReadStorage<'a> for DiskStorage<'a> {
     type Error = DiskStorageError;
+    type Iter = DiskStorageIter<'a>;
 
-    fn find(&self, restricts: Restricts) -> impl Iterator<Item = Result<Datom, Self::Error>> {
+    fn find(&'a self, restricts: Restricts) -> Self::Iter {
         DiskStorageIter::new(restricts, &self.db)
     }
 }

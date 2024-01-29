@@ -1,22 +1,24 @@
 use std::collections::btree_set::Range;
 use std::collections::BTreeSet;
 use std::convert::Infallible;
+use std::marker::PhantomData;
 
 use crate::storage::serde::*;
 use crate::storage::*;
 
 #[derive(Default)]
-pub struct InMemoryStorage {
+pub struct InMemoryStorage<'a> {
     index: BTreeSet<Bytes>,
+    marker: PhantomData<&'a Self>,
 }
 
-impl InMemoryStorage {
+impl<'a> InMemoryStorage<'a> {
     pub fn new() -> Self {
         Self::default()
     }
 }
 
-impl WriteStorage for InMemoryStorage {
+impl<'a> WriteStorage for InMemoryStorage<'a> {
     type Error = Infallible;
 
     fn save(&mut self, datoms: &[Datom]) -> Result<(), Self::Error> {
@@ -29,10 +31,11 @@ impl WriteStorage for InMemoryStorage {
     }
 }
 
-impl ReadStorage for InMemoryStorage {
+impl<'a> ReadStorage<'a> for InMemoryStorage<'a> {
     type Error = ReadError;
+    type Iter = InMemoryStorageIter<'a>;
 
-    fn find(&self, restricts: Restricts) -> impl Iterator<Item = Result<Datom, Self::Error>> {
+    fn find(&'a self, restricts: Restricts) -> Self::Iter {
         InMemoryStorageIter::new(&self.index, restricts)
     }
 }

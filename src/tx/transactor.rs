@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+use std::collections::HashSet;
 
 use crate::clock::Instant;
 use crate::datom::*;
@@ -25,9 +26,9 @@ impl Transactor {
         }
     }
 
-    pub fn transact<S: ReadStorage>(
+    pub fn transact<'a, S: ReadStorage<'a>>(
         &mut self,
-        storage: &S,
+        storage: &'a S,
         now: Instant,
         transaction: Transaction,
     ) -> Result<TransctionResult, TransactionError<S::Error>> {
@@ -57,9 +58,9 @@ impl Transactor {
         Ok(TempIds(temp_ids))
     }
 
-    fn transaction_datoms<S: ReadStorage>(
+    fn transaction_datoms<'a, S: ReadStorage<'a>>(
         &mut self,
-        storage: &S,
+        storage: &'a S,
         now: Instant,
         transaction: Transaction,
         temp_ids: &TempIds,
@@ -83,9 +84,9 @@ impl Transactor {
         Datom::add(tx, DB_TX_TIME_ID, now.0, tx)
     }
 
-    fn operation_datoms<S: ReadStorage>(
+    fn operation_datoms<'a, S: ReadStorage<'a>>(
         &mut self,
-        storage: &S,
+        storage: &'a S,
         tx: u64,
         operation: EntityOperation,
         temp_ids: &TempIds,
@@ -93,7 +94,7 @@ impl Transactor {
     ) -> Result<(), TransactionError<S::Error>> {
         let operation_attributes = operation.attributes.len();
         let entity = self.resolve_entity(operation.entity, temp_ids)?;
-        let mut retract_attributes = Vec::with_capacity(operation_attributes);
+        let mut retract_attributes = HashSet::with_capacity(operation_attributes);
         for attribute_value in operation.attributes {
             let attribute =
                 self.attribute_resolver
@@ -102,7 +103,7 @@ impl Transactor {
             if attribute.definition.cardinality == Cardinality::One {
                 // Values of attributes with cardinality `Cardinality::One` should be retracted
                 // before asserting new values.
-                retract_attributes.push(attribute.id);
+                retract_attributes.insert(attribute.id);
             }
 
             let value = match attribute_value.value {
@@ -129,9 +130,9 @@ impl Transactor {
         Ok(())
     }
 
-    fn retract_old_values<S: ReadStorage>(
+    fn retract_old_values<'a, S: ReadStorage<'a>>(
         &self,
-        storage: &S,
+        storage: &'a S,
         entity: u64,
         attribute: u64,
         tx: u64,
@@ -170,4 +171,3 @@ impl TempIds {
             .ok_or_else(|| TransactionError::TempIdNotFound(Rc::clone(temp_id)))
     }
 }
-

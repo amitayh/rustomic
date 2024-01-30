@@ -14,7 +14,10 @@ pub struct DiskStorage<'a> {
 
 impl<'a> DiskStorage<'a> {
     pub fn new(db: rocksdb::DB) -> Self {
-        Self { db, marker: PhantomData }
+        Self {
+            db,
+            marker: PhantomData,
+        }
     }
 }
 

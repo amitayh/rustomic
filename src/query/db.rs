@@ -1,4 +1,3 @@
-use crate::datom::Datom;
 use crate::query::assignment::*;
 use crate::query::*;
 use crate::storage::attribute_resolver::*;
@@ -60,50 +59,38 @@ struct Frame {
 
 struct DbIterator<'a, S: ReadStorage<'a>> {
     storage: &'a S,
-    inner: S::Iter,
+    query: Query,
     frame: Frame,
     stack: Vec<Frame>,
-    //stacks: NonEmptyVec<Frame>,
-    query: Query,
+    iterator: S::Iter,
     basis_tx: u64,
-}
-
-struct NonEmptyVec<T> {
-    head: T,
-    tail: Vec<T>
-}
-
-impl<T> NonEmptyVec<T> {
-    fn new(head: T) -> Self {
-        Self { head, tail: Vec::new() }
-    }
-
-    fn push(&mut self, item: T) {
-        self.tail.push(item);
-    }
 }
 
 impl<'a, S: ReadStorage<'a>> DbIterator<'a, S> {
     fn new(storage: &'a S, query: Query, basis_tx: u64) -> Self {
-        let assignment = Assignment::from_query(&query);
-        let pattern = query.wher.get(0).unwrap();
-        let restricts = Restricts::from(pattern, &assignment.assigned, basis_tx);
-        let inner = storage.find(restricts);
+        let frame = Frame {
+            pattern_index: 0,
+            assignment: Assignment::from_query(&query),
+        };
+        let iterator = Self::iterator(storage, &frame, &query, basis_tx);
         DbIterator {
             storage,
-            inner,
-            frame: Frame {
-                pattern_index: 0,
-                assignment,
-            },
-            stack: Vec::new(),
-            //stack: NonEmptyVec::new(Frame {
-            //    pattern_index: 0,
-            //    assignment,
-            //}),
             query,
+            frame,
+            stack: Vec::new(),
+            iterator,
             basis_tx,
         }
+    }
+
+    fn iterator(storage: &'a S, frame: &Frame, query: &Query, basis_tx: u64) -> S::Iter {
+        let pattern = query.wher.get(frame.pattern_index);
+        let restricts = Restricts::from(
+            pattern.unwrap_or(&DataPattern::default()),
+            &frame.assignment.assigned,
+            basis_tx,
+        );
+        storage.find(restricts)
     }
 }
 
@@ -111,58 +98,32 @@ impl<'a, S: ReadStorage<'a>> Iterator for DbIterator<'a, S> {
     type Item = Result<PartialAssignment, QueryError<S::Error>>;
 
     fn next(&mut self) -> Option<Self::Item> {
-        if let Some(datom) = self.inner.next() {
-            let pattern = self.query.wher.get(self.frame.pattern_index)?;
-            let assignment = self.frame.assignment.update_with(pattern, datom.unwrap());
-            if !assignment.satisfies(&self.query) {
-                return self.next();
-            }
-            if assignment.is_complete() {
-                return Some(Ok(assignment.assigned));
-            }
-            self.stack.push(Frame { pattern_index: self.frame.pattern_index + 1, assignment });
-            return self.next();
-        } else {
-            // Inner iterator is exhausted, try next stack frame
-            self.frame = self.stack.pop()?;
-            let pattern = self.query.wher.get(self.frame.pattern_index)?;
-            let restricts = Restricts::from(pattern, &self.frame.assignment.assigned, self.basis_tx);
-            self.inner = self.storage.find(restricts);
-            return self.next();
-        }
-
-        // ----------------------------------------------------------------------------------------
-
-        /*
-        if let Some(result) = self.complete.pop() {
-            return Some(Ok(result));
-        }
-
-        let Frame {
-            pattern_index,
-            assignment,
-        } = self.stack.pop()?;
-        let pattern = self.query.wher.get(pattern_index)?;
-        let restricts = Restricts::from(pattern, &assignment.assigned, self.basis_tx);
-        for datom in self.storage.find(restricts) {
-            match datom {
-                Ok(datom) => {
-                    let assignment = assignment.update_with(pattern, datom);
-                    if !assignment.satisfies(&self.query) {
-                        continue;
-                    } else if assignment.is_complete() {
-                        self.complete.push(assignment.assigned);
-                    } else {
-                        self.stack.push(Frame {
-                            pattern_index: pattern_index + 1,
-                            assignment,
-                        });
-                    }
+        match self.iterator.next() {
+            Some(Ok(datom)) => {
+                let pattern_index = self.frame.pattern_index;
+                let pattern = self.query.wher.get(pattern_index)?;
+                let assignment = self.frame.assignment.update_with(pattern, datom);
+                if !assignment.satisfies(&self.query) {
+                    return self.next();
                 }
-                Err(err) => return Some(Err(QueryError::StorageError(err))),
+                if assignment.is_complete() {
+                    // TODO project selected variables
+                    return Some(Ok(assignment.assigned));
+                }
+                self.stack.push(Frame {
+                    pattern_index: pattern_index + 1,
+                    assignment,
+                });
+                self.next()
+            }
+            Some(Err(err)) => Some(Err(QueryError::StorageError(err))),
+            None => {
+                // Inner iterator is exhausted, try next stack frame
+                self.frame = self.stack.pop()?;
+                self.iterator =
+                    Self::iterator(self.storage, &self.frame, &self.query, self.basis_tx);
+                self.next()
             }
         }
-        self.next()
-        */
     }
 }

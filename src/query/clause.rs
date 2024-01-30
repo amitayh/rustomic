@@ -1,8 +1,6 @@
-//use std::borrow::Cow;
 use std::rc::Rc;
 
 use crate::datom::*;
-//use crate::query::assignment::*;
 use crate::query::pattern::*;
 
 #[derive(Clone, Debug, Default)]

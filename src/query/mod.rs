@@ -55,7 +55,7 @@ impl Aggregator for Distinct {
         Value::U64(0)
     }
 
-    fn consume(&self, acc: &mut Value, assignment: &PartialAssignment) {}
+    fn consume(&self, _: &mut Value, _: &PartialAssignment) {}
 }
 
 #[derive(Clone)]

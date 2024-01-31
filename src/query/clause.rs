@@ -4,14 +4,14 @@ use crate::datom::*;
 use crate::query::pattern::*;
 
 #[derive(Clone, Debug, Default)]
-pub struct DataPattern {
+pub struct Clause {
     pub entity: Pattern<u64>,
     pub attribute: Pattern<AttributeIdentifier>,
     pub value: Pattern<Value>,
     pub tx: Pattern<u64>,
 }
 
-impl DataPattern {
+impl Clause {
     pub fn new() -> Self {
         Self::default()
     }
@@ -41,7 +41,7 @@ impl DataPattern {
     /// use rustomic::query::clause::*;
     /// use rustomic::query::pattern::*;
     ///
-    /// let clause = DataPattern::new()
+    /// let clause = Clause::new()
     ///     .with_entity(Pattern::variable("foo"))
     ///     .with_attribute(Pattern::variable("bar"))
     ///     .with_value(Pattern::variable("baz"));

@@ -66,17 +66,14 @@ mod tests {
                 .ok()
         }
 
-        fn query(&self, query: Query) -> QueryResult {
+        fn query(&self, query: Query) -> Vec<Vec<Value>> {
             self.query_at_snapshot(self.last_tx, query)
         }
 
-        fn query_at_snapshot(&self, snapshot_tx: u64, query: Query) -> QueryResult {
+        fn query_at_snapshot(&self, snapshot_tx: u64, query: Query) -> Vec<Vec<Value>> {
             let mut db = Db::new(snapshot_tx);
-            //db.query(&self.storage, query).expect("Unable to query")
             let results = db.query(&self.storage, query).expect("Unable to query");
-            QueryResult {
-                results: results.filter_map(|result| result.ok()).collect(),
-            }
+            results.filter_map(|result| result.ok()).collect()
         }
     }
 
@@ -135,15 +132,15 @@ mod tests {
         );
 
         let query_result = sut.query(
-            Query::new().wher(
-                DataPattern::new()
+            Query::new().with(
+                Clause::new()
                     .with_entity(Pattern::variable("?name"))
                     .with_attribute(Pattern::ident("person/name"))
                     .with_value(Pattern::value("Eve")),
             ),
         );
 
-        assert!(query_result.results.is_empty());
+        assert!(query_result.is_empty());
     }
 
     #[test]
@@ -151,26 +148,26 @@ mod tests {
         let mut sut = Sut::new();
 
         // Insert data
-        let result = sut.transact(
+        let tx_result = sut.transact(
             Transaction::new()
                 .with(EntityOperation::on_temp_id("joe").set_value("person/name", "Joe")),
         );
 
         let query_result = sut.query(
-            Query::new().find(Find::variable("?joe")).wher(
-                DataPattern::new()
+            Query::new().find(Find::variable("?joe")).with(
+                Clause::new()
                     .with_entity(Pattern::variable("?joe"))
                     .with_attribute(Pattern::ident("person/name"))
                     .with_value(Pattern::value("Joe")),
             ),
         );
 
-        let joe_id = result.temp_ids.get("joe");
+        let joe_id = tx_result.temp_ids.get("joe");
         assert!(joe_id.is_some());
 
         assert_that!(
-            query_result.results,
-            unordered_elements_are![has_entry("?joe".into(), eq(Value::Ref(*joe_id.unwrap())))]
+            query_result,
+            unordered_elements_are![elements_are![eq(Value::Ref(*joe_id.unwrap()))]]
         );
     }
 
@@ -220,20 +217,21 @@ mod tests {
 
         let query_result = sut.query(
             Query::new()
-                .wher(
-                    DataPattern::new()
+                .find(Find::variable("?release-name"))
+                .with(
+                    Clause::new()
                         .with_entity(Pattern::variable("?artist"))
                         .with_attribute(Pattern::ident("artist/name"))
                         .with_value(Pattern::value("John Lenon")),
                 )
-                .wher(
-                    DataPattern::new()
+                .with(
+                    Clause::new()
                         .with_entity(Pattern::variable("?release"))
                         .with_attribute(Pattern::ident("release/artists"))
                         .with_value(Pattern::variable("?artist")),
                 )
-                .wher(
-                    DataPattern::new()
+                .with(
+                    Clause::new()
                         .with_entity(Pattern::variable("?release"))
                         .with_attribute(Pattern::ident("release/name"))
                         .with_value(Pattern::variable("?release-name")),
@@ -241,11 +239,8 @@ mod tests {
         );
 
         assert_that!(
-            query_result.results,
-            unordered_elements_are![has_entry(
-                "?release-name".into(),
-                eq(Value::str("Abbey Road"))
-            )]
+            query_result,
+            unordered_elements_are![elements_are![eq(Value::str("Abbey Road"))]]
         );
     }
 
@@ -283,8 +278,8 @@ mod tests {
         );
 
         let query_result = sut.query(
-            Query::new().wher(
-                DataPattern::new()
+            Query::new().find(Find::variable("?likes")).with(
+                Clause::new()
                     .with_entity(Pattern::Constant(joe_id))
                     .with_attribute(Pattern::ident("person/likes"))
                     .with_value(Pattern::variable("?likes")),
@@ -292,8 +287,8 @@ mod tests {
         );
 
         assert_that!(
-            query_result.results,
-            unordered_elements_are![has_entry("?likes".into(), eq(Value::str("Ice cream")))]
+            query_result,
+            unordered_elements_are![elements_are![eq(Value::str("Ice cream"))]]
         );
     }
 
@@ -318,8 +313,8 @@ mod tests {
         );
 
         let query_result = sut.query(
-            Query::new().wher(
-                DataPattern::new()
+            Query::new().find(Find::variable("?likes")).with(
+                Clause::new()
                     .with_entity(Pattern::Constant(joe_id))
                     .with_attribute(Pattern::ident("person/likes"))
                     .with_value(Pattern::variable("?likes")),
@@ -327,10 +322,10 @@ mod tests {
         );
 
         assert_that!(
-            query_result.results,
+            query_result,
             unordered_elements_are![
-                has_entry("?likes".into(), eq(Value::str("Pizza"))),
-                has_entry("?likes".into(), eq(Value::str("Ice cream"))),
+                elements_are![eq(Value::str("Pizza"))],
+                elements_are![eq(Value::str("Ice cream"))],
             ]
         );
     }
@@ -360,8 +355,8 @@ mod tests {
 
         let query_result = sut.query_at_snapshot(
             first_tx_result.tx_id,
-            Query::new().wher(
-                DataPattern::new()
+            Query::new().find(Find::variable("?likes")).with(
+                Clause::new()
                     .with_entity(Pattern::Constant(joe_id))
                     .with_attribute(Pattern::ident("person/likes"))
                     .with_value(Pattern::variable("?likes")),
@@ -369,8 +364,8 @@ mod tests {
         );
 
         assert_that!(
-            query_result.results,
-            unordered_elements_are![has_entry("?likes".into(), eq(Value::str("Pizza")))]
+            query_result,
+            unordered_elements_are![elements_are![eq(Value::str("Pizza"))]]
         );
     }
 
@@ -385,14 +380,16 @@ mod tests {
 
         let query_result = sut.query(
             Query::new()
-                .wher(
-                    DataPattern::new()
+                .find(Find::variable("?tx"))
+                .find(Find::variable("?tx_time"))
+                .with(
+                    Clause::new()
                         .with_attribute(Pattern::ident("person/name"))
                         .with_value(Pattern::value("Joe"))
                         .with_tx(Pattern::variable("?tx")),
                 )
-                .wher(
-                    DataPattern::new()
+                .with(
+                    Clause::new()
                         .with_entity(Pattern::variable("?tx"))
                         .with_attribute(Pattern::id(DB_TX_TIME_ID))
                         .with_value(Pattern::variable("?tx_time")),
@@ -400,11 +397,11 @@ mod tests {
         );
 
         assert_that!(
-            query_result.results,
-            unordered_elements_are![all!(
-                has_entry("?tx".into(), eq(Value::Ref(tx_result.tx_id))),
-                has_entry("?tx_time".into(), matches_pattern!(Value::U64(gt(0)))),
-            )]
+            query_result,
+            unordered_elements_are![elements_are![
+                eq(Value::Ref(tx_result.tx_id)),
+                matches_pattern!(Value::U64(gt(0))),
+            ]]
         );
     }
 
@@ -419,25 +416,30 @@ mod tests {
 
         // Find all datoms belonging to transaction
         let query_result = sut.query(
-            Query::new().wher(
-                DataPattern::new()
-                    .with_entity(Pattern::variable("?e"))
-                    .with_attribute(Pattern::variable("?a"))
-                    .with_value(Pattern::variable("?v"))
-                    .with_tx(Pattern::Constant(tx_result.tx_id)),
-            ),
+            Query::new()
+                .find(Find::variable("?e"))
+                .find(Find::variable("?a"))
+                .find(Find::variable("?v"))
+                .with(
+                    Clause::new()
+                        .with_entity(Pattern::variable("?e"))
+                        .with_attribute(Pattern::variable("?a"))
+                        .with_value(Pattern::variable("?v"))
+                        .with_tx(Pattern::Constant(tx_result.tx_id)),
+                ),
         );
 
         assert_that!(
-            query_result.results,
+            query_result,
             unordered_elements_are![
                 // person/name datom
-                has_entry("?v".into(), eq(Value::str("Joe"))),
+                elements_are![anything(), anything(), eq(Value::str("Joe"))],
                 // tx time datom
-                all!(
-                    has_entry("?e".into(), eq(Value::Ref(tx_result.tx_id))),
-                    has_entry("?a".into(), eq(Value::Ref(DB_TX_TIME_ID)))
-                ),
+                elements_are![
+                    eq(Value::Ref(tx_result.tx_id)),
+                    eq(Value::Ref(DB_TX_TIME_ID)),
+                    anything()
+                ]
             ]
         );
     }
@@ -451,12 +453,12 @@ mod tests {
             Transaction::new().with(EntityOperation::on_new().set_value("person/name", "John")),
         );
 
-        let query_result = sut.query(
+        let _ = sut.query(
             Query::new()
                 .find(Find::variable("?person"))
                 .find(Find::count())
-                .wher(
-                    DataPattern::new()
+                .with(
+                    Clause::new()
                         .with_entity(Pattern::variable("?person"))
                         .with_attribute(Pattern::ident("person/name")),
                 ),
@@ -495,23 +497,23 @@ mod tests {
         let query = Query::new()
             .find(Find::variable("?born"))
             .find(Find::count())
-            .wher(
-                DataPattern::new()
+            .with(
+                Clause::new()
                     .with_entity(Pattern::variable("?person"))
                     .with_attribute(Pattern::ident("person/born"))
                     .with_value(Pattern::variable("?born")),
             )
-            .wher(
-                DataPattern::new()
+            .with(
+                Clause::new()
                     .with_entity(Pattern::variable("?person"))
                     .with_attribute(Pattern::ident("person/name"))
                     .with_value(Pattern::variable("?name")),
             );
 
-        let query_result = sut.query(query.clone());
+        let _ = sut.query(query.clone());
 
-        let foo = TempQueryResult::from(query, query_result.results);
-        dbg!(foo);
+        //let foo = TempQueryResult::from(query, query_result.results);
+        //dbg!(foo);
     }
 
     #[test]
@@ -571,23 +573,23 @@ mod tests {
         let query = Query::new()
             .find(Find::variable("?born"))
             .find(Find::distinct("?name"))
-            .wher(
-                DataPattern::new()
+            .with(
+                Clause::new()
                     .with_entity(Pattern::variable("?person"))
                     .with_attribute(Pattern::ident("person/born"))
                     .with_value(Pattern::variable("?born")),
             )
-            .wher(
-                DataPattern::new()
+            .with(
+                Clause::new()
                     .with_entity(Pattern::variable("?person"))
                     .with_attribute(Pattern::ident("person/name"))
                     .with_value(Pattern::variable("?name")),
             );
 
-        let query_result = sut.query(query.clone());
+        let _ = sut.query(query.clone());
 
-        let foo = TempQueryResult::from(query, query_result.results);
-        dbg!(foo);
+        //let foo = TempQueryResult::from(query, query_result.results);
+        //dbg!(foo);
     }
 
     #[test]
@@ -621,14 +623,15 @@ mod tests {
 
         let query_result = sut.query(
             Query::new()
-                .wher(
-                    DataPattern::new()
+                .find(Find::variable("?name"))
+                .with(
+                    Clause::new()
                         .with_entity(Pattern::variable("?person"))
                         .with_attribute(Pattern::ident("person/born"))
                         .with_value(Pattern::variable("?born")),
                 )
-                .wher(
-                    DataPattern::new()
+                .with(
+                    Clause::new()
                         .with_entity(Pattern::variable("?person"))
                         .with_attribute(Pattern::ident("person/name"))
                         .with_value(Pattern::variable("?name")),
@@ -640,10 +643,10 @@ mod tests {
         );
 
         assert_that!(
-            query_result.results,
+            query_result,
             unordered_elements_are![
-                has_entry("?name".into(), eq(Value::str("Paul"))),
-                has_entry("?name".into(), eq(Value::str("George"))),
+                elements_are![eq(Value::str("Paul"))],
+                elements_are![eq(Value::str("George"))],
             ]
         );
     }

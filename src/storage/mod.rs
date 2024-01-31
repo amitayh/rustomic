@@ -50,12 +50,8 @@ impl Restricts {
         }
     }
 
-    pub fn from(
-        pattern: &DataPattern,
-        assignment: &HashMap<Rc<str>, Value>,
-        basis_tx: u64,
-    ) -> Self {
-        let entity = match pattern.entity {
+    pub fn from(clause: &Clause, assignment: &HashMap<Rc<str>, Value>, basis_tx: u64) -> Self {
+        let entity = match clause.entity {
             Pattern::Constant(entity) => Some(entity),
             Pattern::Variable(ref variable) => match assignment.get(variable) {
                 Some(&Value::Ref(entity)) => Some(entity),
@@ -63,7 +59,7 @@ impl Restricts {
             },
             _ => None,
         };
-        let attribute = match pattern.attribute {
+        let attribute = match clause.attribute {
             Pattern::Constant(AttributeIdentifier::Id(attribute)) => Some(attribute),
             Pattern::Variable(ref variable) => match assignment.get(variable) {
                 Some(&Value::Ref(entity)) => Some(entity),
@@ -71,12 +67,12 @@ impl Restricts {
             },
             _ => None,
         };
-        let value = match pattern.value {
+        let value = match clause.value {
             Pattern::Constant(ref value) => Some(value.clone()),
             Pattern::Variable(ref variable) => assignment.get(variable).cloned(),
             _ => None,
         };
-        let tx = match pattern.tx {
+        let tx = match clause.tx {
             Pattern::Constant(tx) => TxRestrict::Exact(tx),
             Pattern::Variable(ref variable) => match assignment.get(variable) {
                 Some(&Value::Ref(entity)) => TxRestrict::Exact(entity),

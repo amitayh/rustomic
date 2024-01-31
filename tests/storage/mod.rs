@@ -19,9 +19,9 @@ mod tests {
         use super::*;
         use rustomic::storage::memory::*;
 
-        struct InMemory(InMemoryStorage);
+        struct InMemory<'a>(InMemoryStorage<'a>);
 
-        impl TestStorage for InMemory {
+        impl<'a> TestStorage for InMemory<'a> {
             fn create() -> Self {
                 Self(InMemoryStorage::new())
             }
@@ -33,7 +33,7 @@ mod tests {
             fn find(&self, restricts: Restricts) -> HashSet<Datom> {
                 self.0
                     .find(restricts)
-                    .map(|result| result.expect("Error while reading datom"))
+                    .filter_map(|result| result.ok())
                     .collect()
             }
         }

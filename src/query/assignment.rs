@@ -28,17 +28,17 @@ impl Assignment {
     /// use rustomic::query::pattern::*;
     /// use rustomic::datom::*;
     ///
-    /// let query = Query::new().wher(
-    ///     DataPattern::new()
+    /// let query = Query::new().with(
+    ///     Clause::new()
     ///         .with_entity(Pattern::variable("foo"))
     ///         .with_attribute(Pattern::variable("bar"))
     ///         .with_value(Pattern::variable("baz")),
     /// );
     /// let mut assignment = Assignment::from_query(&query);
     ///
-    /// assignment.assign("foo", 1u64);
-    /// assignment.assign("bar", 2u64);
-    /// assignment.assign("baz", 3u64);
+    /// assignment.assign("foo", Value::U64(1));
+    /// assignment.assign("bar", Value::U64(2));
+    /// assignment.assign("baz", Value::U64(3));
     ///
     /// assert_eq!(Value::U64(1), assignment.assigned["foo"]);
     /// assert_eq!(Value::U64(2), assignment.assigned["bar"]);
@@ -47,7 +47,7 @@ impl Assignment {
     pub fn from_query(query: &Query) -> Self {
         Self::new(
             query
-                .wher
+                .clauses
                 .iter()
                 .flat_map(|clause| clause.free_variables())
                 .collect(),
@@ -58,13 +58,14 @@ impl Assignment {
     /// use std::rc::Rc;
     /// use std::collections::HashSet;
     /// use rustomic::query::assignment::*;
+    /// use rustomic::datom::*;
     ///
     /// let mut variables = HashSet::new();
     /// variables.insert(Rc::from("?foo"));
     /// let mut assignment = Assignment::new(variables);
     /// assert!(!assignment.is_complete());
     ///
-    /// assignment.assign("?foo", 42u64);
+    /// assignment.assign("?foo", Value::U64(42));
     /// assert!(assignment.is_complete());
     /// ```
     pub fn is_complete(&self) -> bool {
@@ -76,6 +77,17 @@ impl Assignment {
             .predicates
             .iter()
             .all(|predicate| predicate(&self.assigned))
+    }
+
+    pub fn project(mut self, query: &Query) -> Option<Vec<Value>> {
+        let mut result = Vec::with_capacity(query.find.len());
+        for find in &query.find {
+            if let Find::Variable(variable) = find {
+                let value = self.assigned.remove(variable)?;
+                result.push(value);
+            }
+        }
+        Some(result)
     }
 
     /// ```
@@ -93,7 +105,7 @@ impl Assignment {
     /// variables.insert(Rc::from("?tx"));
     /// let assignment = Assignment::new(variables);
     ///
-    /// let clause = DataPattern::new()
+    /// let clause = Clause::new()
     ///     .with_entity(Pattern::variable("?entity"))
     ///     .with_attribute(Pattern::variable("?attribute"))
     ///     .with_value(Pattern::variable("?value"))
@@ -106,12 +118,12 @@ impl Assignment {
     /// let datom = Datom::add(entity, attribute, value, tx);
     /// let updated = assignment.update_with(&clause, datom);
     ///
-    /// assert_eq!(Value::U64(entity), updated.assigned["?entity"]);
-    /// assert_eq!(Value::U64(attribute), updated.assigned["?attribute"]);
+    /// assert_eq!(Value::Ref(entity), updated.assigned["?entity"]);
+    /// assert_eq!(Value::Ref(attribute), updated.assigned["?attribute"]);
     /// assert_eq!(Value::U64(value), updated.assigned["?value"]);
-    /// assert_eq!(Value::U64(tx), updated.assigned["?tx"]);
+    /// assert_eq!(Value::Ref(tx), updated.assigned["?tx"]);
     /// ```
-    pub fn update_with(&self, pattern: &DataPattern, datom: Datom) -> Self {
+    pub fn update_with(&self, pattern: &Clause, datom: Datom) -> Self {
         let mut assignment = self.clone();
         if let Pattern::Variable(variable) = &pattern.entity {
             assignment.assign_ref(variable, datom.entity);
@@ -128,13 +140,13 @@ impl Assignment {
         assignment
     }
 
-    fn assign_ref(&mut self, variable: &str, entity: u64) {
-        self.assign(variable, Value::Ref(entity));
-    }
-
-    fn assign(&mut self, variable: &str, value: Value) {
+    pub fn assign(&mut self, variable: &str, value: Value) {
         if let Some(var) = self.unassigned.take(variable) {
             self.assigned.insert(var, value);
         }
+    }
+
+    fn assign_ref(&mut self, variable: &str, entity: u64) {
+        self.assign(variable, Value::Ref(entity));
     }
 }

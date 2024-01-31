@@ -16,61 +16,6 @@ impl Value {
     pub fn str(str: &str) -> Self {
         Self::Str(Rc::from(str))
     }
-
-    /// ```
-    /// use rustomic::datom::Value;
-    ///
-    /// let str_value = Value::str("foo");
-    /// assert_eq!(None, str_value.as_u64());
-    ///
-    /// let u64_value = Value::U64(42);
-    /// assert_eq!(Some(42), u64_value.as_u64());
-    /// ```
-    pub fn as_u64(&self) -> Option<u64> {
-        match self {
-            &Self::U64(value) => Some(value),
-            _ => None,
-        }
-    }
-
-    /// ```
-    /// use rustomic::datom::Value;
-    ///
-    /// let str_value = Value::str("foo");
-    /// assert_eq!(None, str_value.as_i64());
-    ///
-    /// let i64_value = Value::I64(42);
-    /// assert_eq!(Some(42), i64_value.as_i64());
-    /// ```
-    pub fn as_i64(&self) -> Option<i64> {
-        match self {
-            &Self::I64(value) => Some(value),
-            _ => None,
-        }
-    }
-
-    /// ```
-    /// use rustomic::datom::Value;
-    ///
-    /// let u64_value = Value::U64(42);
-    /// assert_eq!(None, u64_value.as_str());
-    ///
-    /// let str_value = Value::str("foo");
-    /// assert_eq!(Some("foo"), str_value.as_str());
-    /// ```
-    pub fn as_str(&self) -> Option<&str> {
-        match self {
-            Self::Str(value) => Some(value),
-            _ => None,
-        }
-    }
-
-    pub fn as_ref(&self) -> Option<u64> {
-        match self {
-            &Self::Ref(value) => Some(value),
-            _ => None,
-        }
-    }
 }
 
 impl From<i32> for Value {

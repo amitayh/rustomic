@@ -92,7 +92,7 @@ impl Find {
 #[derive(Default, Clone)]
 pub struct Query {
     pub find: Vec<Find>,
-    pub wher: Vec<DataPattern>,
+    pub clauses: Vec<Clause>,
     pub predicates: Vec<Predicate>,
 }
 
@@ -106,21 +106,8 @@ impl Query {
         self
     }
 
-    fn find_variables(&self) -> impl Iterator<Item = &Rc<str>> {
-        self.find.iter().filter_map(|find| match find {
-            Find::Variable(variable) => Some(variable),
-            _ => None,
-        })
-    }
-    fn find_aggregations(&self) -> impl Iterator<Item = &Rc<dyn Aggregator>> {
-        self.find.iter().filter_map(|find| match find {
-            Find::Aggregate(aggregator) => Some(aggregator),
-            _ => None,
-        })
-    }
-
-    pub fn wher(mut self, clause: DataPattern) -> Self {
-        self.wher.push(clause);
+    pub fn with(mut self, clause: Clause) -> Self {
+        self.clauses.push(clause);
         self
     }
 
@@ -140,18 +127,34 @@ impl Query {
         })
     }
 
+    /*
+    fn find_variables(&self) -> impl Iterator<Item = &Rc<str>> {
+        self.find.iter().filter_map(|find| match find {
+            Find::Variable(variable) => Some(variable),
+            _ => None,
+        })
+    }
+    fn find_aggregations(&self) -> impl Iterator<Item = &Rc<dyn Aggregator>> {
+        self.find.iter().filter_map(|find| match find {
+            Find::Aggregate(aggregator) => Some(aggregator),
+            _ => None,
+        })
+    }
+
     fn is_aggregated(&self) -> bool {
         self.find
             .iter()
             .any(|find| matches!(find, Find::Aggregate(_)))
     }
+    */
 }
 
 #[derive(Debug)]
 pub struct TempQueryResult(HashMap<Vec<Value>, Vec<Value>>);
 
 impl TempQueryResult {
-    pub fn from<T: IntoIterator<Item = PartialAssignment>>(query: Query, iter: T) -> Self {
+    /*
+    pub fn from<T: IntoIterator<Item = Vec<Value>>>(query: Query, iter: T) -> Self {
         if query.is_aggregated() {
             let mut agg = HashMap::new();
             for assignment in iter {
@@ -167,8 +170,10 @@ impl TempQueryResult {
         }
         Self(HashMap::new())
     }
+    */
 }
 
+/*
 fn init(query: &Query) -> Vec<Value> {
     let mut result = Vec::with_capacity(query.find.len());
     for find in &query.find {
@@ -188,10 +193,11 @@ fn key_of(query: &Query, assignment: &PartialAssignment) -> Vec<Value> {
     }
     key
 }
+*/
 
 #[derive(Debug)]
 pub struct QueryResult {
-    pub results: Vec<PartialAssignment>,
+    pub results: Vec<Vec<Value>>,
 }
 
 #[derive(Debug, Error)]

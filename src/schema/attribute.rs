@@ -41,16 +41,6 @@ impl ValueType {
     }
 }
 
-pub struct InvalidValue(u64);
-
-impl TryFrom<u64> for ValueType {
-    type Error = InvalidValue;
-
-    fn try_from(value: u64) -> Result<Self, Self::Error> {
-        ValueType::from(value).ok_or(InvalidValue(value))
-    }
-}
-
 impl From<&Value> for ValueType {
     /// ```
     /// use std::rc::Rc;
@@ -80,14 +70,6 @@ impl From<&Value> for ValueType {
 pub enum Cardinality {
     One = 0,
     Many = 1,
-}
-
-impl TryFrom<u64> for Cardinality {
-    type Error = InvalidValue;
-
-    fn try_from(value: u64) -> Result<Self, Self::Error> {
-        Cardinality::from(value).ok_or(InvalidValue(value))
-    }
 }
 
 impl Cardinality {

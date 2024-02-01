@@ -453,15 +453,17 @@ mod tests {
             Transaction::new().with(EntityOperation::on_new().set_value("person/name", "John")),
         );
 
-        let _ = sut.query(
-            Query::new()
-                .find(Find::variable("?person"))
-                .find(Find::count())
-                .with(
-                    Clause::new()
-                        .with_entity(Pattern::variable("?person"))
-                        .with_attribute(Pattern::ident("person/name")),
-                ),
+        let query_result = sut.query(
+            Query::new().find(Find::count()).with(
+                Clause::new()
+                    .with_entity(Pattern::variable("?person"))
+                    .with_attribute(Pattern::ident("person/name")),
+            ),
+        );
+
+        assert_that!(
+            query_result,
+            unordered_elements_are![elements_are![eq(Value::U64(1))]]
         );
     }
 
@@ -510,86 +512,16 @@ mod tests {
                     .with_value(Pattern::variable("?name")),
             );
 
-        let _ = sut.query(query.clone());
+        let query_result = sut.query(query);
 
-        //let foo = TempQueryResult::from(query, query_result.results);
-        //dbg!(foo);
-    }
-
-    #[test]
-    fn aggregation_multi_entity2() {
-        let mut sut = Sut::new();
-
-        // Insert data
-        sut.transact(
-            Transaction::new()
-                .with(
-                    EntityOperation::on_new()
-                        .set_value("person/name", "John")
-                        .set_value("person/born", 1940),
-                )
-                .with(
-                    EntityOperation::on_new()
-                        .set_value("person/name", "Paul")
-                        .set_value("person/born", 1942),
-                )
-                .with(
-                    EntityOperation::on_new()
-                        .set_value("person/name", "George")
-                        .set_value("person/born", 1943),
-                )
-                .with(
-                    EntityOperation::on_new()
-                        .set_value("person/name", "Ringo")
-                        .set_value("person/born", 1940),
-                ),
+        assert_that!(
+            query_result,
+            unordered_elements_are![
+                elements_are![eq(Value::I64(1940)), eq(Value::U64(2))],
+                elements_are![eq(Value::I64(1942)), eq(Value::U64(1))],
+                elements_are![eq(Value::I64(1943)), eq(Value::U64(1))],
+            ]
         );
-
-        // [?born (distinct ?name)]
-        // [
-        //  [?born => 1940, ?name => John]
-        //  [?born => 1942, ?name => Paul]
-        //  [?born => 1943, ?name => George]
-        //  [?born => 1940, ?name => Ringo]
-        // ]
-        //
-        // # Input
-        //
-        // +----------+------+
-        // | name     | born |
-        // +----------+------+
-        // | John     | 1940 |
-        // | Paul     | 1942 |
-        // | George   | 1943 |
-        // | Ringo    | 1940 |
-        // +----------+------+
-        //
-        // # Output
-        //
-        // [1940 2]
-        // [1942 1]
-        // [1943 1]
-
-        let query = Query::new()
-            .find(Find::variable("?born"))
-            .find(Find::distinct("?name"))
-            .with(
-                Clause::new()
-                    .with_entity(Pattern::variable("?person"))
-                    .with_attribute(Pattern::ident("person/born"))
-                    .with_value(Pattern::variable("?born")),
-            )
-            .with(
-                Clause::new()
-                    .with_entity(Pattern::variable("?person"))
-                    .with_attribute(Pattern::ident("person/name"))
-                    .with_value(Pattern::variable("?name")),
-            );
-
-        let _ = sut.query(query.clone());
-
-        //let foo = TempQueryResult::from(query, query_result.results);
-        //dbg!(foo);
     }
 
     #[test]

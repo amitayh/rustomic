@@ -2,6 +2,7 @@ pub mod assignment;
 pub mod clause;
 pub mod db;
 pub mod pattern;
+pub mod resolver;
 
 use crate::datom::Value;
 use crate::query::clause::*;
@@ -134,67 +135,12 @@ impl Query {
         })
     }
 
-    pub fn find_aggregations(&self) -> impl Iterator<Item = &Rc<dyn Aggregator>> {
-        self.find.iter().filter_map(|find| match find {
-            Find::Aggregate(aggregator) => Some(aggregator),
-            _ => None,
-        })
-    }
-
-    /*
     fn is_aggregated(&self) -> bool {
         self.find
             .iter()
             .any(|find| matches!(find, Find::Aggregate(_)))
     }
-    */
 }
-
-#[derive(Debug)]
-pub struct TempQueryResult(HashMap<Vec<Value>, Vec<Value>>);
-
-impl TempQueryResult {
-    /*
-    pub fn from<T: IntoIterator<Item = Vec<Value>>>(query: Query, iter: T) -> Self {
-        if query.is_aggregated() {
-            let mut agg = HashMap::new();
-            for assignment in iter {
-                let key = key_of(&query, &assignment);
-                let entry = agg.entry(key).or_insert_with(|| init(&query));
-                for (index, aggregator) in query.find_aggregations().enumerate() {
-                    if let Some(value) = entry.get_mut(index) {
-                        aggregator.consume(value, &assignment);
-                    }
-                }
-            }
-            return Self(agg);
-        }
-        Self(HashMap::new())
-    }
-    */
-}
-
-/*
-fn init(query: &Query) -> Vec<Value> {
-    let mut result = Vec::with_capacity(query.find.len());
-    for find in &query.find {
-        if let Find::Aggregate(agg) = find {
-            result.push(agg.init());
-        }
-    }
-    result
-}
-
-fn key_of(query: &Query, assignment: &PartialAssignment) -> Vec<Value> {
-    let mut key = Vec::with_capacity(query.find.len());
-    for variable in query.find_variables() {
-        if let Some(value) = assignment.get(variable) {
-            key.push(value.clone());
-        }
-    }
-    key
-}
-*/
 
 #[derive(Debug)]
 pub struct QueryResult {

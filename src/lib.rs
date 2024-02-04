@@ -120,6 +120,30 @@ mod tests {
             )
     }
 
+    fn create_beatles() -> Transaction {
+        Transaction::new()
+            .with(
+                EntityOperation::on_new()
+                    .set_value("person/name", "John")
+                    .set_value("person/born", 1940),
+            )
+            .with(
+                EntityOperation::on_new()
+                    .set_value("person/name", "Paul")
+                    .set_value("person/born", 1942),
+            )
+            .with(
+                EntityOperation::on_new()
+                    .set_value("person/name", "George")
+                    .set_value("person/born", 1943),
+            )
+            .with(
+                EntityOperation::on_new()
+                    .set_value("person/name", "Ringo")
+                    .set_value("person/born", 1940),
+            )
+    }
+
     #[test]
     fn return_empty_result() {
         let mut sut = Sut::new();
@@ -209,7 +233,6 @@ mod tests {
                 .with(
                     EntityOperation::on_temp_id("abbey-road")
                         .set_value("release/name", "Abbey Road")
-                        // "release/artists" has type `Ref`, should resolve temp IDs
                         .set_reference("release/artists", "john")
                         .set_reference("release/artists", "paul"),
                 ),
@@ -472,29 +495,7 @@ mod tests {
         let mut sut = Sut::new();
 
         // Insert data
-        sut.transact(
-            Transaction::new()
-                .with(
-                    EntityOperation::on_new()
-                        .set_value("person/name", "John")
-                        .set_value("person/born", 1940),
-                )
-                .with(
-                    EntityOperation::on_new()
-                        .set_value("person/name", "Paul")
-                        .set_value("person/born", 1942),
-                )
-                .with(
-                    EntityOperation::on_new()
-                        .set_value("person/name", "George")
-                        .set_value("person/born", 1943),
-                )
-                .with(
-                    EntityOperation::on_new()
-                        .set_value("person/name", "Ringo")
-                        .set_value("person/born", 1940),
-                ),
-        );
+        sut.transact(create_beatles());
 
         let query = Query::new()
             .find(Find::variable("?born"))
@@ -525,33 +526,46 @@ mod tests {
     }
 
     #[test]
+    fn aggregation_with_arbitrary_order() {
+        let mut sut = Sut::new();
+
+        // Insert data
+        sut.transact(create_beatles());
+
+        let query = Query::new()
+            .find(Find::count())
+            .find(Find::variable("?born"))
+            .with(
+                Clause::new()
+                    .with_entity(Pattern::variable("?person"))
+                    .with_attribute(Pattern::ident("person/born"))
+                    .with_value(Pattern::variable("?born")),
+            )
+            .with(
+                Clause::new()
+                    .with_entity(Pattern::variable("?person"))
+                    .with_attribute(Pattern::ident("person/name"))
+                    .with_value(Pattern::variable("?name")),
+            );
+
+        let query_result = sut.query(query);
+
+        assert_that!(
+            query_result,
+            unordered_elements_are![
+                elements_are![eq(Value::U64(2)), eq(Value::I64(1940))], // John, Ringo
+                elements_are![eq(Value::U64(1)), eq(Value::I64(1942))], // Paul
+                elements_are![eq(Value::U64(1)), eq(Value::I64(1943))], // George
+            ]
+        );
+    }
+
+    #[test]
     fn support_query_predicates() {
         let mut sut = Sut::new();
 
         // Insert data
-        sut.transact(
-            Transaction::new()
-                .with(
-                    EntityOperation::on_new()
-                        .set_value("person/name", "John")
-                        .set_value("person/born", 1940),
-                )
-                .with(
-                    EntityOperation::on_new()
-                        .set_value("person/name", "Paul")
-                        .set_value("person/born", 1942),
-                )
-                .with(
-                    EntityOperation::on_new()
-                        .set_value("person/name", "George")
-                        .set_value("person/born", 1943),
-                )
-                .with(
-                    EntityOperation::on_new()
-                        .set_value("person/name", "Ringo")
-                        .set_value("person/born", 1940),
-                ),
-        );
+        sut.transact(create_beatles());
 
         let query_result = sut.query(
             Query::new()

@@ -90,11 +90,15 @@ struct Aggregator2<'a, S: ReadStorage<'a>> {
 
 impl<'a, S: ReadStorage<'a>> Aggregator2<'a, S> {
     fn new(resolver: Resolver<'a, S>, query: &Query) -> Result<Self, QueryError<S::Error>> {
+        // TODO concurrent aggregation
         let mut aggregated = HashMap::new();
+        let key_size = query.find_variables().count();
         for assignment in resolver {
             let assignment = assignment?;
-            let key = Self::key_of(query, &assignment);
-            let entry = aggregated.entry(key).or_insert_with(|| Self::init(query, &assignment));
+            let key = Self::key_of(query, &assignment, key_size);
+            let entry = aggregated
+                .entry(key)
+                .or_insert_with(|| Self::init(query, &assignment));
             for (index, find) in query.find.iter().enumerate() {
                 if let Find::Aggregate(agg) = find {
                     if let Some(value) = entry.get_mut(index) {
@@ -109,12 +113,10 @@ impl<'a, S: ReadStorage<'a>> Aggregator2<'a, S> {
         })
     }
 
-    fn key_of(query: &Query, assignment: &PartialAssignment) -> Vec<Value> {
-        let mut key = Vec::with_capacity(query.find.len());
+    fn key_of(query: &Query, assignment: &PartialAssignment, key_size: usize) -> Vec<Value> {
+        let mut key = Vec::with_capacity(key_size);
         for variable in query.find_variables() {
-            if let Some(value) = assignment.get(variable) {
-                key.push(value.clone());
-            }
+            key.push(assignment[variable].clone());
         }
         key
     }

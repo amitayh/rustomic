@@ -63,9 +63,7 @@ impl<'a, S: ReadStorage<'a>> Iterator for Resolver<'a, S> {
         match self.iterator.next() {
             Some(Err(err)) => Some(Err(QueryError::StorageError(err))),
             Some(Ok(datom)) => self.process(datom),
-            None =>
-                // Inner iterator is exhausted, try next stack frame
-                self.next_frame(),
+            None => self.next_frame(), // Inner iterator exhausted, try next stack frame
         }
     }
 }

@@ -533,7 +533,7 @@ mod tests {
         sut.transact(create_beatles());
 
         let query = Query::new()
-            .find(Find::count())
+            .find(Find::sum("?born"))
             .find(Find::variable("?born"))
             .with(
                 Clause::new()
@@ -553,9 +553,72 @@ mod tests {
         assert_that!(
             query_result,
             unordered_elements_are![
-                elements_are![eq(Value::U64(2)), eq(Value::I64(1940))], // John, Ringo
-                elements_are![eq(Value::U64(1)), eq(Value::I64(1942))], // Paul
-                elements_are![eq(Value::U64(1)), eq(Value::I64(1943))], // George
+                elements_are![eq(Value::I64(3880)), eq(Value::I64(1940))], // John, Ringo
+                elements_are![eq(Value::I64(1942)), eq(Value::I64(1942))], // Paul
+                elements_are![eq(Value::I64(1943)), eq(Value::I64(1943))], // George
+            ]
+        );
+    }
+
+    #[test]
+    fn lala() {
+        let mut sut = Sut::new();
+
+        // Insert data
+        sut.transact(
+            Transaction::new()
+                .with(
+                    EntityOperation::on_new()
+                        .set_value("person/name", "John")
+                        .set_value("person/likes", "Pizza")
+                        .set_value("person/likes", "Ice cream")
+                        .set_value("person/born", 1967),
+                )
+                .with(
+                    EntityOperation::on_new()
+                        .set_value("person/name", "John")
+                        .set_value("person/likes", "Pizza")
+                        .set_value("person/likes", "Beer")
+                        .set_value("person/born", 1967),
+                )
+                .with(
+                    EntityOperation::on_new()
+                        .set_value("person/name", "Mike")
+                        .set_value("person/likes", "Pizza")
+                        .set_value("person/born", 1967),
+                )
+                .with(
+                    EntityOperation::on_new()
+                        .set_value("person/name", "James")
+                        .set_value("person/likes", "Beer")
+                        .set_value("person/born", 1963),
+                ),
+        );
+
+        let query = Query::new()
+            .find(Find::variable("?name"))
+            .find(Find::count_distinct("?likes"))
+            .with(
+                Clause::new()
+                    .with_entity(Pattern::variable("?person"))
+                    .with_attribute(Pattern::ident("person/name"))
+                    .with_value(Pattern::variable("?name")),
+            )
+            .with(
+                Clause::new()
+                    .with_entity(Pattern::variable("?person"))
+                    .with_attribute(Pattern::ident("person/likes"))
+                    .with_value(Pattern::variable("?likes")),
+            );
+
+        let query_result = sut.query(query);
+
+        assert_that!(
+            query_result,
+            unordered_elements_are![
+                elements_are![eq(Value::str("John")), eq(Value::I64(3))],
+                elements_are![eq(Value::str("Mike")), eq(Value::I64(1))],
+                elements_are![eq(Value::str("James")), eq(Value::I64(1))],
             ]
         );
     }

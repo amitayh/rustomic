@@ -7,7 +7,9 @@ pub mod resolver;
 use crate::datom::Value;
 use crate::query::clause::*;
 use crate::storage::attribute_resolver::ResolveError;
-use std::collections::HashMap;
+use std::borrow::Borrow;
+use std::cell::RefCell;
+use std::collections::{HashMap, HashSet};
 use std::rc::Rc;
 use thiserror::Error;
 
@@ -49,14 +51,33 @@ impl Aggregator for Sum {
     }
 }
 
-struct Distinct(Rc<str>);
+#[derive(Debug)]
+struct CountDistinct {
+    variable: Rc<str>,
+    seen: RefCell<HashSet<Value>>,
+}
 
-impl Aggregator for Distinct {
+impl Aggregator for CountDistinct {
     fn init(&self) -> Value {
         Value::U64(0)
     }
 
-    fn consume(&self, _: &mut Value, _: &PartialAssignment) {}
+    fn consume(&self, acc: &mut Value, assignment: &PartialAssignment) {
+        {
+            println!("---");
+            dbg!(self.seen.borrow());
+            dbg!(&acc);
+            dbg!(&assignment);
+            println!("---");
+        }
+        if let Value::I64(count) = acc {
+            if let Some(value) = assignment.get(&self.variable) {
+                if self.seen.borrow_mut().insert(value.clone()) {
+                    *count += 1;
+                }
+            }
+        }
+    }
 }
 
 #[derive(Clone)]
@@ -78,8 +99,11 @@ impl Find {
         Self::Aggregate(Rc::new(Sum(Rc::from(variable))))
     }
 
-    pub fn distinct(variable: &str) -> Self {
-        Self::Aggregate(Rc::new(Distinct(Rc::from(variable))))
+    pub fn count_distinct(variable: &str) -> Self {
+        Self::Aggregate(Rc::new(CountDistinct {
+            variable: Rc::from(variable),
+            seen: RefCell::new(HashSet::new()),
+        }))
     }
 
     pub fn value(&self, assignment: &PartialAssignment) -> Option<Value> {

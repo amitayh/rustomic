@@ -1,9 +1,12 @@
+use std::marker::PhantomData;
+
 use crate::datom::Datom;
 use crate::query::assignment::*;
 use crate::query::*;
 use crate::storage::attribute_resolver::*;
 use crate::storage::*;
 
+use super::Aggregator;
 use super::pattern::AttributeIdentifier;
 use super::pattern::Pattern;
 
@@ -29,7 +32,9 @@ impl Db {
         QueryError<S::Error>,
     > {
         self.resolve_idents(storage, &mut query)?;
-        Ok(DbIterator::new(storage, query, self.basis_tx))
+        let iterator = Resolver::new(storage, query.clone(), self.basis_tx);
+        Aggregator2::new(iterator, &query)
+        //Ok(Projector::new(iterator, query))
     }
 
     /// Resolves attribute idents. Mutates input `query` such that clauses with
@@ -52,6 +57,105 @@ impl Db {
     }
 }
 
+// ------------------------------------------------------------------------------------------------
+
+struct Aggregator2<'a, S: ReadStorage<'a>> {
+    aggregated: std::collections::hash_map::IntoIter<Vec<Value>, Vec<Value>>,
+    marker: PhantomData<&'a S>,
+}
+
+impl<'a, S: ReadStorage<'a>> Aggregator2<'a, S> {
+    fn new(resolver: Resolver<'a, S>, query: &Query) -> Result<Self, QueryError<S::Error>> {
+        let mut aggregated = HashMap::new();
+        for assignment in resolver {
+            let ok = assignment?;
+            let key = Self::key_of(query, &ok);
+            let entry = aggregated.entry(key).or_insert_with(|| Self::init(query));
+                for (index, aggregator) in query.find_aggregations().enumerate() {
+                    if let Some(value) = entry.get_mut(index) {
+                        aggregator.consume(value, &ok);
+                    }
+                }
+
+        }
+        Ok(Self { aggregated: aggregated.into_iter(), marker: PhantomData })
+    }
+
+    fn key_of(query: &Query, assignment: &PartialAssignment) -> Vec<Value> {
+        let mut key = Vec::with_capacity(query.find.len());
+        for variable in query.find_variables() {
+            if let Some(value) = assignment.get(variable) {
+                key.push(value.clone());
+            }
+        }
+        key
+    }
+
+    fn init(query: &Query) -> Vec<Value> {
+        let mut result = Vec::with_capacity(query.find.len());
+        for find in &query.find {
+            if let Find::Aggregate(agg) = find {
+                result.push(agg.init());
+            }
+        }
+        result
+    }
+}
+
+impl<'a, S: ReadStorage<'a>> Iterator for Aggregator2<'a, S> {
+    type Item = Result<Vec<Value>, QueryError<S::Error>>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        match self.aggregated.next() {
+            Some((key, value)) => {
+                let mut result = Vec::with_capacity(key.len() + value.len());
+                result.extend(key);
+                result.extend(value);
+                Some(Ok(result))
+            }
+            None => None,
+        }
+    }
+}
+
+// ------------------------------------------------------------------------------------------------
+
+struct Projector<'a, S: ReadStorage<'a>> {
+    resolver: Resolver<'a, S>,
+    query: Query,
+}
+
+impl<'a, S: ReadStorage<'a>> Projector<'a, S> {
+    fn new(resolver: Resolver<'a, S>, query: Query) -> Self {
+        Self { resolver, query }
+    }
+
+    fn project(&self, mut assignment: HashMap<Rc<str>, Value>) -> Option<<Self as Iterator>::Item> {
+        let mut result = Vec::with_capacity(self.query.find.len());
+        for find in &self.query.find {
+            if let Find::Variable(variable) = find {
+                let value = assignment.remove(variable)?;
+                result.push(value);
+            }
+        }
+        Some(Ok(result))
+    }
+}
+
+impl<'a, S: ReadStorage<'a>> Iterator for Projector<'a, S> {
+    type Item = Result<Vec<Value>, QueryError<S::Error>>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        match self.resolver.next() {
+            Some(Err(err)) => Some(Err(err)),
+            Some(Ok(assignment)) => self.project(assignment),
+            None => None,
+        }
+    }
+}
+
+// ------------------------------------------------------------------------------------------------
+
 #[derive(Debug)]
 struct Frame {
     clause_index: usize,
@@ -59,6 +163,13 @@ struct Frame {
 }
 
 impl Frame {
+    fn first(assignment: Assignment) -> Self {
+        Self {
+            clause_index: 0,
+            assignment,
+        }
+    }
+
     fn next(&self, assignment: Assignment) -> Self {
         Self {
             clause_index: self.clause_index + 1,
@@ -67,7 +178,7 @@ impl Frame {
     }
 }
 
-struct DbIterator<'a, S: ReadStorage<'a>> {
+struct Resolver<'a, S: ReadStorage<'a>> {
     storage: &'a S,
     query: Query,
     frame: Frame,
@@ -76,14 +187,11 @@ struct DbIterator<'a, S: ReadStorage<'a>> {
     basis_tx: u64,
 }
 
-impl<'a, S: ReadStorage<'a>> DbIterator<'a, S> {
+impl<'a, S: ReadStorage<'a>> Resolver<'a, S> {
     fn new(storage: &'a S, query: Query, basis_tx: u64) -> Self {
-        let frame = Frame {
-            clause_index: 0,
-            assignment: Assignment::from_query(&query),
-        };
+        let frame = Frame::first(Assignment::from_query(&query));
         let iterator = Self::iterator(storage, &frame, &query, basis_tx);
-        DbIterator {
+        Resolver {
             storage,
             query,
             frame,
@@ -100,8 +208,8 @@ impl<'a, S: ReadStorage<'a>> DbIterator<'a, S> {
             return self.next();
         }
         if assignment.is_complete() {
-            let projection = assignment.project(&self.query)?;
-            return Some(Ok(projection));
+            //let projection = assignment.project(&self.query)?;
+            return Some(Ok(assignment.assigned));
         }
         self.stack.push(self.frame.next(assignment));
         self.next()
@@ -125,8 +233,8 @@ impl<'a, S: ReadStorage<'a>> DbIterator<'a, S> {
     }
 }
 
-impl<'a, S: ReadStorage<'a>> Iterator for DbIterator<'a, S> {
-    type Item = Result<Vec<Value>, QueryError<S::Error>>;
+impl<'a, S: ReadStorage<'a>> Iterator for Resolver<'a, S> {
+    type Item = Result<HashMap<Rc<str>, Value>, QueryError<S::Error>>;
 
     fn next(&mut self) -> Option<Self::Item> {
         match self.iterator.next() {

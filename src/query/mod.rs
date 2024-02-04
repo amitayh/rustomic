@@ -127,20 +127,21 @@ impl Query {
         })
     }
 
-    /*
-    fn find_variables(&self) -> impl Iterator<Item = &Rc<str>> {
+    pub fn find_variables(&self) -> impl Iterator<Item = &Rc<str>> {
         self.find.iter().filter_map(|find| match find {
             Find::Variable(variable) => Some(variable),
             _ => None,
         })
     }
-    fn find_aggregations(&self) -> impl Iterator<Item = &Rc<dyn Aggregator>> {
+
+    pub fn find_aggregations(&self) -> impl Iterator<Item = &Rc<dyn Aggregator>> {
         self.find.iter().filter_map(|find| match find {
             Find::Aggregate(aggregator) => Some(aggregator),
             _ => None,
         })
     }
 
+    /*
     fn is_aggregated(&self) -> bool {
         self.find
             .iter()

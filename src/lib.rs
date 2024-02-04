@@ -468,7 +468,7 @@ mod tests {
     }
 
     #[test]
-    fn aggregation_multi_entity() {
+    fn aggregation_with_key() {
         let mut sut = Sut::new();
 
         // Insert data
@@ -517,9 +517,9 @@ mod tests {
         assert_that!(
             query_result,
             unordered_elements_are![
-                elements_are![eq(Value::I64(1940)), eq(Value::U64(2))],
-                elements_are![eq(Value::I64(1942)), eq(Value::U64(1))],
-                elements_are![eq(Value::I64(1943)), eq(Value::U64(1))],
+                elements_are![eq(Value::I64(1940)), eq(Value::U64(2))], // John, Ringo
+                elements_are![eq(Value::I64(1942)), eq(Value::U64(1))], // Paul
+                elements_are![eq(Value::I64(1943)), eq(Value::U64(1))], // George
             ]
         );
     }

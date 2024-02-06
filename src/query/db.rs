@@ -31,6 +31,7 @@ impl Db {
         self.resolve_idents(storage, &mut query)?;
         let Query { find, clauses, .. } = query;
         let iterator = Resolver::new(storage, clauses, self.basis_tx);
+        // TODO filter by predicates
         Lala::new(iterator, find)
     }
 
@@ -87,65 +88,93 @@ impl<'a, S: ReadStorage<'a>> Iterator for Lala<'a, S> {
 
 struct Aggregator2<'a, S: ReadStorage<'a>> {
     aggregated: std::collections::hash_map::IntoIter<Vec<Value>, Vec<Box<dyn Aggregator>>>,
-    find_variables_indices: Vec<usize>,
-    find_aggregates_indices: Vec<usize>,
+    indices: Indices,
     marker: PhantomData<&'a S>,
 }
 
 impl<'a, S: ReadStorage<'a>> Aggregator2<'a, S> {
-    fn new(resolver: Resolver<'a, S>, find: Vec<Find>) -> Result<Self, QueryError<S::Error>> {
+    fn new(
+        resolver: impl Iterator<Item = Result<HashMap<Rc<str>, Value>, QueryError<S::Error>>>,
+        find: Vec<Find>,
+    ) -> Result<Self, QueryError<S::Error>> {
         // TODO concurrent aggregation
         let mut aggregated = HashMap::new();
 
-        let find_length = find.len();
-        let mut find_variables = Vec::with_capacity(find_length);
-        let mut find_variables_indices = Vec::with_capacity(find_length);
-        let mut find_aggregates = Vec::with_capacity(find_length);
-        let mut find_aggregates_indices = Vec::with_capacity(find_length);
-        for (index, find) in find.into_iter().enumerate() {
-            match find {
-                Find::Variable(variale) => {
-                    find_variables.push(Rc::clone(&variale));
-                    find_variables_indices.push(index)
-                }
-                Find::Aggregate(aggregate) => {
-                    find_aggregates.push(aggregate);
-                    find_aggregates_indices.push(index);
-                }
+        let len = find.len();
+        let mut variables = Vec::with_capacity(len);
+        let mut aggregates = Vec::with_capacity(len);
+        let indices = Indices::new(&find);
+        for f in find {
+            match f {
+                Find::Variable(variale) => variables.push(Rc::clone(&variale)),
+                Find::Aggregate(aggregate) => aggregates.push(aggregate),
             }
         }
 
         for assignment in resolver {
             let assignment = assignment?;
-            let key = Self::key_of(&find_variables, &assignment);
+            let key = key_of(&variables, &assignment);
             let entry = aggregated
                 .entry(key)
-                .or_insert_with(|| Self::init(&find_aggregates));
+                .or_insert_with(|| init_aggregators(&aggregates));
             for agg in entry {
                 agg.consume(&assignment);
             }
         }
         Ok(Self {
             aggregated: aggregated.into_iter(),
-            find_variables_indices,
-            find_aggregates_indices,
+            indices,
             marker: PhantomData,
         })
     }
+}
 
-    fn key_of(variables: &[Rc<str>], assignment: &PartialAssignment) -> Vec<Value> {
-        variables
-            .iter()
-            .map(|variable| assignment[variable].clone())
-            .collect()
+struct Indices {
+    variables: Vec<usize>,
+    aggregates: Vec<usize>,
+}
+
+impl Indices {
+    fn new(find: &[Find]) -> Self {
+        let len = find.len();
+        let mut variables = Vec::with_capacity(len);
+        let mut aggregates = Vec::with_capacity(len);
+        for (index, f) in find.iter().enumerate() {
+            match f {
+                Find::Variable(_) => variables.push(index),
+                Find::Aggregate(_) => aggregates.push(index),
+            }
+        }
+        Self {
+            variables,
+            aggregates,
+        }
     }
 
-    fn init(find_aggregates: &[Box<dyn ToAggregator>]) -> Vec<Box<dyn Aggregator>> {
-        find_aggregates
-            .iter()
-            .map(|agg| agg.to_aggregator())
-            .collect()
+    fn arrange(&self, key: Vec<Value>, value: Vec<Box<dyn Aggregator>>) -> Vec<Value> {
+        let mut result = vec![Value::U64(0); key.len() + value.len()];
+        for (index, value) in self.variables.iter().zip(key.into_iter()) {
+            result[*index] = value;
+        }
+        for (index, agg) in self.aggregates.iter().zip(value.into_iter()) {
+            result[*index] = agg.result();
+        }
+        result
     }
+}
+
+fn key_of(variables: &[Rc<str>], assignment: &PartialAssignment) -> Vec<Value> {
+    variables
+        .iter()
+        .map(|variable| assignment[variable].clone())
+        .collect()
+}
+
+fn init_aggregators(aggregates: &[Rc<dyn IntoAggregator>]) -> Vec<Box<dyn Aggregator>> {
+    aggregates
+        .iter()
+        .map(|aggregate| aggregate.into_aggregator())
+        .collect()
 }
 
 impl<'a, S: ReadStorage<'a>> Iterator for Aggregator2<'a, S> {
@@ -153,16 +182,7 @@ impl<'a, S: ReadStorage<'a>> Iterator for Aggregator2<'a, S> {
 
     fn next(&mut self) -> Option<Self::Item> {
         match self.aggregated.next() {
-            Some((key, value)) => {
-                let mut result = vec![Value::U64(0); key.len() + value.len()];
-                for (index, value) in self.find_variables_indices.iter().zip(key.into_iter()) {
-                    result[*index] = value;
-                }
-                for (index, agg) in self.find_aggregates_indices.iter().zip(value.into_iter()) {
-                    result[*index] = agg.result();
-                }
-                Some(Ok(result))
-            }
+            Some((key, value)) => Some(Ok(self.indices.arrange(key, value))),
             None => None,
         }
     }

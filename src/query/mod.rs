@@ -9,6 +9,7 @@ use crate::query::clause::*;
 use crate::storage::attribute_resolver::ResolveError;
 use std::collections::{HashMap, HashSet};
 use std::rc::Rc;
+use std::u64;
 use thiserror::Error;
 
 type PartialAssignment = HashMap<Rc<str>, Value>;
@@ -23,10 +24,64 @@ pub trait Aggregator {
     fn consume(&mut self, key: &[Value], acc: &mut Value, assignment: &PartialAssignment);
 }
 
+// ------------------------------------------------------------------------------------------------
+
 pub trait NewAggregator {
     fn consume(&mut self, assignment: &PartialAssignment);
     fn result(&self) -> Value;
 }
+
+struct NewCountAggregator(u64);
+
+impl NewAggregator for NewCountAggregator {
+    fn consume(&mut self, _: &PartialAssignment) {
+        self.0 += 1;
+    }
+
+    fn result(&self) -> Value {
+        Value::U64(self.0)
+    }
+}
+
+
+struct NewSumAggregator {
+    variable: Rc<str>,
+    sum: i64,
+}
+
+impl NewAggregator for NewSumAggregator {
+    fn consume(&mut self, assignment: &PartialAssignment) {
+        // TODO support U64
+        if let Some(Value::I64(value)) = assignment.get(&self.variable) {
+            self.sum += value;
+        }
+    }
+
+    fn result(&self) -> Value {
+        Value::I64(self.sum)
+    }
+}
+
+struct NewCountDistinct {
+    variable: Rc<str>,
+    seen: HashSet<Value>
+}
+
+impl NewAggregator for NewCountDistinct {
+    fn consume(&mut self, assignment: &PartialAssignment) {
+        if let Some(value) = assignment.get(&self.variable) {
+            if !self.seen.contains(value) {
+                self.seen.insert(value.clone());
+            }
+        }
+    }
+
+    fn result(&self) -> Value {
+        Value::U64(self.seen.len() as u64)
+    }
+}
+
+// ------------------------------------------------------------------------------------------------
 
 struct Count;
 

@@ -616,9 +616,9 @@ mod tests {
         assert_that!(
             query_result,
             unordered_elements_are![
-                elements_are![eq(Value::str("John")), eq(Value::I64(3))],
-                elements_are![eq(Value::str("Mike")), eq(Value::I64(1))],
-                elements_are![eq(Value::str("James")), eq(Value::I64(1))],
+                elements_are![eq(Value::str("John")), eq(Value::U64(3))],
+                elements_are![eq(Value::str("Mike")), eq(Value::U64(1))],
+                elements_are![eq(Value::str("James")), eq(Value::U64(1))],
             ]
         );
     }

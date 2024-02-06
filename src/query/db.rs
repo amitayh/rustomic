@@ -29,8 +29,9 @@ impl Db {
         QueryError<S::Error>,
     > {
         self.resolve_idents(storage, &mut query)?;
-        let iterator = Resolver::new(storage, query.clone(), self.basis_tx);
-        Lala::new(iterator, query)
+        let Query { find, clauses, .. } = query;
+        let iterator = Resolver::new(storage, clauses, self.basis_tx);
+        Lala::new(iterator, find)
     }
 
     /// Resolves attribute idents. Mutates input `query` such that clauses with
@@ -61,11 +62,12 @@ enum Lala<'a, S: ReadStorage<'a>> {
 }
 
 impl<'a, S: ReadStorage<'a>> Lala<'a, S> {
-    fn new(resolver: Resolver<'a, S>, query: Query) -> Result<Self, QueryError<S::Error>> {
-        if query.is_aggregated() {
-            Ok(Self::Aggregate(Aggregator2::new(resolver, &query)?))
+    fn new(resolver: Resolver<'a, S>, find: Vec<Find>) -> Result<Self, QueryError<S::Error>> {
+        let is_aggregated = find.iter().any(|f| matches!(f, Find::Aggregate(_)));
+        if is_aggregated {
+            Ok(Self::Aggregate(Aggregator2::new(resolver, &find)?))
         } else {
-            Ok(Self::Project(Projector::new(resolver, query)))
+            Ok(Self::Project(Projector::new(resolver, find)))
         }
     }
 }
@@ -89,21 +91,31 @@ struct Aggregator2<'a, S: ReadStorage<'a>> {
 }
 
 impl<'a, S: ReadStorage<'a>> Aggregator2<'a, S> {
-    fn new(resolver: Resolver<'a, S>, query: &Query) -> Result<Self, QueryError<S::Error>> {
+    fn new(resolver: Resolver<'a, S>, find: &[Find]) -> Result<Self, QueryError<S::Error>> {
         // TODO concurrent aggregation
         let mut aggregated = HashMap::new();
-        let key_size = query.find_variables().count();
+
+        let find_length = find.len();
+        let mut find_variables = Vec::with_capacity(find_length);
+        let mut find_aggregates = Vec::with_capacity(find_length);
+        for (index, find) in find.iter().enumerate() {
+            match find {
+                Find::Variable(variale) => find_variables.push((index, Rc::clone(variale))),
+                Find::Aggregate(aggregate) => {
+                    find_aggregates.push((index, aggregate.to_aggregator()))
+                }
+            }
+        }
+
         for assignment in resolver {
             let assignment = assignment?;
-            let key = Self::key_of(query, &assignment, key_size);
+            let key = Self::key_of(&find_variables, &assignment);
             let entry = aggregated
-                .entry(key)
-                .or_insert_with(|| Self::init(query, &assignment));
-            for (index, find) in query.find.iter().enumerate() {
-                if let Find::Aggregate(agg) = find {
-                    if let Some(value) = entry.get_mut(index) {
-                        agg.consume(value, &assignment);
-                    }
+                .entry(key.clone()) // TODO
+                .or_insert_with(|| Self::init(&find_variables, &find_aggregates, &assignment));
+            for (index, agg) in &mut find_aggregates {
+                if let Some(value) = entry.get_mut(*index) {
+                    agg.consume(&key, value, &assignment);
                 }
             }
         }
@@ -113,22 +125,27 @@ impl<'a, S: ReadStorage<'a>> Aggregator2<'a, S> {
         })
     }
 
-    fn key_of(query: &Query, assignment: &PartialAssignment, key_size: usize) -> Vec<Value> {
-        let mut key = Vec::with_capacity(key_size);
-        for variable in query.find_variables() {
+    fn key_of(variables: &[(usize, Rc<str>)], assignment: &PartialAssignment) -> Vec<Value> {
+        let mut key = Vec::with_capacity(variables.len());
+        for (_, variable) in variables {
             key.push(assignment[variable].clone());
         }
         key
     }
 
-    fn init(query: &Query, assignment: &HashMap<Rc<str>, Value>) -> Vec<Value> {
-        let mut result = Vec::with_capacity(query.find.len());
-        for find in &query.find {
-            let value = match find {
-                Find::Variable(variable) => assignment[variable].clone(),
-                Find::Aggregate(agg) => agg.init(),
-            };
-            result.push(value);
+    fn init(
+        find_variables: &[(usize, Rc<str>)],
+        find_aggregates: &[(usize, Box<dyn Aggregator>)],
+        assignment: &HashMap<Rc<str>, Value>,
+    ) -> Vec<Value> {
+        //let mut result = Vec::with_capacity(find_variables.len() + find_aggregates.len());
+        let len = find_variables.len() + find_aggregates.len();
+        let mut result = vec![Value::U64(0); len];
+        for (index, variable) in find_variables {
+            result[*index] = assignment[variable].clone();
+        }
+        for (index, agg) in find_aggregates {
+            result[*index] = agg.init();
         }
         result
     }
@@ -149,17 +166,17 @@ impl<'a, S: ReadStorage<'a>> Iterator for Aggregator2<'a, S> {
 
 struct Projector<'a, S: ReadStorage<'a>> {
     resolver: Resolver<'a, S>,
-    query: Query,
+    find: Vec<Find>,
 }
 
 impl<'a, S: ReadStorage<'a>> Projector<'a, S> {
-    fn new(resolver: Resolver<'a, S>, query: Query) -> Self {
-        Self { resolver, query }
+    fn new(resolver: Resolver<'a, S>, find: Vec<Find>) -> Self {
+        Self { resolver, find }
     }
 
     fn project(&self, mut assignment: HashMap<Rc<str>, Value>) -> Option<<Self as Iterator>::Item> {
-        let mut result = Vec::with_capacity(self.query.find.len());
-        for find in &self.query.find {
+        let mut result = Vec::with_capacity(self.find.len());
+        for find in &self.find {
             if let Find::Variable(variable) = find {
                 let value = assignment.remove(variable)?;
                 result.push(value);

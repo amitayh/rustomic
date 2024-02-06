@@ -5,7 +5,7 @@ use crate::storage::*;
 
 pub struct Resolver<'a, S: ReadStorage<'a>> {
     storage: &'a S,
-    query: Query,
+    clauses: Vec<Clause>,
     frame: Frame,
     stack: Vec<Frame>,
     iterator: S::Iter,
@@ -13,12 +13,12 @@ pub struct Resolver<'a, S: ReadStorage<'a>> {
 }
 
 impl<'a, S: ReadStorage<'a>> Resolver<'a, S> {
-    pub fn new(storage: &'a S, query: Query, basis_tx: u64) -> Self {
-        let frame = Frame::first(Assignment::from_query(&query));
-        let iterator = Self::iterator(storage, &frame, &query, basis_tx);
+    pub fn new(storage: &'a S, clauses: Vec<Clause>, basis_tx: u64) -> Self {
+        let frame = Frame::first(Assignment::from_clauses(&clauses));
+        let iterator = Self::iterator(storage, &frame, &clauses, basis_tx);
         Resolver {
             storage,
-            query,
+            clauses,
             frame,
             stack: Vec::new(),
             iterator,
@@ -27,11 +27,11 @@ impl<'a, S: ReadStorage<'a>> Resolver<'a, S> {
     }
 
     fn process(&mut self, datom: Datom) -> Option<<Self as Iterator>::Item> {
-        let clause = self.query.clauses.get(self.frame.clause_index)?;
+        let clause = self.clauses.get(self.frame.clause_index)?;
         let assignment = self.frame.assignment.update_with(clause, datom);
-        if !assignment.satisfies(&self.query) {
-            return self.next();
-        }
+        //if !assignment.satisfies(&self.query) {
+        //    return self.next();
+        //}
         if assignment.is_complete() {
             return Some(Ok(assignment.assigned));
         }
@@ -41,12 +41,12 @@ impl<'a, S: ReadStorage<'a>> Resolver<'a, S> {
 
     fn next_frame(&mut self) -> Option<<Self as Iterator>::Item> {
         self.frame = self.stack.pop()?;
-        self.iterator = Self::iterator(self.storage, &self.frame, &self.query, self.basis_tx);
+        self.iterator = Self::iterator(self.storage, &self.frame, &self.clauses, self.basis_tx);
         self.next()
     }
 
-    fn iterator(storage: &'a S, frame: &Frame, query: &Query, basis_tx: u64) -> S::Iter {
-        let clause = query.clauses.get(frame.clause_index);
+    fn iterator(storage: &'a S, frame: &Frame, clauses: &[Clause], basis_tx: u64) -> S::Iter {
+        let clause = clauses.get(frame.clause_index);
         let restricts = Restricts::from(
             clause.unwrap_or(&Clause::default()),
             &frame.assignment.assigned,

@@ -44,10 +44,9 @@ impl Assignment {
     /// assert_eq!(Value::U64(2), assignment.assigned["bar"]);
     /// assert_eq!(Value::U64(3), assignment.assigned["baz"]);
     /// ```
-    pub fn from_query(query: &Query) -> Self {
+    pub fn from_clauses(clauses: &[Clause]) -> Self {
         Self::new(
-            query
-                .clauses
+            clauses
                 .iter()
                 .flat_map(|clause| clause.free_variables())
                 .collect(),

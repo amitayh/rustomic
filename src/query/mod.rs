@@ -7,8 +7,6 @@ pub mod resolver;
 use crate::datom::Value;
 use crate::query::clause::*;
 use crate::storage::attribute_resolver::ResolveError;
-use std::borrow::Borrow;
-use std::cell::RefCell;
 use std::collections::{HashMap, HashSet};
 use std::rc::Rc;
 use thiserror::Error;
@@ -16,19 +14,49 @@ use thiserror::Error;
 type PartialAssignment = HashMap<Rc<str>, Value>;
 type Predicate = Rc<dyn Fn(&PartialAssignment) -> bool>;
 
+trait ToAggregator {
+    fn to_aggregator(&self) -> Box<dyn Aggregator>;
+}
+
 pub trait Aggregator {
     fn init(&self) -> Value;
-    fn consume(&self, acc: &mut Value, assignment: &PartialAssignment);
+    fn consume(&mut self, key: &[Value], acc: &mut Value, assignment: &PartialAssignment);
+}
+
+pub trait NewAggregator {
+    fn consume(&mut self, assignment: &PartialAssignment);
+    fn result(&self) -> Value;
 }
 
 struct Count;
 
+impl ToAggregator for Count {
+    fn to_aggregator(&self) -> Box<dyn Aggregator> {
+        Box::new(CountAggregator)
+    }
+}
+
+struct CountAggregator;
+
+impl Aggregator for CountAggregator {
+    fn init(&self) -> Value {
+        Value::U64(0)
+    }
+
+    fn consume(&mut self, _: &[Value], acc: &mut Value, _: &PartialAssignment) {
+        if let Value::U64(count) = acc {
+            *count += 1;
+        }
+    }
+}
+
+// TODO remove
 impl Aggregator for Count {
     fn init(&self) -> Value {
         Value::U64(0)
     }
 
-    fn consume(&self, acc: &mut Value, _: &PartialAssignment) {
+    fn consume(&mut self, _: &[Value], acc: &mut Value, _: &PartialAssignment) {
         if let Value::U64(count) = acc {
             *count += 1;
         }
@@ -42,7 +70,7 @@ impl Aggregator for Sum {
         Value::I64(0)
     }
 
-    fn consume(&self, acc: &mut Value, assignment: &PartialAssignment) {
+    fn consume(&mut self, _: &[Value], acc: &mut Value, assignment: &PartialAssignment) {
         if let Value::I64(sum) = acc {
             if let Some(Value::I64(value)) = assignment.get(&self.0) {
                 *sum += value;
@@ -51,28 +79,34 @@ impl Aggregator for Sum {
     }
 }
 
-#[derive(Debug)]
-struct CountDistinct {
-    variable: Rc<str>,
-    seen: RefCell<HashSet<Value>>,
+struct CountDistinct(Rc<str>);
+
+impl ToAggregator for CountDistinct {
+    fn to_aggregator(&self) -> Box<dyn Aggregator> {
+        Box::new(CountDistinctAggregator {
+            variable: Rc::clone(&self.0),
+            seen: HashMap::new(),
+        })
+    }
 }
 
-impl Aggregator for CountDistinct {
+#[derive(Debug)]
+struct CountDistinctAggregator {
+    variable: Rc<str>,
+    seen: HashMap<Vec<Value>, HashSet<Value>>,
+}
+
+impl Aggregator for CountDistinctAggregator {
     fn init(&self) -> Value {
         Value::U64(0)
     }
 
-    fn consume(&self, acc: &mut Value, assignment: &PartialAssignment) {
-        {
-            println!("---");
-            dbg!(self.seen.borrow());
-            dbg!(&acc);
-            dbg!(&assignment);
-            println!("---");
-        }
-        if let Value::I64(count) = acc {
+    fn consume(&mut self, key: &[Value], acc: &mut Value, assignment: &PartialAssignment) {
+        if let Value::U64(count) = acc {
             if let Some(value) = assignment.get(&self.variable) {
-                if self.seen.borrow_mut().insert(value.clone()) {
+                // TODO avoid key clone
+                let seen_for_key = self.seen.entry(key.to_vec()).or_default();
+                if seen_for_key.insert(value.clone()) {
                     *count += 1;
                 }
             }
@@ -80,10 +114,10 @@ impl Aggregator for CountDistinct {
     }
 }
 
-#[derive(Clone)]
+//#[derive(Clone)]
 pub enum Find {
     Variable(Rc<str>),
-    Aggregate(Rc<dyn Aggregator>),
+    Aggregate(Box<dyn ToAggregator>),
 }
 
 impl Find {
@@ -92,18 +126,16 @@ impl Find {
     }
 
     pub fn count() -> Self {
-        Self::Aggregate(Rc::new(Count))
+        Self::Aggregate(Box::new(Count))
     }
 
     pub fn sum(variable: &str) -> Self {
-        Self::Aggregate(Rc::new(Sum(Rc::from(variable))))
+        //Self::Aggregate(Box::new(Sum(Rc::from(variable))))
+        Self::Aggregate(Box::new(Count))
     }
 
     pub fn count_distinct(variable: &str) -> Self {
-        Self::Aggregate(Rc::new(CountDistinct {
-            variable: Rc::from(variable),
-            seen: RefCell::new(HashSet::new()),
-        }))
+        Self::Aggregate(Box::new(CountDistinct(Rc::from(variable))))
     }
 
     pub fn value(&self, assignment: &PartialAssignment) -> Option<Value> {
@@ -114,7 +146,7 @@ impl Find {
     }
 }
 
-#[derive(Default, Clone)]
+#[derive(Default)]
 pub struct Query {
     pub find: Vec<Find>,
     pub clauses: Vec<Clause>,
@@ -157,12 +189,6 @@ impl Query {
             Find::Variable(variable) => Some(variable),
             _ => None,
         })
-    }
-
-    fn is_aggregated(&self) -> bool {
-        self.find
-            .iter()
-            .any(|find| matches!(find, Find::Aggregate(_)))
     }
 }
 

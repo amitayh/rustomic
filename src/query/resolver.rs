@@ -57,7 +57,7 @@ impl<'a, S: ReadStorage<'a>> Resolver<'a, S> {
 }
 
 impl<'a, S: ReadStorage<'a>> Iterator for Resolver<'a, S> {
-    type Item = Result<PartialAssignment, QueryError<S::Error>>;
+    type Item = AssignmentResult<S::Error>;
 
     fn next(&mut self) -> Option<Self::Item> {
         match self.iterator.next() {

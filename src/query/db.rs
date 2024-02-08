@@ -25,7 +25,7 @@ impl Db {
         &mut self,
         storage: &'a S,
         mut query: Query,
-    ) -> Result<impl Iterator<Item = QueryResult<S::Error>> + 'a, QueryError<S::Error>> {
+    ) -> Result<impl Iterator<Item = QueryResult<S::Error>> + 'a, S::Error> {
         self.resolve_idents(storage, &mut query)?;
         let Query { find, clauses, .. } = query;
         let iterator = Resolver::new(storage, clauses, self.basis_tx);
@@ -42,7 +42,7 @@ impl Db {
         &mut self,
         storage: &'a S,
         query: &mut Query,
-    ) -> Result<(), QueryError<S::Error>> {
+    ) -> Result<(), S::Error> {
         for clause in &mut query.clauses {
             if let Pattern::Constant(AttributeIdentifier::Ident(ident)) = &clause.attribute {
                 let attribute =
@@ -64,7 +64,7 @@ enum Lala<E, I> {
 }
 
 impl<E, I: Iterator<Item = AssignmentResult<E>>> Lala<E, I> {
-    fn new(resolver: I, find: Vec<Find>) -> Result<Self, QueryError<E>> {
+    fn new(resolver: I, find: Vec<Find>) -> Result<Self, E> {
         let is_aggregated = find.iter().any(|f| matches!(f, Find::Aggregate(_)));
         if is_aggregated {
             Ok(Self::Aggregate(Aggregator2::new(resolver, find)?))
@@ -94,10 +94,7 @@ struct Aggregator2<E> {
 }
 
 impl<E> Aggregator2<E> {
-    fn new(
-        results: impl Iterator<Item = AssignmentResult<E>>,
-        find: Vec<Find>,
-    ) -> Result<Self, QueryError<E>> {
+    fn new(results: impl Iterator<Item = AssignmentResult<E>>, find: Vec<Find>) -> Result<Self, E> {
         // TODO concurrent aggregation
         let mut aggregated = HashMap::new();
 

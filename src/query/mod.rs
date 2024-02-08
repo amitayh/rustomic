@@ -15,7 +15,9 @@ use thiserror::Error;
 
 type PartialAssignment = HashMap<Rc<str>, Value>;
 type Predicate = Rc<dyn Fn(&PartialAssignment) -> bool>;
-type AssignmentResult<E> = Result<PartialAssignment, QueryError<E>>;
+type Result<T, E> = std::result::Result<T, QueryError<E>>;
+type AssignmentResult<E> = Result<PartialAssignment, E>;
+pub type QueryResult<E> = Result<Vec<Value>, E>;
 
 // ------------------------------------------------------------------------------------------------
 
@@ -206,8 +208,6 @@ impl Query {
         })
     }
 }
-
-type QueryResult<E> = Result<Vec<Value>, QueryError<E>>;
 
 #[derive(Debug, Error)]
 pub enum QueryError<S> {

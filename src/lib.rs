@@ -34,7 +34,6 @@ mod tests {
     }
 
     type StorageError<'a> = <InMemoryStorage<'a> as ReadStorage<'a>>::Error;
-    type QueryResult<'a, T> = std::result::Result<T, QueryError<StorageError<'a>>>;
 
     impl<'a> Sut<'a> {
         fn new() -> Self {
@@ -80,7 +79,7 @@ mod tests {
             results.filter_map(|result| result.ok()).collect()
         }
 
-        fn try_query(&self, query: Query) -> Vec<QueryResult<'_, Vec<Value>>> {
+        fn try_query(&self, query: Query) -> Vec<QueryResult<StorageError<'_>>> {
             let mut db = Db::new(self.last_tx);
             db.query(&self.storage, query)
                 .expect("Unable to query")

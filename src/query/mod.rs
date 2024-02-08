@@ -21,8 +21,8 @@ pub type QueryResult<E> = Result<Vec<Value>, E>;
 
 // ------------------------------------------------------------------------------------------------
 
-pub trait IntoAggregator {
-    fn into_aggregator(&self) -> Box<dyn Aggregator>;
+pub trait ToAggregator {
+    fn to_aggregator(&self) -> Box<dyn Aggregator>;
 }
 
 pub trait Aggregator {
@@ -34,8 +34,8 @@ pub trait Aggregator {
 
 struct Count;
 
-impl IntoAggregator for Count {
-    fn into_aggregator(&self) -> Box<dyn Aggregator> {
+impl ToAggregator for Count {
+    fn to_aggregator(&self) -> Box<dyn Aggregator> {
         Box::new(CountAggregator::new())
     }
 }
@@ -62,8 +62,8 @@ impl Aggregator for CountAggregator {
 
 struct Sum(Rc<str>);
 
-impl IntoAggregator for Sum {
-    fn into_aggregator(&self) -> Box<dyn Aggregator> {
+impl ToAggregator for Sum {
+    fn to_aggregator(&self) -> Box<dyn Aggregator> {
         Box::new(SumAggregator::new(Rc::clone(&self.0)))
     }
 }
@@ -96,8 +96,8 @@ impl Aggregator for SumAggregator {
 
 struct CountDistinct(Rc<str>);
 
-impl IntoAggregator for CountDistinct {
-    fn into_aggregator(&self) -> Box<dyn Aggregator> {
+impl ToAggregator for CountDistinct {
+    fn to_aggregator(&self) -> Box<dyn Aggregator> {
         Box::new(CountDistinctAggregator::new(Rc::clone(&self.0)))
     }
 }
@@ -135,7 +135,7 @@ impl Aggregator for CountDistinctAggregator {
 #[derive(Clone)]
 pub enum Find {
     Variable(Rc<str>),
-    Aggregate(Rc<dyn IntoAggregator>),
+    Aggregate(Rc<dyn ToAggregator>),
 }
 
 impl Find {
@@ -153,13 +153,6 @@ impl Find {
 
     pub fn count_distinct(variable: &str) -> Self {
         Self::Aggregate(Rc::new(CountDistinct(Rc::from(variable))))
-    }
-
-    pub fn value(&self, assignment: &Assignment) -> Option<Value> {
-        match self {
-            Find::Variable(variable) => assignment.get(variable).cloned(),
-            _ => None,
-        }
     }
 }
 
@@ -198,13 +191,6 @@ impl Query {
         self.pred(move |assignment| {
             let value = assignment.get(variable);
             value.map_or(true, &predicate)
-        })
-    }
-
-    pub fn find_variables(&self) -> impl Iterator<Item = &Rc<str>> {
-        self.find.iter().filter_map(|find| match find {
-            Find::Variable(variable) => Some(variable),
-            _ => None,
         })
     }
 }

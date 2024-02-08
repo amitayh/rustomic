@@ -32,8 +32,8 @@ impl Db {
             clauses,
             predicates,
         } = query;
-        let iterator = Resolver::new(storage, clauses, self.basis_tx);
-        let filtered = iterator.filter(move |assignment| match assignment {
+        let resolved = Resolver::new(storage, clauses, self.basis_tx);
+        let filtered = resolved.filter(move |assignment| match assignment {
             Ok(result) => predicates.iter().all(|predicate| predicate(result)),
             Err(_) => true,
         });
@@ -172,10 +172,10 @@ fn key_of(variables: &[Rc<str>], assignment: &Assignment) -> Vec<Value> {
         .collect()
 }
 
-fn init_aggregators(aggregates: &[Rc<dyn IntoAggregator>]) -> Vec<Box<dyn Aggregator>> {
+fn init_aggregators(aggregates: &[Rc<dyn ToAggregator>]) -> Vec<Box<dyn Aggregator>> {
     aggregates
         .iter()
-        .map(|aggregate| aggregate.into_aggregator())
+        .map(|aggregate| aggregate.to_aggregator())
         .collect()
 }
 

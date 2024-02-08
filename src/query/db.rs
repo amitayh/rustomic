@@ -27,13 +27,17 @@ impl Db {
         mut query: Query,
     ) -> Result<impl Iterator<Item = QueryResult<S::Error>>, S::Error> {
         self.resolve_idents(storage, &mut query)?;
-        let Query { find, clauses, .. } = query;
+        let Query {
+            find,
+            clauses,
+            predicates,
+        } = query;
         let iterator = Resolver::new(storage, clauses, self.basis_tx);
-        //.filter(|assignment| {
-        //    true
-        //});
-        // TODO filter by predicates
-        Lala::new(iterator, find)
+        let filtered = iterator.filter(move |assignment| match assignment {
+            Ok(result) => predicates.iter().all(|predicate| predicate(result)),
+            Err(_) => true,
+        });
+        Lala::new(filtered, find)
     }
 
     /// Resolves attribute idents. Mutates input `query` such that clauses with

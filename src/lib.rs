@@ -656,7 +656,6 @@ mod tests {
     }
 
     #[test]
-    #[ignore]
     fn support_query_predicates() {
         let mut sut = Sut::new();
 

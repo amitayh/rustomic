@@ -2,7 +2,6 @@ pub mod assignment;
 pub mod clause;
 pub mod db;
 pub mod pattern;
-pub mod projector;
 pub mod resolver;
 
 use crate::datom::Value;

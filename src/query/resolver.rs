@@ -29,9 +29,6 @@ impl<'a, S: ReadStorage<'a>> Resolver<'a, S> {
     fn process(&mut self, datom: Datom) -> Option<<Self as Iterator>::Item> {
         let clause = self.clauses.get(self.frame.clause_index)?;
         let assignment = self.frame.assignment.update_with(clause, datom);
-        //if !assignment.satisfies(&self.query) {
-        //    return self.next();
-        //}
         if assignment.is_complete() {
             return Some(Ok(assignment.assigned));
         }

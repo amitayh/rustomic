@@ -1,12 +1,10 @@
-use std::marker::PhantomData;
-
 use crate::query::pattern::AttributeIdentifier;
 use crate::query::pattern::Pattern;
-use crate::query::projector::Projector;
 use crate::query::resolver::Resolver;
 use crate::query::*;
 use crate::storage::attribute_resolver::*;
 use crate::storage::*;
+use either::*;
 
 pub struct Db {
     basis_tx: u64,
@@ -33,11 +31,18 @@ impl Db {
             predicates,
         } = query;
         let resolved = Resolver::new(storage, clauses, self.basis_tx);
-        let filtered = resolved.filter(move |assignment| match assignment {
-            Ok(result) => predicates.iter().all(|predicate| predicate(result)),
+        let filtered = resolved.filter(move |result| match result {
+            Ok(assignment) => predicates.iter().all(|predicate| predicate(assignment)),
             Err(_) => true,
         });
-        Lala::new(filtered, find)
+        if is_aggregated(&find) {
+            aggregate(find, filtered).map(Left)
+        } else {
+            Ok(Right(filtered.map(move |result| match result {
+                Ok(assignment) => project(&find, assignment),
+                Err(err) => Err(err),
+            })))
+        }
     }
 
     /// Resolves attribute idents. Mutates input `query` such that clauses with
@@ -60,75 +65,53 @@ impl Db {
     }
 }
 
-// ------------------------------------------------------------------------------------------------
-
-enum Lala<E, I> {
-    Aggregate(Aggregator2<E>),
-    Project(Projector<I>),
+fn is_aggregated(find: &[Find]) -> bool {
+    find.iter().any(|f| matches!(f, Find::Aggregate(_)))
 }
 
-impl<E, I: Iterator<Item = AssignmentResult<E>>> Lala<E, I> {
-    fn new(resolver: I, find: Vec<Find>) -> Result<Self, E> {
-        let is_aggregated = find.iter().any(|f| matches!(f, Find::Aggregate(_)));
-        if is_aggregated {
-            Ok(Self::Aggregate(Aggregator2::new(resolver, find)?))
-        } else {
-            Ok(Self::Project(Projector::new(resolver, find)))
-        }
-    }
-}
-
-impl<E, I: Iterator<Item = AssignmentResult<E>>> Iterator for Lala<E, I> {
-    type Item = QueryResult<E>;
-
-    fn next(&mut self) -> Option<Self::Item> {
-        match self {
-            Self::Aggregate(aggregator) => aggregator.next(),
-            Self::Project(projector) => projector.next(),
-        }
-    }
-}
-
-// ------------------------------------------------------------------------------------------------
-
-struct Aggregator2<E> {
-    aggregated: std::collections::hash_map::IntoIter<Vec<Value>, Vec<Box<dyn Aggregator>>>,
-    indices: Indices,
-    marker: PhantomData<E>,
-}
-
-impl<E> Aggregator2<E> {
-    fn new(results: impl Iterator<Item = AssignmentResult<E>>, find: Vec<Find>) -> Result<Self, E> {
-        // TODO concurrent aggregation
-        let mut aggregated = HashMap::new();
-
-        let len = find.len();
-        let mut variables = Vec::with_capacity(len);
-        let mut aggregates = Vec::with_capacity(len);
-        let indices = Indices::new(&find);
-        for f in find {
-            match f {
-                Find::Variable(variale) => variables.push(Rc::clone(&variale)),
-                Find::Aggregate(aggregate) => aggregates.push(aggregate),
+fn project<E>(find: &[Find], mut assignment: Assignment) -> QueryResult<E> {
+    let mut result = Vec::with_capacity(find.len());
+    for f in find {
+        if let Find::Variable(variable) = f {
+            match assignment.remove(variable) {
+                Some(value) => result.push(value),
+                None => return Err(QueryError::InvalidFindVariable(Rc::clone(variable))),
             }
         }
-
-        for assignment in results {
-            let assignment = assignment?;
-            let key = key_of(&variables, &assignment);
-            let entry = aggregated
-                .entry(key)
-                .or_insert_with(|| init_aggregators(&aggregates));
-            for agg in entry {
-                agg.consume(&assignment);
-            }
-        }
-        Ok(Self {
-            aggregated: aggregated.into_iter(),
-            indices,
-            marker: PhantomData,
-        })
     }
+    Ok(result)
+}
+
+fn aggregate<E>(
+    find: Vec<Find>,
+    results: impl Iterator<Item = AssignmentResult<E>>,
+) -> Result<impl Iterator<Item = QueryResult<E>>, E> {
+    // TODO concurrent aggregation?
+    let mut aggregated = HashMap::new();
+
+    let len = find.len();
+    let mut variables = Vec::with_capacity(len);
+    let mut aggregates = Vec::with_capacity(len);
+    let indices = Indices::new(&find);
+    for f in find {
+        match f {
+            Find::Variable(variale) => variables.push(Rc::clone(&variale)),
+            Find::Aggregate(aggregate) => aggregates.push(aggregate),
+        }
+    }
+
+    for result in results {
+        let assignment = result?;
+        let key = key_of(&variables, &assignment);
+        let entry = aggregated.entry(key).or_insert_with(|| init(&aggregates));
+        for agg in entry {
+            agg.consume(&assignment);
+        }
+    }
+
+    Ok(aggregated
+        .into_iter()
+        .map(move |(key, value)| Ok(indices.arrange(key, value))))
 }
 
 struct Indices {
@@ -172,20 +155,9 @@ fn key_of(variables: &[Rc<str>], assignment: &Assignment) -> Vec<Value> {
         .collect()
 }
 
-fn init_aggregators(aggregates: &[Rc<dyn ToAggregator>]) -> Vec<Box<dyn Aggregator>> {
+fn init(aggregates: &[Rc<dyn ToAggregator>]) -> Vec<Box<dyn Aggregator>> {
     aggregates
         .iter()
         .map(|aggregate| aggregate.to_aggregator())
         .collect()
-}
-
-impl<E> Iterator for Aggregator2<E> {
-    type Item = QueryResult<E>;
-
-    fn next(&mut self) -> Option<Self::Item> {
-        match self.aggregated.next() {
-            Some((key, value)) => Some(Ok(self.indices.arrange(key, value))),
-            None => None,
-        }
-    }
 }

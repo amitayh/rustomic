@@ -10,6 +10,7 @@ crate-type = ["lib"]
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
+either = "1.9.0"
 quickcheck = "1.0.3"
 rocksdb = "0.21.0"
 rust_decimal = "1.30.0"

@@ -6,14 +6,13 @@ use crate::datom::*;
 use crate::query::pattern::*;
 use crate::query::*;
 
-// TODO PartialAssignment / CompleteAssignment?
 #[derive(Debug, Eq, PartialEq, Clone)]
-pub struct Assignment {
-    pub assigned: HashMap<Rc<str>, Value>,
+pub struct PartialAssignment {
+    pub assigned: Assignment,
     unassigned: HashSet<Rc<str>>,
 }
 
-impl Assignment {
+impl PartialAssignment {
     pub fn new(variables: HashSet<Rc<str>>) -> Self {
         Self {
             assigned: HashMap::new(),

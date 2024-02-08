@@ -161,7 +161,7 @@ impl Indices {
     }
 }
 
-fn key_of(variables: &[Rc<str>], assignment: &PartialAssignment) -> Vec<Value> {
+fn key_of(variables: &[Rc<str>], assignment: &Assignment) -> Vec<Value> {
     variables
         .iter()
         .map(|variable| assignment[variable].clone())

@@ -13,10 +13,10 @@ use std::rc::Rc;
 use std::u64;
 use thiserror::Error;
 
-type PartialAssignment = HashMap<Rc<str>, Value>;
-type Predicate = Rc<dyn Fn(&PartialAssignment) -> bool>;
-type Result<T, E> = std::result::Result<T, QueryError<E>>;
-type AssignmentResult<E> = Result<PartialAssignment, E>;
+pub type Assignment = HashMap<Rc<str>, Value>;
+pub type Predicate = Rc<dyn Fn(&Assignment) -> bool>;
+pub type Result<T, E> = std::result::Result<T, QueryError<E>>;
+pub type AssignmentResult<E> = Result<Assignment, E>;
 pub type QueryResult<E> = Result<Vec<Value>, E>;
 
 // ------------------------------------------------------------------------------------------------
@@ -26,7 +26,7 @@ pub trait IntoAggregator {
 }
 
 pub trait Aggregator {
-    fn consume(&mut self, assignment: &PartialAssignment);
+    fn consume(&mut self, assignment: &Assignment);
     fn result(&self) -> Value;
 }
 
@@ -49,7 +49,7 @@ impl CountAggregator {
 }
 
 impl Aggregator for CountAggregator {
-    fn consume(&mut self, _: &PartialAssignment) {
+    fn consume(&mut self, _: &Assignment) {
         self.0 += 1;
     }
 
@@ -80,7 +80,7 @@ impl SumAggregator {
 }
 
 impl Aggregator for SumAggregator {
-    fn consume(&mut self, assignment: &PartialAssignment) {
+    fn consume(&mut self, assignment: &Assignment) {
         // TODO support U64
         if let Some(Value::I64(value)) = assignment.get(&self.variable) {
             self.sum += value;
@@ -117,7 +117,7 @@ impl CountDistinctAggregator {
 }
 
 impl Aggregator for CountDistinctAggregator {
-    fn consume(&mut self, assignment: &PartialAssignment) {
+    fn consume(&mut self, assignment: &Assignment) {
         if let Some(value) = assignment.get(&self.variable) {
             if !self.seen.contains(value) {
                 self.seen.insert(value.clone());
@@ -155,7 +155,7 @@ impl Find {
         Self::Aggregate(Rc::new(CountDistinct(Rc::from(variable))))
     }
 
-    pub fn value(&self, assignment: &PartialAssignment) -> Option<Value> {
+    pub fn value(&self, assignment: &Assignment) -> Option<Value> {
         match self {
             Find::Variable(variable) => assignment.get(variable).cloned(),
             _ => None,
@@ -185,7 +185,7 @@ impl Query {
         self
     }
 
-    pub fn pred<P: Fn(&PartialAssignment) -> bool + 'static>(mut self, predicate: P) -> Self {
+    pub fn pred<P: Fn(&Assignment) -> bool + 'static>(mut self, predicate: P) -> Self {
         self.predicates.push(Rc::new(predicate));
         self
     }

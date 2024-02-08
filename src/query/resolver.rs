@@ -14,7 +14,7 @@ pub struct Resolver<'a, S: ReadStorage<'a>> {
 
 impl<'a, S: ReadStorage<'a>> Resolver<'a, S> {
     pub fn new(storage: &'a S, clauses: Vec<Clause>, basis_tx: u64) -> Self {
-        let frame = Frame::first(Assignment::from_clauses(&clauses));
+        let frame = Frame::first(PartialAssignment::from_clauses(&clauses));
         let iterator = Self::iterator(storage, &frame, &clauses, basis_tx);
         Resolver {
             storage,
@@ -70,18 +70,18 @@ impl<'a, S: ReadStorage<'a>> Iterator for Resolver<'a, S> {
 
 struct Frame {
     clause_index: usize,
-    assignment: Assignment,
+    assignment: PartialAssignment,
 }
 
 impl Frame {
-    fn first(assignment: Assignment) -> Self {
+    fn first(assignment: PartialAssignment) -> Self {
         Self {
             clause_index: 0,
             assignment,
         }
     }
 
-    fn next(&self, assignment: Assignment) -> Self {
+    fn next(&self, assignment: PartialAssignment) -> Self {
         Self {
             clause_index: self.clause_index + 1,
             assignment,

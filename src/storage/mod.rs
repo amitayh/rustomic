@@ -3,12 +3,10 @@ pub mod disk;
 pub mod memory;
 pub mod serde;
 
-use std::collections::HashMap;
-use std::rc::Rc;
-
 use crate::datom::*;
 use crate::query::clause::*;
 use crate::query::pattern::*;
+use crate::query::Assignment;
 
 #[derive(Debug, Clone)]
 pub struct Restricts {
@@ -50,7 +48,7 @@ impl Restricts {
         }
     }
 
-    pub fn from(clause: &Clause, assignment: &HashMap<Rc<str>, Value>, basis_tx: u64) -> Self {
+    pub fn from(clause: &Clause, assignment: &Assignment, basis_tx: u64) -> Self {
         let entity = match clause.entity {
             Pattern::Constant(entity) => Some(entity),
             Pattern::Variable(ref variable) => match assignment.get(variable) {

@@ -10,7 +10,7 @@ impl<I> Projector<I> {
         Self { iterator, find }
     }
 
-    fn project<E>(&self, mut assignment: HashMap<Rc<str>, Value>) -> QueryResult<E> {
+    fn project<E>(&self, mut assignment: Assignment) -> QueryResult<E> {
         let mut result = Vec::with_capacity(self.find.len());
         for find in &self.find {
             if let Find::Variable(variable) = find {

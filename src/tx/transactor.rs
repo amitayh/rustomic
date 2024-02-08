@@ -31,7 +31,7 @@ impl Transactor {
         storage: &'a S,
         now: Instant,
         transaction: Transaction,
-    ) -> Result<TransctionResult, TransactionError<S::Error>> {
+    ) -> Result<TransctionResult, S::Error> {
         let temp_ids = self.generate_temp_ids(&transaction)?;
         let datoms = self.transaction_datoms(storage, now, transaction, &temp_ids)?;
 
@@ -42,10 +42,7 @@ impl Transactor {
         })
     }
 
-    fn generate_temp_ids<Error>(
-        &mut self,
-        transaction: &Transaction,
-    ) -> Result<TempIds, TransactionError<Error>> {
+    fn generate_temp_ids<E>(&mut self, transaction: &Transaction) -> Result<TempIds, E> {
         let mut temp_ids = HashMap::new();
         for operation in &transaction.operations {
             if let OperatedEntity::TempId(temp_id) = &operation.entity {
@@ -64,7 +61,7 @@ impl Transactor {
         now: Instant,
         transaction: Transaction,
         temp_ids: &TempIds,
-    ) -> Result<Vec<Datom>, TransactionError<S::Error>> {
+    ) -> Result<Vec<Datom>, S::Error> {
         let mut datoms = Vec::new();
         let tx = self.create_tx_datom(now);
         for operation in transaction.operations {
@@ -91,7 +88,7 @@ impl Transactor {
         operation: EntityOperation,
         temp_ids: &TempIds,
         datoms: &mut Vec<Datom>,
-    ) -> Result<(), TransactionError<S::Error>> {
+    ) -> Result<(), S::Error> {
         let operation_attributes = operation.attributes.len();
         let entity = self.resolve_entity(operation.entity, temp_ids)?;
         let mut retract_attributes = HashSet::with_capacity(operation_attributes);
@@ -137,7 +134,7 @@ impl Transactor {
         attribute: u64,
         tx: u64,
         datoms: &mut Vec<Datom>,
-    ) -> Result<(), TransactionError<S::Error>> {
+    ) -> Result<(), S::Error> {
         // Retract previous values
         let restricts = Restricts::new(tx)
             .with_entity(entity)
@@ -148,11 +145,11 @@ impl Transactor {
         Ok(())
     }
 
-    fn resolve_entity<Error>(
+    fn resolve_entity<E>(
         &mut self,
         entity: OperatedEntity,
         temp_ids: &TempIds,
-    ) -> Result<EntityId, TransactionError<Error>> {
+    ) -> Result<EntityId, E> {
         match entity {
             OperatedEntity::New => Ok(self.next_entity_id()),
             OperatedEntity::Id(id) => Ok(id),
@@ -164,7 +161,7 @@ impl Transactor {
 struct TempIds(HashMap<TempId, EntityId>);
 
 impl TempIds {
-    fn get<Error>(&self, temp_id: &Rc<str>) -> Result<EntityId, TransactionError<Error>> {
+    fn get<E>(&self, temp_id: &Rc<str>) -> Result<EntityId, E> {
         self.0
             .get(temp_id)
             .copied()

@@ -8,6 +8,8 @@ use crate::datom::Value;
 use crate::storage::attribute_resolver::ResolveError;
 use thiserror::Error;
 
+pub type Result<T, E> = std::result::Result<T, TransactionError<E>>;
+
 pub enum OperatedEntity {
     New,             // Create a new entity and assign ID automatically.
     Id(u64),         // Update existing entity by ID.

@@ -25,7 +25,7 @@ impl Db {
         &mut self,
         storage: &'a S,
         mut query: Query,
-    ) -> Result<impl Iterator<Item = QueryResult<S::Error>> + 'a, S::Error> {
+    ) -> Result<impl Iterator<Item = QueryResult<S::Error>>, S::Error> {
         self.resolve_idents(storage, &mut query)?;
         let Query { find, clauses, .. } = query;
         let iterator = Resolver::new(storage, clauses, self.basis_tx);

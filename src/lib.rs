@@ -14,6 +14,7 @@ mod tests {
     use crate::schema::default::default_datoms;
     use crate::schema::DB_TX_TIME_ID;
     use crate::storage::memory::InMemoryStorage;
+    use crate::storage::ReadStorage;
     use crate::storage::WriteStorage;
 
     use super::datom::*;
@@ -31,6 +32,9 @@ mod tests {
         storage: InMemoryStorage<'a>,
         last_tx: u64,
     }
+
+    type StorageError<'a> = <InMemoryStorage<'a> as ReadStorage<'a>>::Error;
+    type QueryResult<'a, T> = std::result::Result<T, QueryError<StorageError<'a>>>;
 
     impl<'a> Sut<'a> {
         fn new() -> Self {
@@ -74,6 +78,13 @@ mod tests {
             let mut db = Db::new(snapshot_tx);
             let results = db.query(&self.storage, query).expect("Unable to query");
             results.filter_map(|result| result.ok()).collect()
+        }
+
+        fn try_query(&self, query: Query) -> Vec<QueryResult<'_, Vec<Value>>> {
+            let mut db = Db::new(self.last_tx);
+            db.query(&self.storage, query)
+                .expect("Unable to query")
+                .collect()
         }
     }
 
@@ -624,6 +635,29 @@ mod tests {
     }
 
     #[test]
+    fn fail_query_when_requesting_invalid_identifiers() {
+        let mut sut = Sut::new();
+
+        // Insert data
+        sut.transact(create_beatles());
+
+        let query_result = sut.try_query(
+            Query::new().find(Find::variable("?name")).with(
+                Clause::new()
+                    .with_entity(Pattern::variable("?person"))
+                    .with_attribute(Pattern::ident("person/born"))
+                    .with_value(Pattern::variable("?born")),
+            ),
+        );
+
+        assert!(!query_result.is_empty());
+        assert!(query_result
+            .iter()
+            .all(|result| matches!(result, Err(QueryError::InvalidFindVariable(_)))));
+    }
+
+    #[test]
+    #[ignore]
     fn support_query_predicates() {
         let mut sut = Sut::new();
 

@@ -3,6 +3,7 @@ pub mod clause;
 pub mod db;
 pub mod pattern;
 pub mod resolver;
+pub mod projector;
 
 use crate::datom::Value;
 use crate::query::clause::*;
@@ -14,6 +15,7 @@ use thiserror::Error;
 
 type PartialAssignment = HashMap<Rc<str>, Value>;
 type Predicate = Rc<dyn Fn(&PartialAssignment) -> bool>;
+type AssignmentResult<E> = Result<PartialAssignment, QueryError<E>>;
 
 // ------------------------------------------------------------------------------------------------
 
@@ -205,10 +207,7 @@ impl Query {
     }
 }
 
-#[derive(Debug)]
-pub struct QueryResult {
-    pub results: Vec<Vec<Value>>,
-}
+type QueryResult<E> = Result<Vec<Value>, QueryError<E>>;
 
 #[derive(Debug, Error)]
 pub enum QueryError<S> {
@@ -218,4 +217,6 @@ pub enum QueryError<S> {
     StorageError(#[from] S),
     #[error("resolve error")]
     ResolveError(#[from] ResolveError<S>),
+    #[error("invalid variable {0} for find clause")]
+    InvalidFindVariable(Rc<str>),
 }

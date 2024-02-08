@@ -2,6 +2,7 @@ use std::marker::PhantomData;
 
 use crate::query::pattern::AttributeIdentifier;
 use crate::query::pattern::Pattern;
+use crate::query::projector::Projector;
 use crate::query::resolver::Resolver;
 use crate::query::*;
 use crate::storage::attribute_resolver::*;
@@ -24,13 +25,13 @@ impl Db {
         &mut self,
         storage: &'a S,
         mut query: Query,
-    ) -> Result<
-        impl Iterator<Item = Result<Vec<Value>, QueryError<S::Error>>> + 'a,
-        QueryError<S::Error>,
-    > {
+    ) -> Result<impl Iterator<Item = QueryResult<S::Error>> + 'a, QueryError<S::Error>> {
         self.resolve_idents(storage, &mut query)?;
         let Query { find, clauses, .. } = query;
         let iterator = Resolver::new(storage, clauses, self.basis_tx);
+        //.filter(|assignment| {
+        //    true
+        //});
         // TODO filter by predicates
         Lala::new(iterator, find)
     }
@@ -57,13 +58,13 @@ impl Db {
 
 // ------------------------------------------------------------------------------------------------
 
-enum Lala<'a, S: ReadStorage<'a>> {
-    Aggregate(Aggregator2<'a, S>),
-    Project(Projector<'a, S>),
+enum Lala<E, I> {
+    Aggregate(Aggregator2<E>),
+    Project(Projector<I>),
 }
 
-impl<'a, S: ReadStorage<'a>> Lala<'a, S> {
-    fn new(resolver: Resolver<'a, S>, find: Vec<Find>) -> Result<Self, QueryError<S::Error>> {
+impl<E, I: Iterator<Item = AssignmentResult<E>>> Lala<E, I> {
+    fn new(resolver: I, find: Vec<Find>) -> Result<Self, QueryError<E>> {
         let is_aggregated = find.iter().any(|f| matches!(f, Find::Aggregate(_)));
         if is_aggregated {
             Ok(Self::Aggregate(Aggregator2::new(resolver, find)?))
@@ -73,8 +74,8 @@ impl<'a, S: ReadStorage<'a>> Lala<'a, S> {
     }
 }
 
-impl<'a, S: ReadStorage<'a>> Iterator for Lala<'a, S> {
-    type Item = Result<Vec<Value>, QueryError<S::Error>>;
+impl<E, I: Iterator<Item = AssignmentResult<E>>> Iterator for Lala<E, I> {
+    type Item = QueryResult<E>;
 
     fn next(&mut self) -> Option<Self::Item> {
         match self {
@@ -86,17 +87,17 @@ impl<'a, S: ReadStorage<'a>> Iterator for Lala<'a, S> {
 
 // ------------------------------------------------------------------------------------------------
 
-struct Aggregator2<'a, S: ReadStorage<'a>> {
+struct Aggregator2<E> {
     aggregated: std::collections::hash_map::IntoIter<Vec<Value>, Vec<Box<dyn Aggregator>>>,
     indices: Indices,
-    marker: PhantomData<&'a S>,
+    marker: PhantomData<E>,
 }
 
-impl<'a, S: ReadStorage<'a>> Aggregator2<'a, S> {
+impl<E> Aggregator2<E> {
     fn new(
-        resolver: impl Iterator<Item = Result<HashMap<Rc<str>, Value>, QueryError<S::Error>>>,
+        results: impl Iterator<Item = AssignmentResult<E>>,
         find: Vec<Find>,
-    ) -> Result<Self, QueryError<S::Error>> {
+    ) -> Result<Self, QueryError<E>> {
         // TODO concurrent aggregation
         let mut aggregated = HashMap::new();
 
@@ -111,7 +112,7 @@ impl<'a, S: ReadStorage<'a>> Aggregator2<'a, S> {
             }
         }
 
-        for assignment in resolver {
+        for assignment in results {
             let assignment = assignment?;
             let key = key_of(&variables, &assignment);
             let entry = aggregated
@@ -177,8 +178,8 @@ fn init_aggregators(aggregates: &[Rc<dyn IntoAggregator>]) -> Vec<Box<dyn Aggreg
         .collect()
 }
 
-impl<'a, S: ReadStorage<'a>> Iterator for Aggregator2<'a, S> {
-    type Item = Result<Vec<Value>, QueryError<S::Error>>;
+impl<E> Iterator for Aggregator2<E> {
+    type Item = QueryResult<E>;
 
     fn next(&mut self) -> Option<Self::Item> {
         match self.aggregated.next() {
@@ -187,41 +188,3 @@ impl<'a, S: ReadStorage<'a>> Iterator for Aggregator2<'a, S> {
         }
     }
 }
-
-// ------------------------------------------------------------------------------------------------
-
-struct Projector<'a, S: ReadStorage<'a>> {
-    resolver: Resolver<'a, S>,
-    find: Vec<Find>,
-}
-
-impl<'a, S: ReadStorage<'a>> Projector<'a, S> {
-    fn new(resolver: Resolver<'a, S>, find: Vec<Find>) -> Self {
-        Self { resolver, find }
-    }
-
-    fn project(&self, mut assignment: HashMap<Rc<str>, Value>) -> Option<<Self as Iterator>::Item> {
-        let mut result = Vec::with_capacity(self.find.len());
-        for find in &self.find {
-            if let Find::Variable(variable) = find {
-                let value = assignment.remove(variable)?;
-                result.push(value);
-            }
-        }
-        Some(Ok(result))
-    }
-}
-
-impl<'a, S: ReadStorage<'a>> Iterator for Projector<'a, S> {
-    type Item = Result<Vec<Value>, QueryError<S::Error>>;
-
-    fn next(&mut self) -> Option<Self::Item> {
-        match self.resolver.next() {
-            Some(Ok(assignment)) => self.project(assignment),
-            Some(Err(err)) => Some(Err(err)),
-            None => None,
-        }
-    }
-}
-
-// ------------------------------------------------------------------------------------------------

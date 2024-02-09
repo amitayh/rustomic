@@ -89,16 +89,11 @@ fn aggregate<E>(
     // TODO concurrent aggregation?
     let mut aggregated = HashMap::new();
 
-    let len = find.len();
-    let mut variables = Vec::with_capacity(len);
-    let mut aggregates = Vec::with_capacity(len);
     let indices = Indices::new(&find);
-    for f in find {
-        match f {
-            Find::Variable(variale) => variables.push(Rc::clone(&variale)),
-            Find::Aggregate(aggregate) => aggregates.push(aggregate),
-        }
-    }
+    let (variables, aggregates) = partition(find.into_iter(), |f| match f {
+        Find::Variable(variale) => Left(variale),
+        Find::Aggregate(aggregate) => Right(aggregate),
+    });
 
     for result in results {
         let assignment = result?;
@@ -121,15 +116,10 @@ struct Indices {
 
 impl Indices {
     fn new(find: &[Find]) -> Self {
-        let len = find.len();
-        let mut variables = Vec::with_capacity(len);
-        let mut aggregates = Vec::with_capacity(len);
-        for (index, f) in find.iter().enumerate() {
-            match f {
-                Find::Variable(_) => variables.push(index),
-                Find::Aggregate(_) => aggregates.push(index),
-            }
-        }
+        let (variables, aggregates) = partition(find.iter().enumerate(), |(index, f)| match f {
+            Find::Variable(_) => Left(index),
+            Find::Aggregate(_) => Right(index),
+        });
         Self {
             variables,
             aggregates,
@@ -160,4 +150,19 @@ fn init(aggregates: &[Rc<dyn ToAggregator>]) -> Vec<Box<dyn Aggregator>> {
         .iter()
         .map(|aggregate| aggregate.to_aggregator())
         .collect()
+}
+
+fn partition<T, A, B>(
+    vec: impl ExactSizeIterator<Item = T>,
+    f: impl Fn(T) -> Either<A, B>,
+) -> (Vec<A>, Vec<B>) {
+    let mut _as = Vec::with_capacity(vec.len());
+    let mut _bs = Vec::with_capacity(vec.len());
+    for x in vec {
+        match f(x) {
+            Either::Left(a) => _as.push(a),
+            Either::Right(b) => _bs.push(b),
+        }
+    }
+    (_as, _bs)
 }

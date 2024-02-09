@@ -107,12 +107,12 @@ impl Builder {
                 attribute: DB_ATTR_TYPE_ID,
                 value: Value::U64(value_type),
                 ..
-            } => self.value_type = ValueType::from(value_type),
+            } => self.value_type = ValueType::try_from(value_type).ok(),
             Datom {
                 attribute: DB_ATTR_CARDINALITY_ID,
                 value: Value::U64(cardinality),
                 ..
-            } => self.cardinality = Cardinality::from(cardinality),
+            } => self.cardinality = Cardinality::try_from(cardinality).ok(),
             Datom {
                 attribute: DB_ATTR_DOC_ID,
                 value: Value::Str(doc),

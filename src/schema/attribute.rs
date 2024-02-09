@@ -13,9 +13,11 @@ pub enum ValueType {
     Ref = 5,
 }
 
-impl ValueType {
+impl TryFrom<u64> for ValueType {
+    type Error = InvalidTag;
+
     /// ```
-    /// use rustomic::schema::attribute::ValueType;
+    /// use rustomic::schema::attribute::*;
     ///
     /// let value_types = vec![
     ///     ValueType::I64,
@@ -25,18 +27,18 @@ impl ValueType {
     ///     ValueType::Ref,
     /// ];
     /// for value_type in value_types {
-    ///     assert_eq!(Some(value_type), ValueType::from(value_type as u64));
+    ///     assert_eq!(Ok(value_type), ValueType::try_from(value_type as u64));
     /// }
-    /// assert_eq!(None, ValueType::from(42));
+    /// assert_eq!(Err(InvalidTag(42)), ValueType::try_from(42));
     /// ```
-    pub fn from(value: u64) -> Option<Self> {
+    fn try_from(value: u64) -> Result<Self, Self::Error> {
         match value {
-            1 => Some(Self::I64),
-            2 => Some(Self::U64),
-            3 => Some(Self::Decimal),
-            4 => Some(Self::Str),
-            5 => Some(Self::Ref),
-            _ => None,
+            1 => Ok(Self::I64),
+            2 => Ok(Self::U64),
+            3 => Ok(Self::Decimal),
+            4 => Ok(Self::Str),
+            5 => Ok(Self::Ref),
+            x => Err(InvalidTag(x)),
         }
     }
 }
@@ -45,15 +47,15 @@ impl From<&Value> for ValueType {
     /// ```
     /// use std::rc::Rc;
     /// use rustomic::datom::Value;
-    /// use rustomic::schema::attribute::ValueType;
+    /// use rustomic::schema::attribute::*;
     /// use rust_decimal::prelude::*;
     ///
-    /// assert_eq!(Value::I64(42).value_type(), ValueType::I64);
-    /// assert_eq!(Value::U64(42).value_type(), ValueType::U64);
-    /// assert_eq!(Value::Decimal(42.into()).value_type(), ValueType::Decimal);
-    /// assert_eq!(Value::str("foo").value_type(), ValueType::Str);
-    /// assert_eq!(Value::Ref(42).value_type(), ValueType::Ref);
-    /// assert_ne!(Value::U64(42).value_type(), ValueType::Str);
+    /// assert_eq!(ValueType::from(&Value::I64(42)), ValueType::I64);
+    /// assert_eq!(ValueType::from(&Value::U64(42)), ValueType::U64);
+    /// assert_eq!(ValueType::from(&Value::Decimal(42.into())), ValueType::Decimal);
+    /// assert_eq!(ValueType::from(&Value::str("foo")), ValueType::Str);
+    /// assert_eq!(ValueType::from(&Value::Ref(42)), ValueType::Ref);
+    /// assert_ne!(ValueType::from(&Value::U64(42)), ValueType::Str);
     /// ```
     fn from(value: &Value) -> Self {
         match value {
@@ -72,19 +74,21 @@ pub enum Cardinality {
     Many = 1,
 }
 
-impl Cardinality {
+impl TryFrom<u64> for Cardinality {
+    type Error = InvalidTag;
+
     /// ```
-    /// use rustomic::schema::attribute::Cardinality;
+    /// use rustomic::schema::attribute::*;
     ///
-    /// assert_eq!(Some(Cardinality::One), Cardinality::from(0));
-    /// assert_eq!(Some(Cardinality::Many), Cardinality::from(1));
-    /// assert_eq!(None, Cardinality::from(42));
+    /// assert_eq!(Ok(Cardinality::One), Cardinality::try_from(0));
+    /// assert_eq!(Ok(Cardinality::Many), Cardinality::try_from(1));
+    /// assert_eq!(Err(InvalidTag(42)), Cardinality::try_from(42));
     /// ```
-    pub fn from(value: u64) -> Option<Self> {
+    fn try_from(value: u64) -> Result<Self, Self::Error> {
         match value {
-            0 => Some(Self::One),
-            1 => Some(Self::Many),
-            _ => None,
+            0 => Ok(Self::One),
+            1 => Ok(Self::Many),
+            x => Err(InvalidTag(x)),
         }
     }
 }
@@ -147,3 +151,6 @@ impl From<AttributeDefinition> for tx::EntityOperation {
         operation
     }
 }
+
+#[derive(PartialEq, Debug, Clone, Copy)]
+pub struct InvalidTag(pub u64);

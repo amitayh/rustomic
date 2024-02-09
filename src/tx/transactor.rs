@@ -108,7 +108,7 @@ impl Transactor {
                 AttributeValue::TempId(temp_id) => temp_ids.get(&temp_id).map(Value::Ref),
             }?;
 
-            if attribute.definition.value_type != (&value).into() {
+            if attribute.definition.value_type != ValueType::from(&value) {
                 // Value type is incompatible with attribute, reject transaction.
                 return Err(TransactionError::InvalidAttributeType);
             }

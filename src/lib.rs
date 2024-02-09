@@ -571,7 +571,7 @@ mod tests {
     }
 
     #[test]
-    fn lala() {
+    fn count_distinct_with_key() {
         let mut sut = Sut::new();
 
         // Insert data

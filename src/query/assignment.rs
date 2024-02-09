@@ -27,13 +27,13 @@ impl PartialAssignment {
     /// use rustomic::query::pattern::*;
     /// use rustomic::datom::*;
     ///
-    /// let query = Query::new().with(
+    /// let clauses = vec![
     ///     Clause::new()
     ///         .with_entity(Pattern::variable("foo"))
     ///         .with_attribute(Pattern::variable("bar"))
     ///         .with_value(Pattern::variable("baz")),
-    /// );
-    /// let mut assignment = Assignment::from_query(&query);
+    /// ];
+    /// let mut assignment = PartialAssignment::from_clauses(&clauses);
     ///
     /// assignment.assign("foo", Value::U64(1));
     /// assignment.assign("bar", Value::U64(2));
@@ -60,7 +60,7 @@ impl PartialAssignment {
     ///
     /// let mut variables = HashSet::new();
     /// variables.insert(Rc::from("?foo"));
-    /// let mut assignment = Assignment::new(variables);
+    /// let mut assignment = PartialAssignment::new(variables);
     /// assert!(!assignment.is_complete());
     ///
     /// assignment.assign("?foo", Value::U64(42));
@@ -68,24 +68,6 @@ impl PartialAssignment {
     /// ```
     pub fn is_complete(&self) -> bool {
         self.unassigned.is_empty()
-    }
-
-    pub fn satisfies(&self, query: &Query) -> bool {
-        query
-            .predicates
-            .iter()
-            .all(|predicate| predicate(&self.assigned))
-    }
-
-    pub fn project(mut self, query: &Query) -> Option<Vec<Value>> {
-        let mut result = Vec::with_capacity(query.find.len());
-        for find in &query.find {
-            if let Find::Variable(variable) = find {
-                let value = self.assigned.remove(variable)?;
-                result.push(value);
-            }
-        }
-        Some(result)
     }
 
     /// ```
@@ -101,7 +83,7 @@ impl PartialAssignment {
     /// variables.insert(Rc::from("?attribute"));
     /// variables.insert(Rc::from("?value"));
     /// variables.insert(Rc::from("?tx"));
-    /// let assignment = Assignment::new(variables);
+    /// let assignment = PartialAssignment::new(variables);
     ///
     /// let clause = Clause::new()
     ///     .with_entity(Pattern::variable("?entity"))

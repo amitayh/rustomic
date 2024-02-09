@@ -1,4 +1,5 @@
-<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `src/storage/attribute_resolver.rs`."><title>attribute_resolver.rs - source</title><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/SourceSerif4-Regular-46f98efaafac5295.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/FiraSans-Regular-018c141bf0843ffd.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/FiraSans-Medium-8f9a781e4970d388.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/SourceCodePro-Regular-562dcc5011b6de7d.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/SourceSerif4-Bold-a2c9cd1067f8b328.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/SourceCodePro-Semibold-d899c5a5c4aeb14a.ttf.woff2"><link rel="stylesheet" href="../../../static.files/normalize-76eba96aa4d2e634.css"><link rel="stylesheet" href="../../../static.files/rustdoc-fa3bb1812debf86c.css"><meta name="rustdoc-vars" data-root-path="../../../" data-static-root-path="../../../static.files/" data-current-crate="rustomic" data-themes="" data-resource-suffix="" data-rustdoc-version="1.74.0 (79e9716c9 2023-11-13)" data-channel="1.74.0" data-search-js="search-8be46b629f5f14a8.js" data-settings-js="settings-74424d7eec62a23e.js" ><script src="../../../static.files/storage-fec3eaa3851e447d.js"></script><script defer src="../../../static.files/src-script-3280b574d94e47b4.js"></script><script defer src="../../../src-files.js"></script><script defer src="../../../static.files/main-c5bd66d33317d69f.js"></script><noscript><link rel="stylesheet" href="../../../static.files/noscript-5d8b3c7633ad77ba.css"></noscript><link rel="alternate icon" type="image/png" href="../../../static.files/favicon-16x16-8b506e7a72182f1c.png"><link rel="alternate icon" type="image/png" href="../../../static.files/favicon-32x32-422f7d1d52889060.png"><link rel="icon" type="image/svg+xml" href="../../../static.files/favicon-2c020d218678b618.svg"></head><body class="rustdoc src"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"></nav><main><nav class="sub"><a class="sub-logo-container" href="../../../rustomic/index.html"><img class="rust-logo" src="../../../static.files/rust-logo-151179464ae7ed46.svg" alt="logo"></a><form class="search-form"><span></span><input class="search-input" name="search" aria-label="Run search in the documentation" autocomplete="off" spellcheck="false" placeholder="Click or press ‘S’ to search, ‘?’ for more options…" type="search"><div id="help-button" title="help" tabindex="-1"><a href="../../../help.html">?</a></div><div id="settings-menu" tabindex="-1"><a href="../../../settings.html" title="settings"><img width="22" height="22" alt="Change settings" src="../../../static.files/wheel-7b819b6101059cd0.svg"></a></div></form></nav><section id="main-content" class="content"><div class="example-wrap"><div data-nosnippet><pre class="src-line-numbers"><a href="#1" id="1">1</a>
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `src/storage/attribute_resolver.rs`."><title>attribute_resolver.rs - source</title><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/SourceSerif4-Regular-46f98efaafac5295.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/FiraSans-Regular-018c141bf0843ffd.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/FiraSans-Medium-8f9a781e4970d388.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/SourceCodePro-Regular-562dcc5011b6de7d.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/SourceCodePro-Semibold-d899c5a5c4aeb14a.ttf.woff2"><link rel="stylesheet" href="../../../static.files/normalize-76eba96aa4d2e634.css"><link rel="stylesheet" href="../../../static.files/rustdoc-ac92e1bbe349e143.css"><meta name="rustdoc-vars" data-root-path="../../../" data-static-root-path="../../../static.files/" data-current-crate="rustomic" data-themes="" data-resource-suffix="" data-rustdoc-version="1.76.0 (07dca489a 2024-02-04)" data-channel="1.76.0" data-search-js="search-2b6ce74ff89ae146.js" data-settings-js="settings-4313503d2e1961c2.js" ><script src="../../../static.files/storage-f2adc0d6ca4d09fb.js"></script><script defer src="../../../static.files/src-script-39ed315d46fb705f.js"></script><script defer src="../../../src-files.js"></script><script defer src="../../../static.files/main-305769736d49e732.js"></script><noscript><link rel="stylesheet" href="../../../static.files/noscript-feafe1bb7466e4bd.css"></noscript><link rel="alternate icon" type="image/png" href="../../../static.files/favicon-16x16-8b506e7a72182f1c.png"><link rel="alternate icon" type="image/png" href="../../../static.files/favicon-32x32-422f7d1d52889060.png"><link rel="icon" type="image/svg+xml" href="../../../static.files/favicon-2c020d218678b618.svg"></head><body class="rustdoc src"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"></nav><div class="sidebar-resizer"></div>
+    <main><nav class="sub"><form class="search-form"><span></span><input class="search-input" name="search" aria-label="Run search in the documentation" autocomplete="off" spellcheck="false" placeholder="Click or press ‘S’ to search, ‘?’ for more options…" type="search"><div id="help-button" tabindex="-1"><a href="../../../help.html" title="help">?</a></div><div id="settings-menu" tabindex="-1"><a href="../../../settings.html" title="settings"><img width="22" height="22" alt="Change settings" src="../../../static.files/wheel-7b819b6101059cd0.svg"></a></div></form></nav><section id="main-content" class="content"><div class="example-wrap"><div data-nosnippet><pre class="src-line-numbers"><a href="#1" id="1">1</a>
 <a href="#2" id="2">2</a>
 <a href="#3" id="3">3</a>
 <a href="#4" id="4">4</a>
@@ -244,8 +245,28 @@
 <a href="#244" id="244">244</a>
 <a href="#245" id="245">245</a>
 <a href="#246" id="246">246</a>
+<a href="#247" id="247">247</a>
+<a href="#248" id="248">248</a>
+<a href="#249" id="249">249</a>
+<a href="#250" id="250">250</a>
+<a href="#251" id="251">251</a>
+<a href="#252" id="252">252</a>
+<a href="#253" id="253">253</a>
+<a href="#254" id="254">254</a>
+<a href="#255" id="255">255</a>
+<a href="#256" id="256">256</a>
+<a href="#257" id="257">257</a>
+<a href="#258" id="258">258</a>
+<a href="#259" id="259">259</a>
+<a href="#260" id="260">260</a>
+<a href="#261" id="261">261</a>
+<a href="#262" id="262">262</a>
+<a href="#263" id="263">263</a>
+<a href="#264" id="264">264</a>
+<a href="#265" id="265">265</a>
 </pre></div><pre class="rust"><code><span class="kw">use </span>std::collections::HashMap;
 <span class="kw">use </span>std::rc::Rc;
+<span class="kw">use </span>thiserror::Error;
 
 <span class="kw">use </span><span class="kw">crate</span>::datom::<span class="kw-2">*</span>;
 <span class="kw">use </span><span class="kw">crate</span>::schema::attribute::<span class="kw-2">*</span>;
@@ -256,7 +277,7 @@
 
 <span class="attr">#[derive(Default)]
 </span><span class="kw">pub struct </span>AttributeResolver {
-    cache: HashMap&lt;Rc&lt;str&gt;, Attribute&gt;,
+    cache: HashMap&lt;Rc&lt;str&gt;, <span class="prelude-ty">Option</span>&lt;Attribute&gt;&gt;,
 }
 
 <span class="kw">impl </span>AttributeResolver {
@@ -264,97 +285,110 @@
         <span class="self">Self</span>::default()
     }
 
-    <span class="kw">pub fn </span>resolve&lt;<span class="lifetime">&#39;a</span>, S: ReadStorage&lt;<span class="lifetime">&#39;a</span>&gt;&gt;(
+    <span class="kw">pub fn </span>resolve&lt;<span class="lifetime">'a</span>, S: ReadStorage&lt;<span class="lifetime">'a</span>&gt;&gt;(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
-        storage: <span class="kw-2">&amp;</span><span class="lifetime">&#39;a </span>S,
-        ident: <span class="kw-2">&amp;</span>str,
-    ) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="prelude-ty">Option</span>&lt;Attribute&gt;, S::Error&gt; {
-        <span class="kw">if let </span><span class="prelude-val">Some</span>(attribute) = <span class="self">self</span>.cache.get(ident) {
-            <span class="kw">return </span><span class="prelude-val">Ok</span>(<span class="prelude-val">Some</span>(attribute.clone()));
+        storage: <span class="kw-2">&amp;</span><span class="lifetime">'a </span>S,
+        ident: Rc&lt;str&gt;,
+        tx: u64,
+    ) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="kw-2">&amp;</span>Attribute, ResolveError&lt;S::Error&gt;&gt; {
+        <span class="kw">let </span>result = <span class="self">self</span>.cache.entry(Rc::clone(<span class="kw-2">&amp;</span>ident)).or_default();
+        <span class="kw">if </span>result.is_none() {
+            <span class="kw-2">*</span>result = resolve_ident(storage, Rc::clone(<span class="kw-2">&amp;</span>ident), tx)<span class="question-mark">?</span>;
         }
-        <span class="kw">if let </span><span class="prelude-val">Some</span>(attribute) = resolve_ident(storage, ident)<span class="question-mark">? </span>{
-            <span class="self">self</span>.update_cache(attribute.clone());
-            <span class="kw">return </span><span class="prelude-val">Ok</span>(<span class="prelude-val">Some</span>(attribute));
-        }
-        <span class="prelude-val">Ok</span>(<span class="prelude-val">None</span>)
-    }
-
-    <span class="kw">fn </span>update_cache(<span class="kw-2">&amp;mut </span><span class="self">self</span>, attribute: Attribute) {
-        <span class="self">self</span>.cache.insert(Rc::clone(<span class="kw-2">&amp;</span>attribute.ident), attribute);
+        result.as_ref().ok_or(ResolveError::IdentNotFound(ident))
     }
 }
 
-<span class="kw">fn </span>resolve_ident&lt;<span class="lifetime">&#39;a</span>, S: ReadStorage&lt;<span class="lifetime">&#39;a</span>&gt;&gt;(
-    storage: <span class="kw-2">&amp;</span><span class="lifetime">&#39;a </span>S,
-    ident: <span class="kw-2">&amp;</span>str,
+<span class="attr">#[derive(Debug, Error, PartialEq)]
+</span><span class="kw">pub enum </span>ResolveError&lt;S&gt; {
+    <span class="attr">#[error(<span class="string">"storage error"</span>)]
+    </span>StorageError(<span class="attr">#[from] </span>S),
+    <span class="attr">#[error(<span class="string">"ident `{0}` not found"</span>)]
+    </span>IdentNotFound(Rc&lt;str&gt;),
+}
+
+<span class="kw">fn </span>resolve_ident&lt;<span class="lifetime">'a</span>, S: ReadStorage&lt;<span class="lifetime">'a</span>&gt;&gt;(
+    storage: <span class="kw-2">&amp;</span><span class="lifetime">'a </span>S,
+    ident: Rc&lt;str&gt;,
+    tx: u64,
 ) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="prelude-ty">Option</span>&lt;Attribute&gt;, S::Error&gt; {
     <span class="comment">// [?attribute :db/attr/ident ?ident]
-    </span><span class="kw">let </span>restricts = Restricts::new()
+    </span><span class="kw">let </span>restricts = Restricts::new(tx)
         .with_attribute(DB_ATTR_IDENT_ID)
-        .with_value(ident.into());
+        .with_value(Value::Str(ident));
     <span class="kw">if let </span><span class="prelude-val">Some</span>(datom) = storage.find(restricts).next() {
-        <span class="kw">return </span>resolve_id(storage, datom<span class="question-mark">?</span>.entity);
+        <span class="kw">return </span>resolve_id(storage, datom<span class="question-mark">?</span>.entity, tx);
     }
     <span class="prelude-val">Ok</span>(<span class="prelude-val">None</span>)
 }
 
-<span class="kw">fn </span>resolve_id&lt;<span class="lifetime">&#39;a</span>, S: ReadStorage&lt;<span class="lifetime">&#39;a</span>&gt;&gt;(
-    storage: <span class="kw-2">&amp;</span><span class="lifetime">&#39;a </span>S,
+<span class="kw">fn </span>resolve_id&lt;<span class="lifetime">'a</span>, S: ReadStorage&lt;<span class="lifetime">'a</span>&gt;&gt;(
+    storage: <span class="kw-2">&amp;</span><span class="lifetime">'a </span>S,
     attribute_id: u64,
+    tx: u64,
 ) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="prelude-ty">Option</span>&lt;Attribute&gt;, S::Error&gt; {
     <span class="kw">let </span><span class="kw-2">mut </span>builder = Builder::new(attribute_id);
     <span class="comment">// [?attribute _ _]
-    </span><span class="kw">let </span>restricts = Restricts::new().with_entity(attribute_id);
+    </span><span class="kw">let </span>restricts = Restricts::new(tx).with_entity(attribute_id);
     <span class="kw">for </span>datom <span class="kw">in </span>storage.find(restricts) {
-        builder.consume(<span class="kw-2">&amp;</span>datom<span class="question-mark">?</span>);
+        builder.consume(datom<span class="question-mark">?</span>);
     }
     <span class="prelude-val">Ok</span>(builder.build())
 }
 
 <span class="comment">// ------------------------------------------------------------------------------------------------
 
-</span><span class="attr">#[derive(Clone, Debug, PartialEq)]
-</span><span class="kw">pub struct </span>Attribute {
-    <span class="kw">pub </span>id: u64,
-    <span class="kw">pub </span>ident: Rc&lt;str&gt;,
-    <span class="kw">pub </span>value_type: ValueType,
-    <span class="kw">pub </span>cardinality: Cardinality,
-}
-
-<span class="kw">struct </span>Builder {
+</span><span class="kw">struct </span>Builder {
     id: u64,
+    version: u64,
     ident: <span class="prelude-ty">Option</span>&lt;Rc&lt;str&gt;&gt;,
     value_type: <span class="prelude-ty">Option</span>&lt;ValueType&gt;,
     cardinality: <span class="prelude-ty">Option</span>&lt;Cardinality&gt;,
+    doc: <span class="prelude-ty">Option</span>&lt;Rc&lt;str&gt;&gt;,
+    unique: bool,
 }
 
 <span class="kw">impl </span>Builder {
     <span class="kw">fn </span>new(id: u64) -&gt; <span class="self">Self </span>{
         <span class="self">Self </span>{
             id,
+            version: <span class="number">0</span>,
             ident: <span class="prelude-val">None</span>,
             value_type: <span class="prelude-val">None</span>,
             cardinality: <span class="prelude-val">None</span>,
+            doc: <span class="prelude-val">None</span>,
+            unique: <span class="bool-val">false</span>,
         }
     }
 
-    <span class="kw">fn </span>consume(<span class="kw-2">&amp;mut </span><span class="self">self</span>, datom: <span class="kw-2">&amp;</span>Datom) {
+    <span class="kw">fn </span>consume(<span class="kw-2">&amp;mut </span><span class="self">self</span>, datom: Datom) {
+        <span class="self">self</span>.version = <span class="self">self</span>.version.max(datom.tx);
         <span class="kw">match </span>datom {
             Datom {
                 attribute: DB_ATTR_IDENT_ID,
                 value: Value::Str(ident),
                 ..
-            } =&gt; <span class="self">self</span>.ident = <span class="prelude-val">Some</span>(Rc::clone(ident)),
-            <span class="kw-2">&amp;</span>Datom {
+            } =&gt; <span class="self">self</span>.ident = <span class="prelude-val">Some</span>(ident),
+            Datom {
                 attribute: DB_ATTR_TYPE_ID,
                 value: Value::U64(value_type),
                 ..
-            } =&gt; <span class="self">self</span>.value_type = ValueType::from(value_type),
-            <span class="kw-2">&amp;</span>Datom {
+            } =&gt; <span class="self">self</span>.value_type = ValueType::try_from(value_type).ok(),
+            Datom {
                 attribute: DB_ATTR_CARDINALITY_ID,
                 value: Value::U64(cardinality),
                 ..
-            } =&gt; <span class="self">self</span>.cardinality = Cardinality::from(cardinality),
+            } =&gt; <span class="self">self</span>.cardinality = Cardinality::try_from(cardinality).ok(),
+            Datom {
+                attribute: DB_ATTR_DOC_ID,
+                value: Value::Str(doc),
+                ..
+            } =&gt; <span class="self">self</span>.doc = <span class="prelude-val">Some</span>(doc),
+            Datom {
+                attribute: DB_ATTR_UNIQUE_ID,
+                value: Value::U64(<span class="number">1</span>),
+                ..
+            } =&gt; <span class="self">self</span>.unique = <span class="bool-val">true</span>,
             <span class="kw">_ </span>=&gt; (),
         }
     }
@@ -365,9 +399,14 @@
         <span class="kw">let </span>cardinality = <span class="self">self</span>.cardinality<span class="question-mark">?</span>;
         <span class="prelude-val">Some</span>(Attribute {
             id: <span class="self">self</span>.id,
-            ident,
-            value_type,
-            cardinality,
+            version: <span class="self">self</span>.version,
+            definition: AttributeDefinition {
+                ident,
+                value_type,
+                cardinality,
+                doc: <span class="self">self</span>.doc,
+                unique: <span class="self">self</span>.unique,
+            },
         })
     }
 }
@@ -379,20 +418,19 @@
     <span class="kw">use </span>std::cell::Cell;
 
     <span class="kw">use </span><span class="kw">crate</span>::clock::Instant;
-    <span class="kw">use </span><span class="kw">crate</span>::schema::attribute::{Attribute, ValueType};
     <span class="kw">use </span><span class="kw">crate</span>::schema::default::default_datoms;
     <span class="kw">use </span><span class="kw">crate</span>::storage::attribute_resolver::<span class="kw-2">*</span>;
-    <span class="kw">use </span><span class="kw">crate</span>::storage::memory::InMemoryStorage;
+    <span class="kw">use </span><span class="kw">crate</span>::storage::memory::<span class="kw-2">*</span>;
     <span class="kw">use </span><span class="kw">crate</span>::storage::<span class="kw-2">*</span>;
     <span class="kw">use </span><span class="kw">crate</span>::tx::transactor::Transactor;
     <span class="kw">use </span><span class="kw">crate</span>::tx::Transaction;
 
-    <span class="kw">struct </span>CountingStorage {
-        inner: InMemoryStorage,
+    <span class="kw">struct </span>CountingStorage&lt;<span class="lifetime">'a</span>&gt; {
+        inner: InMemoryStorage&lt;<span class="lifetime">'a</span>&gt;,
         count: Cell&lt;usize&gt;,
     }
 
-    <span class="kw">impl </span>CountingStorage {
+    <span class="kw">impl</span>&lt;<span class="lifetime">'a</span>&gt; CountingStorage&lt;<span class="lifetime">'a</span>&gt; {
         <span class="kw">fn </span>new() -&gt; <span class="self">Self </span>{
             <span class="self">Self </span>{
                 inner: InMemoryStorage::new(),
@@ -405,24 +443,24 @@
         }
     }
 
-    <span class="kw">impl</span>&lt;<span class="lifetime">&#39;a</span>&gt; ReadStorage&lt;<span class="lifetime">&#39;a</span>&gt; <span class="kw">for </span>CountingStorage {
-        <span class="kw">type </span>Error = &lt;InMemoryStorage <span class="kw">as </span>ReadStorage&lt;<span class="lifetime">&#39;a</span>&gt;&gt;::Error;
-        <span class="kw">type </span>Iter = &lt;InMemoryStorage <span class="kw">as </span>ReadStorage&lt;<span class="lifetime">&#39;a</span>&gt;&gt;::Iter;
+    <span class="kw">impl</span>&lt;<span class="lifetime">'a</span>&gt; ReadStorage&lt;<span class="lifetime">'a</span>&gt; <span class="kw">for </span>CountingStorage&lt;<span class="lifetime">'a</span>&gt; {
+        <span class="kw">type </span>Error = &lt;InMemoryStorage&lt;<span class="lifetime">'a</span>&gt; <span class="kw">as </span>ReadStorage&lt;<span class="lifetime">'a</span>&gt;&gt;::Error;
+        <span class="kw">type </span>Iter = &lt;InMemoryStorage&lt;<span class="lifetime">'a</span>&gt; <span class="kw">as </span>ReadStorage&lt;<span class="lifetime">'a</span>&gt;&gt;::Iter;
 
-        <span class="kw">fn </span>find(<span class="kw-2">&amp;</span><span class="lifetime">&#39;a </span><span class="self">self</span>, restricts: Restricts) -&gt; <span class="self">Self</span>::Iter {
+        <span class="kw">fn </span>find(<span class="kw-2">&amp;</span><span class="lifetime">'a </span><span class="self">self</span>, restricts: Restricts) -&gt; <span class="self">Self</span>::Iter {
             <span class="self">self</span>.count.set(<span class="self">self</span>.count.get() + <span class="number">1</span>);
             <span class="self">self</span>.inner.find(restricts)
         }
     }
 
-    <span class="kw">impl </span>WriteStorage <span class="kw">for </span>CountingStorage {
-        <span class="kw">type </span>Error = &lt;InMemoryStorage <span class="kw">as </span>WriteStorage&gt;::Error;
+    <span class="kw">impl</span>&lt;<span class="lifetime">'a</span>&gt; WriteStorage <span class="kw">for </span>CountingStorage&lt;<span class="lifetime">'a</span>&gt; {
+        <span class="kw">type </span>Error = &lt;InMemoryStorage&lt;<span class="lifetime">'a</span>&gt; <span class="kw">as </span>WriteStorage&gt;::Error;
         <span class="kw">fn </span>save(<span class="kw-2">&amp;mut </span><span class="self">self</span>, datoms: <span class="kw-2">&amp;</span>[Datom]) -&gt; <span class="prelude-ty">Result</span>&lt;(), <span class="self">Self</span>::Error&gt; {
             <span class="self">self</span>.inner.save(datoms)
         }
     }
 
-    <span class="kw">fn </span>create_storage() -&gt; CountingStorage {
+    <span class="kw">fn </span>create_storage&lt;<span class="lifetime">'a</span>&gt;() -&gt; CountingStorage&lt;<span class="lifetime">'a</span>&gt; {
         <span class="kw">let </span><span class="kw-2">mut </span>storage = CountingStorage::new();
         storage.save(<span class="kw-2">&amp;</span>default_datoms()).unwrap();
         storage
@@ -432,9 +470,9 @@
     </span><span class="kw">fn </span>returns_none_when_attribute_does_not_exist() {
         <span class="kw">let </span>storage = create_storage();
         <span class="kw">let </span><span class="kw-2">mut </span>resolver = AttributeResolver::new();
-        <span class="kw">let </span>result = resolver.resolve(<span class="kw-2">&amp;</span>storage, <span class="string">&quot;foo/bar&quot;</span>);
-        <span class="macro">assert!</span>(result.is_ok());
-        <span class="macro">assert!</span>(result.unwrap().is_none());
+        <span class="kw">let </span>ident = Rc::from(<span class="string">"foo/bar"</span>);
+        <span class="kw">let </span>result = resolver.resolve(<span class="kw-2">&amp;</span>storage, Rc::clone(<span class="kw-2">&amp;</span>ident), u64::MAX);
+        <span class="macro">assert!</span>(result.is_err_and(|err| err == ResolveError::IdentNotFound(ident)));
     }
 
     <span class="attr">#[test]
@@ -442,19 +480,19 @@
         <span class="kw">let </span><span class="kw-2">mut </span>storage = create_storage();
         <span class="kw">let </span><span class="kw-2">mut </span>transactor = Transactor::new();
 
-        <span class="kw">let </span>attribute = Attribute::new(<span class="string">&quot;foo/bar&quot;</span>, ValueType::U64);
+        <span class="kw">let </span>attribute = AttributeDefinition::new(<span class="string">"foo/bar"</span>, ValueType::U64);
         <span class="kw">let </span>transaction = Transaction::new().with(attribute);
         <span class="kw">let </span>tx_result = transactor.transact(<span class="kw-2">&amp;</span>storage, Instant(<span class="number">0</span>), transaction);
         <span class="macro">assert!</span>(tx_result.is_ok());
         <span class="macro">assert!</span>(storage.save(<span class="kw-2">&amp;</span>tx_result.unwrap().tx_data).is_ok());
 
         <span class="kw">let </span><span class="kw-2">mut </span>resolver = AttributeResolver::new();
-        <span class="kw">let </span>result = resolver.resolve(<span class="kw-2">&amp;</span>storage, <span class="string">&quot;foo/bar&quot;</span>);
+        <span class="kw">let </span>result = resolver.resolve(<span class="kw-2">&amp;</span>storage, Rc::from(<span class="string">"foo/bar"</span>), u64::MAX);
         <span class="macro">assert!</span>(result.is_ok());
 
-        <span class="kw">let </span>result = result.unwrap().unwrap();
-        <span class="macro">assert_eq!</span>(Rc::from(<span class="string">&quot;foo/bar&quot;</span>), result.ident);
-        <span class="macro">assert_eq!</span>(ValueType::U64, result.value_type);
+        <span class="kw">let </span>result = result.unwrap();
+        <span class="macro">assert_eq!</span>(Rc::from(<span class="string">"foo/bar"</span>), result.definition.ident);
+        <span class="macro">assert_eq!</span>(ValueType::U64, result.definition.value_type);
     }
 
     <span class="attr">#[test]
@@ -465,25 +503,26 @@
         <span class="comment">// No calls to `CountingStorage::find` yet.
         </span><span class="macro">assert_eq!</span>(<span class="number">0</span>, storage.current_count());
 
-        <span class="kw">let </span>attribute = Attribute::new(<span class="string">&quot;foo/bar&quot;</span>, ValueType::U64);
+        <span class="kw">let </span>attribute = AttributeDefinition::new(<span class="string">"foo/bar"</span>, ValueType::U64);
         <span class="kw">let </span>transaction = Transaction::new().with(attribute);
         <span class="kw">let </span>tx_result = transactor.transact(<span class="kw-2">&amp;</span>storage, Instant(<span class="number">0</span>), transaction);
         <span class="macro">assert!</span>(tx_result.is_ok());
         <span class="macro">assert!</span>(storage.save(<span class="kw-2">&amp;</span>tx_result.unwrap().tx_data).is_ok());
 
         <span class="kw">let </span><span class="kw-2">mut </span>resolver = AttributeResolver::new();
-        <span class="kw">let </span>result1 = resolver.resolve(<span class="kw-2">&amp;</span>storage, <span class="string">&quot;foo/bar&quot;</span>);
+        <span class="kw">let </span>result1 = resolver
+            .resolve(<span class="kw-2">&amp;</span>storage, Rc::from(<span class="string">"foo/bar"</span>), u64::MAX)
+            .cloned();
         <span class="macro">assert!</span>(result1.is_ok());
-        <span class="kw">let </span>result1 = result1.unwrap();
-        <span class="macro">assert!</span>(result1.is_some());
 
         <span class="comment">// Storage was used to resolve `foo/bar`.
         </span><span class="kw">let </span>queries = storage.current_count();
         <span class="macro">assert!</span>(queries &gt; <span class="number">0</span>);
 
-        <span class="kw">let </span>result2 = resolver.resolve(<span class="kw-2">&amp;</span>storage, <span class="string">&quot;foo/bar&quot;</span>);
+        <span class="kw">let </span>result2 = resolver
+            .resolve(<span class="kw-2">&amp;</span>storage, Rc::from(<span class="string">"foo/bar"</span>), u64::MAX)
+            .cloned();
         <span class="macro">assert!</span>(result2.is_ok());
-        <span class="kw">let </span>result2 = result2.unwrap();
         <span class="macro">assert_eq!</span>(result1, result2);
 
         <span class="comment">// No additional calls to storage were needed to resolve cached attribute.

@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"struct":["Assignment"]};
+window.SIDEBAR_ITEMS = {"struct":["PartialAssignment"]};

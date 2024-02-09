@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"enum":["Entity","TransactionError"],"mod":["transactor"],"struct":["AttributeValue","Operation","Transaction","TransctionResult"]};
+window.SIDEBAR_ITEMS = {"enum":["AttributeValue","OperatedEntity","TransactionError"],"mod":["transactor"],"struct":["AttributeOperation","EntityOperation","Transaction","TransctionResult"],"type":["Result"]};

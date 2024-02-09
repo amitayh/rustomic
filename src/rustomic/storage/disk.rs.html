@@ -1,4 +1,5 @@
-<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `src/storage/disk.rs`."><title>disk.rs - source</title><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/SourceSerif4-Regular-46f98efaafac5295.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/FiraSans-Regular-018c141bf0843ffd.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/FiraSans-Medium-8f9a781e4970d388.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/SourceCodePro-Regular-562dcc5011b6de7d.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/SourceSerif4-Bold-a2c9cd1067f8b328.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/SourceCodePro-Semibold-d899c5a5c4aeb14a.ttf.woff2"><link rel="stylesheet" href="../../../static.files/normalize-76eba96aa4d2e634.css"><link rel="stylesheet" href="../../../static.files/rustdoc-fa3bb1812debf86c.css"><meta name="rustdoc-vars" data-root-path="../../../" data-static-root-path="../../../static.files/" data-current-crate="rustomic" data-themes="" data-resource-suffix="" data-rustdoc-version="1.74.0 (79e9716c9 2023-11-13)" data-channel="1.74.0" data-search-js="search-8be46b629f5f14a8.js" data-settings-js="settings-74424d7eec62a23e.js" ><script src="../../../static.files/storage-fec3eaa3851e447d.js"></script><script defer src="../../../static.files/src-script-3280b574d94e47b4.js"></script><script defer src="../../../src-files.js"></script><script defer src="../../../static.files/main-c5bd66d33317d69f.js"></script><noscript><link rel="stylesheet" href="../../../static.files/noscript-5d8b3c7633ad77ba.css"></noscript><link rel="alternate icon" type="image/png" href="../../../static.files/favicon-16x16-8b506e7a72182f1c.png"><link rel="alternate icon" type="image/png" href="../../../static.files/favicon-32x32-422f7d1d52889060.png"><link rel="icon" type="image/svg+xml" href="../../../static.files/favicon-2c020d218678b618.svg"></head><body class="rustdoc src"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"></nav><main><nav class="sub"><a class="sub-logo-container" href="../../../rustomic/index.html"><img class="rust-logo" src="../../../static.files/rust-logo-151179464ae7ed46.svg" alt="logo"></a><form class="search-form"><span></span><input class="search-input" name="search" aria-label="Run search in the documentation" autocomplete="off" spellcheck="false" placeholder="Click or press ‘S’ to search, ‘?’ for more options…" type="search"><div id="help-button" title="help" tabindex="-1"><a href="../../../help.html">?</a></div><div id="settings-menu" tabindex="-1"><a href="../../../settings.html" title="settings"><img width="22" height="22" alt="Change settings" src="../../../static.files/wheel-7b819b6101059cd0.svg"></a></div></form></nav><section id="main-content" class="content"><div class="example-wrap"><div data-nosnippet><pre class="src-line-numbers"><a href="#1" id="1">1</a>
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `src/storage/disk.rs`."><title>disk.rs - source</title><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/SourceSerif4-Regular-46f98efaafac5295.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/FiraSans-Regular-018c141bf0843ffd.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/FiraSans-Medium-8f9a781e4970d388.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/SourceCodePro-Regular-562dcc5011b6de7d.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/SourceCodePro-Semibold-d899c5a5c4aeb14a.ttf.woff2"><link rel="stylesheet" href="../../../static.files/normalize-76eba96aa4d2e634.css"><link rel="stylesheet" href="../../../static.files/rustdoc-ac92e1bbe349e143.css"><meta name="rustdoc-vars" data-root-path="../../../" data-static-root-path="../../../static.files/" data-current-crate="rustomic" data-themes="" data-resource-suffix="" data-rustdoc-version="1.76.0 (07dca489a 2024-02-04)" data-channel="1.76.0" data-search-js="search-2b6ce74ff89ae146.js" data-settings-js="settings-4313503d2e1961c2.js" ><script src="../../../static.files/storage-f2adc0d6ca4d09fb.js"></script><script defer src="../../../static.files/src-script-39ed315d46fb705f.js"></script><script defer src="../../../src-files.js"></script><script defer src="../../../static.files/main-305769736d49e732.js"></script><noscript><link rel="stylesheet" href="../../../static.files/noscript-feafe1bb7466e4bd.css"></noscript><link rel="alternate icon" type="image/png" href="../../../static.files/favicon-16x16-8b506e7a72182f1c.png"><link rel="alternate icon" type="image/png" href="../../../static.files/favicon-32x32-422f7d1d52889060.png"><link rel="icon" type="image/svg+xml" href="../../../static.files/favicon-2c020d218678b618.svg"></head><body class="rustdoc src"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"></nav><div class="sidebar-resizer"></div>
+    <main><nav class="sub"><form class="search-form"><span></span><input class="search-input" name="search" aria-label="Run search in the documentation" autocomplete="off" spellcheck="false" placeholder="Click or press ‘S’ to search, ‘?’ for more options…" type="search"><div id="help-button" tabindex="-1"><a href="../../../help.html" title="help">?</a></div><div id="settings-menu" tabindex="-1"><a href="../../../settings.html" title="settings"><img width="22" height="22" alt="Change settings" src="../../../static.files/wheel-7b819b6101059cd0.svg"></a></div></form></nav><section id="main-content" class="content"><div class="example-wrap"><div data-nosnippet><pre class="src-line-numbers"><a href="#1" id="1">1</a>
 <a href="#2" id="2">2</a>
 <a href="#3" id="3">3</a>
 <a href="#4" id="4">4</a>
@@ -93,7 +94,19 @@
 <a href="#93" id="93">93</a>
 <a href="#94" id="94">94</a>
 <a href="#95" id="95">95</a>
-</pre></div><pre class="rust"><code><span class="kw">use </span>std::ops::Range;
+<a href="#96" id="96">96</a>
+<a href="#97" id="97">97</a>
+<a href="#98" id="98">98</a>
+<a href="#99" id="99">99</a>
+<a href="#100" id="100">100</a>
+<a href="#101" id="101">101</a>
+<a href="#102" id="102">102</a>
+<a href="#103" id="103">103</a>
+<a href="#104" id="104">104</a>
+<a href="#105" id="105">105</a>
+<a href="#106" id="106">106</a>
+</pre></div><pre class="rust"><code><span class="kw">use </span>std::marker::PhantomData;
+<span class="kw">use </span>std::ops::Range;
 
 <span class="kw">use </span>rocksdb::<span class="kw-2">*</span>;
 
@@ -101,57 +114,66 @@
 <span class="kw">use </span><span class="kw">crate</span>::storage::<span class="kw-2">*</span>;
 <span class="kw">use </span>thiserror::Error;
 
-<span class="kw">pub struct </span>DiskStorage {
+<span class="kw">pub struct </span>DiskStorage&lt;<span class="lifetime">'a</span>&gt; {
     db: rocksdb::DB,
+    marker: PhantomData&lt;<span class="kw-2">&amp;</span><span class="lifetime">'a </span><span class="self">Self</span>&gt;,
 }
 
-<span class="kw">impl </span>DiskStorage {
+<span class="kw">impl</span>&lt;<span class="lifetime">'a</span>&gt; DiskStorage&lt;<span class="lifetime">'a</span>&gt; {
     <span class="kw">pub fn </span>new(db: rocksdb::DB) -&gt; <span class="self">Self </span>{
-        <span class="self">Self </span>{ db }
+        <span class="self">Self </span>{
+            db,
+            marker: PhantomData,
+        }
     }
 }
 
-<span class="kw">impl </span>WriteStorage <span class="kw">for </span>DiskStorage {
+<span class="kw">impl</span>&lt;<span class="lifetime">'a</span>&gt; WriteStorage <span class="kw">for </span>DiskStorage&lt;<span class="lifetime">'a</span>&gt; {
     <span class="kw">type </span>Error = rocksdb::Error;
 
     <span class="kw">fn </span>save(<span class="kw-2">&amp;mut </span><span class="self">self</span>, datoms: <span class="kw-2">&amp;</span>[Datom]) -&gt; <span class="prelude-ty">Result</span>&lt;(), <span class="self">Self</span>::Error&gt; {
         <span class="kw">let </span><span class="kw-2">mut </span>batch = rocksdb::WriteBatch::default();
         <span class="comment">// TODO: should we use 3 different DBs, or 1 DB with tag?
         </span><span class="kw">for </span>datom <span class="kw">in </span>datoms {
-            batch.put(datom::serialize::eavt(datom), <span class="string">&quot;&quot;</span>);
-            batch.put(datom::serialize::aevt(datom), <span class="string">&quot;&quot;</span>);
-            batch.put(datom::serialize::avet(datom), <span class="string">&quot;&quot;</span>);
+            batch.put(datom::serialize::eavt(datom), <span class="string">""</span>);
+            batch.put(datom::serialize::aevt(datom), <span class="string">""</span>);
+            batch.put(datom::serialize::avet(datom), <span class="string">""</span>);
         }
         <span class="self">self</span>.db.write(batch)<span class="question-mark">?</span>;
         <span class="prelude-val">Ok</span>(())
     }
 }
 
-<span class="kw">impl</span>&lt;<span class="lifetime">&#39;a</span>&gt; ReadStorage&lt;<span class="lifetime">&#39;a</span>&gt; <span class="kw">for </span>DiskStorage {
+<span class="kw">impl</span>&lt;<span class="lifetime">'a</span>&gt; ReadStorage&lt;<span class="lifetime">'a</span>&gt; <span class="kw">for </span>DiskStorage&lt;<span class="lifetime">'a</span>&gt; {
     <span class="kw">type </span>Error = DiskStorageError;
-    <span class="kw">type </span>Iter = DiskStorageIter&lt;<span class="lifetime">&#39;a</span>&gt;;
+    <span class="kw">type </span>Iter = DiskStorageIter&lt;<span class="lifetime">'a</span>&gt;;
 
-    <span class="kw">fn </span>find(<span class="kw-2">&amp;</span><span class="lifetime">&#39;a </span><span class="self">self</span>, restricts: Restricts) -&gt; <span class="self">Self</span>::Iter {
+    <span class="kw">fn </span>find(<span class="kw-2">&amp;</span><span class="lifetime">'a </span><span class="self">self</span>, restricts: Restricts) -&gt; <span class="self">Self</span>::Iter {
         DiskStorageIter::new(restricts, <span class="kw-2">&amp;</span><span class="self">self</span>.db)
     }
 }
 
-<span class="kw">pub struct </span>DiskStorageIter&lt;<span class="lifetime">&#39;a</span>&gt; {
-    iterator: DBRawIteratorWithThreadMode&lt;<span class="lifetime">&#39;a</span>, DBWithThreadMode&lt;SingleThreaded&gt;&gt;,
+<span class="kw">pub struct </span>DiskStorageIter&lt;<span class="lifetime">'a</span>&gt; {
+    iterator: DBRawIteratorWithThreadMode&lt;<span class="lifetime">'a</span>, DBWithThreadMode&lt;SingleThreaded&gt;&gt;,
     end: Bytes,
+    restricts: Restricts,
 }
 
-<span class="kw">impl</span>&lt;<span class="lifetime">&#39;a</span>&gt; DiskStorageIter&lt;<span class="lifetime">&#39;a</span>&gt; {
-    <span class="kw">fn </span>new(restricts: Restricts, db: <span class="kw-2">&amp;</span><span class="lifetime">&#39;a </span>rocksdb::DB) -&gt; <span class="self">Self </span>{
+<span class="kw">impl</span>&lt;<span class="lifetime">'a</span>&gt; DiskStorageIter&lt;<span class="lifetime">'a</span>&gt; {
+    <span class="kw">fn </span>new(restricts: Restricts, db: <span class="kw-2">&amp;</span><span class="lifetime">'a </span>rocksdb::DB) -&gt; <span class="self">Self </span>{
         <span class="kw">let </span>Range { start, end } = index::key_range(<span class="kw-2">&amp;</span>restricts);
         <span class="kw">let </span>read_options = ReadOptions::default();
         <span class="kw">let </span><span class="kw-2">mut </span>iterator = db.raw_iterator_opt(read_options);
         iterator.seek(<span class="kw-2">&amp;</span>start);
-        <span class="self">Self </span>{ iterator, end }
+        <span class="self">Self </span>{
+            iterator,
+            end,
+            restricts,
+        }
     }
 }
 
-<span class="kw">impl </span>Iterator <span class="kw">for </span>DiskStorageIter&lt;<span class="lifetime">&#39;_</span>&gt; {
+<span class="kw">impl </span>Iterator <span class="kw">for </span>DiskStorageIter&lt;<span class="lifetime">'_</span>&gt; {
     <span class="kw">type </span>Item = <span class="prelude-ty">Result</span>&lt;Datom, DiskStorageError&gt;;
 
     <span class="kw">fn </span>next(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; <span class="prelude-ty">Option</span>&lt;<span class="self">Self</span>::Item&gt; {
@@ -162,14 +184,15 @@
             };
         }
 
-        <span class="kw">let </span>datom_bytes = <span class="self">self</span>.iterator.key()<span class="question-mark">?</span>;
-        <span class="kw">if </span>datom_bytes &gt;= <span class="kw-2">&amp;</span><span class="self">self</span>.end {
+        <span class="kw">let </span>bytes = <span class="self">self</span>.iterator.key()<span class="question-mark">?</span>;
+        <span class="kw">if </span>bytes &gt;= <span class="kw-2">&amp;</span><span class="self">self</span>.end {
             <span class="kw">return </span><span class="prelude-val">None</span>;
         }
 
-        <span class="kw">match </span>datom::deserialize(datom_bytes) {
-            <span class="prelude-val">Ok</span>(datom) <span class="kw">if </span>datom.op == Op::Retracted =&gt; {
-                <span class="self">self</span>.iterator.seek(index::seek_key(<span class="kw-2">&amp;</span>datom, datom_bytes));
+        <span class="kw">match </span>datom::deserialize(bytes) {
+            <span class="prelude-val">Ok</span>(datom) <span class="kw">if </span>!<span class="self">self</span>.restricts.test(<span class="kw-2">&amp;</span>datom) =&gt; {
+                <span class="kw">let </span>key = index::seek_key(<span class="kw-2">&amp;</span>datom.value, bytes, <span class="self">self</span>.restricts.tx.value());
+                <span class="self">self</span>.iterator.seek(key);
                 <span class="self">self</span>.next()
             }
             <span class="prelude-val">Ok</span>(datom) =&gt; {
@@ -183,9 +206,9 @@
 
 <span class="attr">#[derive(Debug, Error)]
 </span><span class="kw">pub enum </span>DiskStorageError {
-    <span class="attr">#[error(<span class="string">&quot;storage error&quot;</span>)]
+    <span class="attr">#[error(<span class="string">"storage error"</span>)]
     </span>DbError(<span class="attr">#[from] </span>rocksdb::Error),
-    <span class="attr">#[error(<span class="string">&quot;read error&quot;</span>)]
+    <span class="attr">#[error(<span class="string">"read error"</span>)]
     </span>ReadError(<span class="attr">#[from] </span>ReadError),
 }
 </code></pre></div></section></main></body></html>

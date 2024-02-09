@@ -1,3 +1,0 @@
-(function() {var implementors = {
-"rustomic":[["impl Arbitrary for <a class=\"struct\" href=\"rustomic/datom/struct.Datom.html\" title=\"struct rustomic::datom::Datom\">Datom</a>"],["impl Arbitrary for <a class=\"enum\" href=\"rustomic/datom/enum.Value.html\" title=\"enum rustomic::datom::Value\">Value</a>"],["impl Arbitrary for <a class=\"enum\" href=\"rustomic/datom/enum.Op.html\" title=\"enum rustomic::datom::Op\">Op</a>"]]
-};if (window.register_implementors) {window.register_implementors(implementors);} else {window.pending_implementors = implementors;}})()

@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"struct":["Attribute","AttributeResolver"]};
+window.SIDEBAR_ITEMS = {"enum":["ResolveError"],"struct":["AttributeResolver"]};

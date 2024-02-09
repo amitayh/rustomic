@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"struct":["DataPattern"]};
+window.SIDEBAR_ITEMS = {"struct":["Clause"]};

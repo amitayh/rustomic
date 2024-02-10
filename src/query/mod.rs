@@ -131,6 +131,15 @@ impl Aggregator for CountDistinctAggregator {
 
 // ------------------------------------------------------------------------------------------------
 
+pub enum AggregationFunction {
+    Count,
+    Sum(Rc<str>),
+    CountDistinct(Rc<str>),
+}
+
+// ------------------------------------------------------------------------------------------------
+
+
 #[derive(Clone)]
 pub enum Find {
     Variable(Rc<str>),

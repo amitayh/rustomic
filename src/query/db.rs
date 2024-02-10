@@ -97,16 +97,49 @@ fn aggregate<E>(
 
     for result in results {
         let assignment = result?;
-        let key = key_of(&variables, &assignment);
-        let entry = aggregated.entry(key).or_insert_with(|| init(&aggregates));
-        for agg in entry {
-            agg.consume(&assignment);
-        }
+        let key = AggregationKey::new(&variables, &assignment);
+        let entry = aggregated
+            .entry(key)
+            .or_insert_with(|| AggregatedValues::new(&aggregates));
+        entry.consume(&assignment)
     }
 
     Ok(aggregated
         .into_iter()
         .map(move |(key, value)| Ok(indices.arrange(key, value))))
+}
+
+#[derive(PartialEq, Eq, Hash)]
+struct AggregationKey(Vec<Value>);
+
+impl AggregationKey {
+    fn new(variables: &[Rc<str>], assignment: &Assignment) -> Self {
+        Self(
+            variables
+                .iter()
+                .map(|variable| assignment[variable].clone())
+                .collect(),
+        )
+    }
+}
+
+struct AggregatedValues(Vec<Box<dyn Aggregator>>);
+
+impl AggregatedValues {
+    fn new(aggregates: &[Rc<dyn ToAggregator>]) -> Self {
+        Self(
+            aggregates
+                .iter()
+                .map(|aggregate| aggregate.to_aggregator())
+                .collect(),
+        )
+    }
+
+    fn consume(&mut self, assignment: &Assignment) {
+        for agg in self.0.iter_mut() {
+            agg.consume(&assignment);
+        }
+    }
 }
 
 struct Indices {
@@ -126,30 +159,16 @@ impl Indices {
         }
     }
 
-    fn arrange(&self, key: Vec<Value>, value: Vec<Box<dyn Aggregator>>) -> Vec<Value> {
-        let mut result = vec![Value::U64(0); key.len() + value.len()];
-        for (index, value) in self.variables.iter().zip(key.into_iter()) {
+    fn arrange(&self, key: AggregationKey, value: AggregatedValues) -> Vec<Value> {
+        let mut result = vec![Value::U64(0); key.0.len() + value.0.len()];
+        for (index, value) in self.variables.iter().zip(key.0.into_iter()) {
             result[*index] = value;
         }
-        for (index, agg) in self.aggregates.iter().zip(value.into_iter()) {
+        for (index, agg) in self.aggregates.iter().zip(value.0.into_iter()) {
             result[*index] = agg.result();
         }
         result
     }
-}
-
-fn key_of(variables: &[Rc<str>], assignment: &Assignment) -> Vec<Value> {
-    variables
-        .iter()
-        .map(|variable| assignment[variable].clone())
-        .collect()
-}
-
-fn init(aggregates: &[Rc<dyn ToAggregator>]) -> Vec<Box<dyn Aggregator>> {
-    aggregates
-        .iter()
-        .map(|aggregate| aggregate.to_aggregator())
-        .collect()
 }
 
 fn partition<T, A, B>(

@@ -6,6 +6,7 @@ use crate::tx;
 
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
 pub enum ValueType {
+    Nil = 0,
     I64 = 1,
     U64 = 2,
     Decimal = 3,
@@ -50,6 +51,7 @@ impl From<&Value> for ValueType {
     /// use rustomic::schema::attribute::*;
     /// use rust_decimal::prelude::*;
     ///
+    /// assert_eq!(ValueType::from(&Value::Nil), ValueType::Nil);
     /// assert_eq!(ValueType::from(&Value::I64(42)), ValueType::I64);
     /// assert_eq!(ValueType::from(&Value::U64(42)), ValueType::U64);
     /// assert_eq!(ValueType::from(&Value::Decimal(42.into())), ValueType::Decimal);
@@ -59,6 +61,7 @@ impl From<&Value> for ValueType {
     /// ```
     fn from(value: &Value) -> Self {
         match value {
+            Value::Nil => Self::Nil,
             Value::I64(_) => Self::I64,
             Value::U64(_) => Self::U64,
             Value::Decimal(_) => Self::Decimal,

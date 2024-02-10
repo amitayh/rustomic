@@ -5,6 +5,7 @@ use quickcheck::{Arbitrary, Gen};
 
 #[derive(Hash, Eq, PartialEq, Debug, Clone, PartialOrd, Ord)]
 pub enum Value {
+    Nil,
     I64(i64),
     U64(u64),
     Decimal(Decimal),

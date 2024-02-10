@@ -7,6 +7,8 @@ pub mod resolver;
 use crate::datom::Value;
 use crate::query::clause::*;
 use crate::storage::attribute_resolver::ResolveError;
+use rust_decimal::prelude::*;
+use rust_decimal::Decimal;
 use std::collections::{HashMap, HashSet};
 use std::rc::Rc;
 use std::u64;
@@ -20,6 +22,19 @@ pub type QueryResult<E> = Result<Vec<Value>, E>;
 
 enum AggregationState {
     Count(u64),
+    Min {
+        variable: Rc<str>,
+        min: i64,
+    },
+    Max {
+        variable: Rc<str>,
+        max: i64,
+    },
+    Average {
+        variable: Rc<str>,
+        sum: f64,
+        count: f64,
+    },
     Sum {
         variable: Rc<str>,
         sum: i64,
@@ -33,6 +48,22 @@ enum AggregationState {
 impl AggregationState {
     fn count() -> Self {
         Self::Count(0)
+    }
+
+    fn min(variable: Rc<str>) -> Self {
+        Self::Min { variable, min: 0 }
+    }
+
+    fn max(variable: Rc<str>) -> Self {
+        Self::Max { variable, max: 0 }
+    }
+
+    fn average(variable: Rc<str>) -> Self {
+        Self::Average {
+            variable,
+            sum: 0.0,
+            count: 0.0,
+        }
     }
 
     fn sum(variable: Rc<str>) -> Self {
@@ -49,6 +80,26 @@ impl AggregationState {
     fn consume(&mut self, assignment: &Assignment) {
         match self {
             Self::Count(count) => *count += 1,
+            Self::Min { variable, min } => {
+                if let Some(Value::I64(value)) = assignment.get(variable) {
+                    *min = (*min).min(*value);
+                }
+            }
+            Self::Max { variable, max } => {
+                if let Some(Value::I64(value)) = assignment.get(variable) {
+                    *max = (*max).max(*value);
+                }
+            }
+            Self::Average {
+                variable,
+                sum,
+                count,
+            } => {
+                if let Some(Value::I64(value)) = assignment.get(variable) {
+                    *sum += *value as f64;
+                    *count += 1.0;
+                }
+            }
             Self::Sum { variable, sum } => {
                 if let Some(Value::I64(value)) = assignment.get(variable) {
                     *sum += value;
@@ -67,6 +118,11 @@ impl AggregationState {
     fn result(self) -> Value {
         match self {
             Self::Count(count) => Value::U64(count),
+            Self::Min { min, .. } => Value::I64(min),
+            Self::Max { max, .. } => Value::I64(max),
+            Self::Average { sum, count, .. } => Decimal::from_f64(sum / count)
+                .map(Value::Decimal)
+                .unwrap_or(Value::Nil),
             Self::Sum { sum, .. } => Value::I64(sum),
             Self::CountDistinct { seen, .. } => Value::U64(seen.len() as u64),
         }
@@ -76,6 +132,9 @@ impl AggregationState {
 #[derive(Clone)]
 pub enum AggregationFunction {
     Count,
+    Min(Rc<str>),
+    Max(Rc<str>),
+    Average(Rc<str>),
     Sum(Rc<str>),
     CountDistinct(Rc<str>),
 }
@@ -84,6 +143,11 @@ impl AggregationFunction {
     fn empty_state(&self) -> AggregationState {
         match self {
             AggregationFunction::Count => AggregationState::count(),
+            AggregationFunction::Min(variable) => AggregationState::min(Rc::clone(variable)),
+            AggregationFunction::Max(variable) => AggregationState::max(Rc::clone(variable)),
+            AggregationFunction::Average(variable) => {
+                AggregationState::average(Rc::clone(variable))
+            }
             AggregationFunction::Sum(variable) => AggregationState::sum(Rc::clone(variable)),
             AggregationFunction::CountDistinct(variable) => {
                 AggregationState::count_distinct(Rc::clone(variable))

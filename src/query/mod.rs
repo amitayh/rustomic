@@ -18,90 +18,60 @@ pub type Result<T, E> = std::result::Result<T, QueryError<E>>;
 pub type AssignmentResult<E> = Result<Assignment, E>;
 pub type QueryResult<E> = Result<Vec<Value>, E>;
 
-// ------------------------------------------------------------------------------------------------
-
-pub trait Aggregator {
-    fn consume(&mut self, assignment: &Assignment);
-    fn result(&self) -> Value;
+enum AggregationState {
+    Count(u64),
+    Sum {
+        variable: Rc<str>,
+        sum: i64,
+    },
+    CountDistinct {
+        variable: Rc<str>,
+        seen: HashSet<Value>,
+    },
 }
 
-// ------------------------------------------------------------------------------------------------
-
-struct CountAggregator(u64);
-
-impl CountAggregator {
-    fn new() -> Self {
-        Self(0)
-    }
-}
-
-impl Aggregator for CountAggregator {
-    fn consume(&mut self, _: &Assignment) {
-        self.0 += 1;
+impl AggregationState {
+    fn count() -> Self {
+        Self::Count(0)
     }
 
-    fn result(&self) -> Value {
-        Value::U64(self.0)
-    }
-}
-
-// ------------------------------------------------------------------------------------------------
-
-struct SumAggregator {
-    variable: Rc<str>,
-    sum: i64,
-}
-
-impl SumAggregator {
-    fn new(variable: Rc<str>) -> Self {
-        Self { variable, sum: 0 }
-    }
-}
-
-impl Aggregator for SumAggregator {
-    fn consume(&mut self, assignment: &Assignment) {
-        // TODO support U64
-        if let Some(Value::I64(value)) = assignment.get(&self.variable) {
-            self.sum += value;
-        }
+    fn sum(variable: Rc<str>) -> Self {
+        Self::Sum { variable, sum: 0 }
     }
 
-    fn result(&self) -> Value {
-        Value::I64(self.sum)
-    }
-}
-
-// ------------------------------------------------------------------------------------------------
-
-struct CountDistinctAggregator {
-    variable: Rc<str>,
-    seen: HashSet<Value>,
-}
-
-impl CountDistinctAggregator {
-    fn new(variable: Rc<str>) -> Self {
-        Self {
+    fn count_distinct(variable: Rc<str>) -> Self {
+        Self::CountDistinct {
             variable,
             seen: HashSet::new(),
         }
     }
-}
 
-impl Aggregator for CountDistinctAggregator {
     fn consume(&mut self, assignment: &Assignment) {
-        if let Some(value) = assignment.get(&self.variable) {
-            if !self.seen.contains(value) {
-                self.seen.insert(value.clone());
+        match self {
+            Self::Count(count) => *count += 1,
+            Self::Sum { variable, sum } => {
+                if let Some(Value::I64(value)) = assignment.get(variable) {
+                    *sum += value;
+                }
+            }
+            Self::CountDistinct { variable, seen } => {
+                if let Some(value) = assignment.get(variable) {
+                    if !seen.contains(value) {
+                        seen.insert(value.clone());
+                    }
+                }
             }
         }
     }
 
-    fn result(&self) -> Value {
-        Value::U64(self.seen.len() as u64)
+    fn result(self) -> Value {
+        match self {
+            Self::Count(count) => Value::U64(count),
+            Self::Sum { sum, .. } => Value::I64(sum),
+            Self::CountDistinct { seen, .. } => Value::U64(seen.len() as u64),
+        }
     }
 }
-
-// ------------------------------------------------------------------------------------------------
 
 #[derive(Clone)]
 pub enum AggregationFunction {
@@ -111,12 +81,12 @@ pub enum AggregationFunction {
 }
 
 impl AggregationFunction {
-    fn to_aggregator(&self) -> Box<dyn Aggregator> {
+    fn empty_state(&self) -> AggregationState {
         match self {
-            AggregationFunction::Count => Box::new(CountAggregator::new()),
-            AggregationFunction::Sum(variable) => Box::new(SumAggregator::new(Rc::clone(variable))),
+            AggregationFunction::Count => AggregationState::count(),
+            AggregationFunction::Sum(variable) => AggregationState::sum(Rc::clone(variable)),
             AggregationFunction::CountDistinct(variable) => {
-                Box::new(CountDistinctAggregator::new(Rc::clone(variable)))
+                AggregationState::count_distinct(Rc::clone(variable))
             }
         }
     }

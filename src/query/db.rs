@@ -97,7 +97,7 @@ fn aggregate<E>(
 
     for result in results {
         let assignment = result?;
-        let key = AggregationKey::new(&variables, &assignment);
+        let key = AggregationKey::new(&variables, &assignment)?;
         let entry = aggregated
             .entry(key)
             .or_insert_with(|| AggregatedValues::new(&aggregates));
@@ -113,31 +113,33 @@ fn aggregate<E>(
 struct AggregationKey(Vec<Value>);
 
 impl AggregationKey {
-    fn new(variables: &[Rc<str>], assignment: &Assignment) -> Self {
-        Self(
-            variables
-                .iter()
-                .map(|variable| assignment[variable].clone())
-                .collect(),
-        )
+    fn new<E>(variables: &[Rc<str>], assignment: &Assignment) -> Result<Self, E> {
+        let mut values = Vec::with_capacity(variables.len());
+        for variable in variables {
+            match assignment.get(variable) {
+                Some(value) => values.push(value.clone()),
+                None => return Err(QueryError::InvalidFindVariable(Rc::clone(variable))),
+            }
+        }
+        Ok(Self(values))
     }
 }
 
-struct AggregatedValues(Vec<Box<dyn Aggregator>>);
+struct AggregatedValues(Vec<AggregationState>);
 
 impl AggregatedValues {
     fn new(aggregates: &[AggregationFunction]) -> Self {
         Self(
             aggregates
                 .iter()
-                .map(|aggregate| aggregate.to_aggregator())
+                .map(|aggregate| aggregate.empty_state())
                 .collect(),
         )
     }
 
     fn consume(&mut self, assignment: &Assignment) {
         for agg in self.0.iter_mut() {
-            agg.consume(&assignment);
+            agg.consume(assignment);
         }
     }
 }

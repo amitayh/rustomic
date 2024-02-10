@@ -79,11 +79,13 @@ mod tests {
             results.filter_map(|result| result.ok()).collect()
         }
 
-        fn try_query(&self, query: Query) -> Vec<QueryResult<StorageError<'_>>> {
+        fn try_query(
+            &self,
+            query: Query,
+        ) -> crate::query::Result<Vec<QueryResult<StorageError<'_>>>, StorageError<'_>> {
             let mut db = Db::new(self.last_tx);
-            db.query(&self.storage, query)
-                .expect("Unable to query")
-                .collect()
+            let result = db.query(&self.storage, query)?;
+            Ok(result.collect())
         }
     }
 
@@ -640,19 +642,46 @@ mod tests {
         // Insert data
         sut.transact(create_beatles());
 
-        let query_result = sut.try_query(
-            Query::new().find(Find::variable("?name")).with(
-                Clause::new()
-                    .with_entity(Pattern::variable("?person"))
-                    .with_attribute(Pattern::ident("person/born"))
-                    .with_value(Pattern::variable("?born")),
-            ),
-        );
+        let query_result = sut
+            .try_query(
+                Query::new().find(Find::variable("?name")).with(
+                    Clause::new()
+                        .with_entity(Pattern::variable("?person"))
+                        .with_attribute(Pattern::ident("person/born"))
+                        .with_value(Pattern::variable("?born")),
+                ),
+            )
+            .expect("Unable to query");
 
         assert!(!query_result.is_empty());
         assert!(query_result
             .iter()
             .all(|result| matches!(result, Err(QueryError::InvalidFindVariable(_)))));
+    }
+
+    #[test]
+    fn fail_aggregated_query_when_requesting_invalid_identifiers() {
+        let mut sut = Sut::new();
+
+        // Insert data
+        sut.transact(create_beatles());
+
+        let query_result = sut.try_query(
+            Query::new()
+                .find(Find::variable("?name"))
+                .find(Find::count())
+                .with(
+                    Clause::new()
+                        .with_entity(Pattern::variable("?person"))
+                        .with_attribute(Pattern::ident("person/born"))
+                        .with_value(Pattern::variable("?born")),
+                ),
+        );
+
+        assert!(matches!(
+            query_result,
+            Err(QueryError::InvalidFindVariable(_))
+        ));
     }
 
     #[test]

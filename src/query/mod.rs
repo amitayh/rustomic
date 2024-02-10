@@ -140,15 +140,15 @@ impl Query {
         self
     }
 
-    pub fn pred<P: Fn(&Assignment) -> bool + 'static>(mut self, predicate: P) -> Self {
+    pub fn pred(mut self, predicate: impl Fn(&Assignment) -> bool + 'static) -> Self {
         self.predicates.push(Rc::new(predicate));
         self
     }
 
-    pub fn value_pred<P: Fn(&Value) -> bool + 'static>(
+    pub fn value_pred(
         self,
         variable: &'static str,
-        predicate: P,
+        predicate: impl Fn(&Value) -> bool + 'static,
     ) -> Self {
         self.pred(move |assignment| {
             let value = assignment.get(variable);

@@ -27,7 +27,7 @@ impl Pattern<AttributeIdentifier> {
 }
 
 impl Pattern<Value> {
-    pub fn value<V: Into<Value>>(value: V) -> Self {
+    pub fn value(value: impl Into<Value>) -> Self {
         Self::Constant(value.into())
     }
 }

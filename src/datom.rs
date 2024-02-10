@@ -76,7 +76,7 @@ pub struct Datom {
 }
 
 impl Datom {
-    pub fn add<V: Into<Value>>(entity: u64, attribute: u64, value: V, tx: u64) -> Self {
+    pub fn add(entity: u64, attribute: u64, value: impl Into<Value>, tx: u64) -> Self {
         Self {
             entity,
             attribute,
@@ -86,7 +86,7 @@ impl Datom {
         }
     }
 
-    pub fn retract<V: Into<Value>>(entity: u64, attribute: u64, value: V, tx: u64) -> Self {
+    pub fn retract(entity: u64, attribute: u64, value: impl Into<Value>, tx: u64) -> Self {
         Self {
             entity,
             attribute,

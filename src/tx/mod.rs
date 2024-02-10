@@ -51,7 +51,7 @@ impl EntityOperation {
         Self::new(OperatedEntity::TempId(Rc::from(temp_id)))
     }
 
-    pub fn set_value<V: Into<Value>>(self, attribute: &str, value: V) -> Self {
+    pub fn set_value(self, attribute: &str, value: impl Into<Value>) -> Self {
         self.set(Rc::from(attribute), AttributeValue::Value(value.into()))
     }
 
@@ -79,7 +79,7 @@ impl Transaction {
         Self::default()
     }
 
-    pub fn with<O: Into<EntityOperation>>(mut self, o: O) -> Self {
+    pub fn with(mut self, o: impl Into<EntityOperation>) -> Self {
         self.operations.push(o.into());
         self
     }

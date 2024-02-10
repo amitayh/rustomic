@@ -20,24 +20,12 @@ pub type QueryResult<E> = Result<Vec<Value>, E>;
 
 // ------------------------------------------------------------------------------------------------
 
-pub trait ToAggregator {
-    fn to_aggregator(&self) -> Box<dyn Aggregator>;
-}
-
 pub trait Aggregator {
     fn consume(&mut self, assignment: &Assignment);
     fn result(&self) -> Value;
 }
 
 // ------------------------------------------------------------------------------------------------
-
-struct Count;
-
-impl ToAggregator for Count {
-    fn to_aggregator(&self) -> Box<dyn Aggregator> {
-        Box::new(CountAggregator::new())
-    }
-}
 
 struct CountAggregator(u64);
 
@@ -58,14 +46,6 @@ impl Aggregator for CountAggregator {
 }
 
 // ------------------------------------------------------------------------------------------------
-
-struct Sum(Rc<str>);
-
-impl ToAggregator for Sum {
-    fn to_aggregator(&self) -> Box<dyn Aggregator> {
-        Box::new(SumAggregator::new(Rc::clone(&self.0)))
-    }
-}
 
 struct SumAggregator {
     variable: Rc<str>,
@@ -92,14 +72,6 @@ impl Aggregator for SumAggregator {
 }
 
 // ------------------------------------------------------------------------------------------------
-
-struct CountDistinct(Rc<str>);
-
-impl ToAggregator for CountDistinct {
-    fn to_aggregator(&self) -> Box<dyn Aggregator> {
-        Box::new(CountDistinctAggregator::new(Rc::clone(&self.0)))
-    }
-}
 
 struct CountDistinctAggregator {
     variable: Rc<str>,
@@ -131,19 +103,31 @@ impl Aggregator for CountDistinctAggregator {
 
 // ------------------------------------------------------------------------------------------------
 
+#[derive(Clone)]
 pub enum AggregationFunction {
     Count,
     Sum(Rc<str>),
     CountDistinct(Rc<str>),
 }
 
-// ------------------------------------------------------------------------------------------------
+impl AggregationFunction {
+    fn to_aggregator(&self) -> Box<dyn Aggregator> {
+        match self {
+            AggregationFunction::Count => Box::new(CountAggregator::new()),
+            AggregationFunction::Sum(variable) => Box::new(SumAggregator::new(Rc::clone(variable))),
+            AggregationFunction::CountDistinct(variable) => {
+                Box::new(CountDistinctAggregator::new(Rc::clone(variable)))
+            }
+        }
+    }
+}
 
+// ------------------------------------------------------------------------------------------------
 
 #[derive(Clone)]
 pub enum Find {
     Variable(Rc<str>),
-    Aggregate(Rc<dyn ToAggregator>),
+    Aggregate(AggregationFunction),
 }
 
 impl Find {
@@ -152,15 +136,15 @@ impl Find {
     }
 
     pub fn count() -> Self {
-        Self::Aggregate(Rc::new(Count))
+        Self::Aggregate(AggregationFunction::Count)
     }
 
     pub fn sum(variable: &str) -> Self {
-        Self::Aggregate(Rc::new(Sum(Rc::from(variable))))
+        Self::Aggregate(AggregationFunction::Sum(Rc::from(variable)))
     }
 
     pub fn count_distinct(variable: &str) -> Self {
-        Self::Aggregate(Rc::new(CountDistinct(Rc::from(variable))))
+        Self::Aggregate(AggregationFunction::CountDistinct(Rc::from(variable)))
     }
 }
 

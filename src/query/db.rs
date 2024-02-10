@@ -126,7 +126,7 @@ impl AggregationKey {
 struct AggregatedValues(Vec<Box<dyn Aggregator>>);
 
 impl AggregatedValues {
-    fn new(aggregates: &[Rc<dyn ToAggregator>]) -> Self {
+    fn new(aggregates: &[AggregationFunction]) -> Self {
         Self(
             aggregates
                 .iter()

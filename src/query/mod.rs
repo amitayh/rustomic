@@ -3,13 +3,13 @@ pub mod clause;
 pub mod db;
 pub mod pattern;
 pub mod resolver;
+pub mod aggregation;
 
 use crate::datom::Value;
 use crate::query::clause::*;
+use crate::query::aggregation::*;
 use crate::storage::attribute_resolver::ResolveError;
-use rust_decimal::prelude::*;
-use rust_decimal::Decimal;
-use std::collections::{HashMap, HashSet};
+use std::collections::HashMap;
 use std::rc::Rc;
 use std::u64;
 use thiserror::Error;
@@ -19,150 +19,6 @@ pub type Predicate = Rc<dyn Fn(&Assignment) -> bool>;
 pub type Result<T, E> = std::result::Result<T, QueryError<E>>;
 pub type AssignmentResult<E> = Result<Assignment, E>;
 pub type QueryResult<E> = Result<Vec<Value>, E>;
-
-enum AggregationState {
-    Count(u64),
-    Min {
-        variable: Rc<str>,
-        min: Option<i64>,
-    },
-    Max {
-        variable: Rc<str>,
-        max: Option<i64>,
-    },
-    Average {
-        variable: Rc<str>,
-        sum: f64,
-        count: f64,
-    },
-    Sum {
-        variable: Rc<str>,
-        sum: i64,
-    },
-    CountDistinct {
-        variable: Rc<str>,
-        seen: HashSet<Value>,
-    },
-}
-
-impl AggregationState {
-    fn count() -> Self {
-        Self::Count(0)
-    }
-
-    fn min(variable: Rc<str>) -> Self {
-        Self::Min {
-            variable,
-            min: None,
-        }
-    }
-
-    fn max(variable: Rc<str>) -> Self {
-        Self::Max {
-            variable,
-            max: None,
-        }
-    }
-
-    fn average(variable: Rc<str>) -> Self {
-        Self::Average {
-            variable,
-            sum: 0.0,
-            count: 0.0,
-        }
-    }
-
-    fn sum(variable: Rc<str>) -> Self {
-        Self::Sum { variable, sum: 0 }
-    }
-
-    fn count_distinct(variable: Rc<str>) -> Self {
-        Self::CountDistinct {
-            variable,
-            seen: HashSet::new(),
-        }
-    }
-
-    fn consume(&mut self, assignment: &Assignment) {
-        match self {
-            Self::Count(count) => *count += 1,
-            Self::Min { variable, min } => {
-                if let Some(Value::I64(value)) = assignment.get(variable) {
-                    *min = min.map_or_else(|| Some(*value), |prev| Some(prev.min(*value)));
-                }
-            }
-            Self::Max { variable, max } => {
-                if let Some(Value::I64(value)) = assignment.get(variable) {
-                    *max = max.map_or_else(|| Some(*value), |prev| Some(prev.max(*value)));
-                }
-            }
-            Self::Average {
-                variable,
-                sum,
-                count,
-            } => {
-                if let Some(Value::I64(value)) = assignment.get(variable) {
-                    *sum += *value as f64;
-                    *count += 1.0;
-                }
-            }
-            Self::Sum { variable, sum } => {
-                if let Some(Value::I64(value)) = assignment.get(variable) {
-                    *sum += value;
-                }
-            }
-            Self::CountDistinct { variable, seen } => {
-                if let Some(value) = assignment.get(variable) {
-                    if !seen.contains(value) {
-                        seen.insert(value.clone());
-                    }
-                }
-            }
-        }
-    }
-
-    fn result(self) -> Value {
-        match self {
-            Self::Count(count) => Value::U64(count),
-            Self::Min { min, .. } => min.map(Value::I64).unwrap_or(Value::Nil),
-            Self::Max { max, .. } => max.map(Value::I64).unwrap_or(Value::Nil),
-            Self::Average { sum, count, .. } => Decimal::from_f64(sum / count)
-                .map(Value::Decimal)
-                .unwrap_or(Value::Nil),
-            Self::Sum { sum, .. } => Value::I64(sum),
-            Self::CountDistinct { seen, .. } => Value::U64(seen.len() as u64),
-        }
-    }
-}
-
-#[derive(Clone)]
-pub enum AggregationFunction {
-    Count,
-    Min(Rc<str>),
-    Max(Rc<str>),
-    Average(Rc<str>),
-    Sum(Rc<str>),
-    CountDistinct(Rc<str>),
-}
-
-impl AggregationFunction {
-    fn empty_state(&self) -> AggregationState {
-        match self {
-            AggregationFunction::Count => AggregationState::count(),
-            AggregationFunction::Min(variable) => AggregationState::min(Rc::clone(variable)),
-            AggregationFunction::Max(variable) => AggregationState::max(Rc::clone(variable)),
-            AggregationFunction::Average(variable) => {
-                AggregationState::average(Rc::clone(variable))
-            }
-            AggregationFunction::Sum(variable) => AggregationState::sum(Rc::clone(variable)),
-            AggregationFunction::CountDistinct(variable) => {
-                AggregationState::count_distinct(Rc::clone(variable))
-            }
-        }
-    }
-}
-
-// ------------------------------------------------------------------------------------------------
 
 #[derive(Clone)]
 pub enum Find {

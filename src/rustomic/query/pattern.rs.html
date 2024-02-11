@@ -67,7 +67,7 @@
 }
 
 <span class="kw">impl </span>Pattern&lt;Value&gt; {
-    <span class="kw">pub fn </span>value&lt;V: Into&lt;Value&gt;&gt;(value: V) -&gt; <span class="self">Self </span>{
+    <span class="kw">pub fn </span>value(value: <span class="kw">impl </span>Into&lt;Value&gt;) -&gt; <span class="self">Self </span>{
         <span class="self">Self</span>::Constant(value.into())
     }
 }

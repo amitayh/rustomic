@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"enum":["Find","QueryError"],"mod":["assignment","clause","db","pattern","resolver"],"struct":["Query"],"trait":["Aggregator","ToAggregator"],"type":["Assignment","AssignmentResult","Predicate","QueryResult","Result"]};
+window.SIDEBAR_ITEMS = {"enum":["Find","QueryError"],"mod":["aggregation","assignment","clause","db","pattern","resolver"],"struct":["Query"],"type":["Assignment","AssignmentResult","Predicate","QueryResult","Result"]};

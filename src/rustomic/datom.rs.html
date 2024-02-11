@@ -136,6 +136,7 @@
 <a href="#135" id="135">135</a>
 <a href="#136" id="136">136</a>
 <a href="#137" id="137">137</a>
+<a href="#138" id="138">138</a>
 </pre></div><pre class="rust"><code><span class="kw">use </span>rust_decimal::prelude::<span class="kw-2">*</span>;
 <span class="kw">use </span>std::rc::Rc;
 
@@ -143,6 +144,7 @@
 
 <span class="attr">#[derive(Hash, Eq, PartialEq, Debug, Clone, PartialOrd, Ord)]
 </span><span class="kw">pub enum </span>Value {
+    Nil,
     I64(i64),
     U64(u64),
     Decimal(Decimal),
@@ -214,7 +216,7 @@
 }
 
 <span class="kw">impl </span>Datom {
-    <span class="kw">pub fn </span>add&lt;V: Into&lt;Value&gt;&gt;(entity: u64, attribute: u64, value: V, tx: u64) -&gt; <span class="self">Self </span>{
+    <span class="kw">pub fn </span>add(entity: u64, attribute: u64, value: <span class="kw">impl </span>Into&lt;Value&gt;, tx: u64) -&gt; <span class="self">Self </span>{
         <span class="self">Self </span>{
             entity,
             attribute,
@@ -224,7 +226,7 @@
         }
     }
 
-    <span class="kw">pub fn </span>retract&lt;V: Into&lt;Value&gt;&gt;(entity: u64, attribute: u64, value: V, tx: u64) -&gt; <span class="self">Self </span>{
+    <span class="kw">pub fn </span>retract(entity: u64, attribute: u64, value: <span class="kw">impl </span>Into&lt;Value&gt;, tx: u64) -&gt; <span class="self">Self </span>{
         <span class="self">Self </span>{
             entity,
             attribute,

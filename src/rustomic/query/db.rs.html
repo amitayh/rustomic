@@ -162,6 +162,32 @@
 <a href="#161" id="161">161</a>
 <a href="#162" id="162">162</a>
 <a href="#163" id="163">163</a>
+<a href="#164" id="164">164</a>
+<a href="#165" id="165">165</a>
+<a href="#166" id="166">166</a>
+<a href="#167" id="167">167</a>
+<a href="#168" id="168">168</a>
+<a href="#169" id="169">169</a>
+<a href="#170" id="170">170</a>
+<a href="#171" id="171">171</a>
+<a href="#172" id="172">172</a>
+<a href="#173" id="173">173</a>
+<a href="#174" id="174">174</a>
+<a href="#175" id="175">175</a>
+<a href="#176" id="176">176</a>
+<a href="#177" id="177">177</a>
+<a href="#178" id="178">178</a>
+<a href="#179" id="179">179</a>
+<a href="#180" id="180">180</a>
+<a href="#181" id="181">181</a>
+<a href="#182" id="182">182</a>
+<a href="#183" id="183">183</a>
+<a href="#184" id="184">184</a>
+<a href="#185" id="185">185</a>
+<a href="#186" id="186">186</a>
+<a href="#187" id="187">187</a>
+<a href="#188" id="188">188</a>
+<a href="#189" id="189">189</a>
 </pre></div><pre class="rust"><code><span class="kw">use </span><span class="kw">crate</span>::query::pattern::AttributeIdentifier;
 <span class="kw">use </span><span class="kw">crate</span>::query::pattern::Pattern;
 <span class="kw">use </span><span class="kw">crate</span>::query::resolver::Resolver;
@@ -253,29 +279,59 @@
     <span class="comment">// TODO concurrent aggregation?
     </span><span class="kw">let </span><span class="kw-2">mut </span>aggregated = HashMap::new();
 
-    <span class="kw">let </span>len = find.len();
-    <span class="kw">let </span><span class="kw-2">mut </span>variables = Vec::with_capacity(len);
-    <span class="kw">let </span><span class="kw-2">mut </span>aggregates = Vec::with_capacity(len);
     <span class="kw">let </span>indices = Indices::new(<span class="kw-2">&amp;</span>find);
-    <span class="kw">for </span>f <span class="kw">in </span>find {
-        <span class="kw">match </span>f {
-            Find::Variable(variale) =&gt; variables.push(Rc::clone(<span class="kw-2">&amp;</span>variale)),
-            Find::Aggregate(aggregate) =&gt; aggregates.push(aggregate),
-        }
-    }
+    <span class="kw">let </span>(variables, aggregates) = partition(find.into_iter(), |f| <span class="kw">match </span>f {
+        Find::Variable(variale) =&gt; Left(variale),
+        Find::Aggregate(aggregate) =&gt; Right(aggregate),
+    });
 
     <span class="kw">for </span>result <span class="kw">in </span>results {
         <span class="kw">let </span>assignment = result<span class="question-mark">?</span>;
-        <span class="kw">let </span>key = key_of(<span class="kw-2">&amp;</span>variables, <span class="kw-2">&amp;</span>assignment);
-        <span class="kw">let </span>entry = aggregated.entry(key).or_insert_with(|| init(<span class="kw-2">&amp;</span>aggregates));
-        <span class="kw">for </span>agg <span class="kw">in </span>entry {
-            agg.consume(<span class="kw-2">&amp;</span>assignment);
-        }
+        <span class="kw">let </span>key = AggregationKey::new(<span class="kw-2">&amp;</span>variables, <span class="kw-2">&amp;</span>assignment)<span class="question-mark">?</span>;
+        <span class="kw">let </span>entry = aggregated
+            .entry(key)
+            .or_insert_with(|| AggregatedValues::new(<span class="kw-2">&amp;</span>aggregates));
+        entry.consume(<span class="kw-2">&amp;</span>assignment)
     }
 
     <span class="prelude-val">Ok</span>(aggregated
         .into_iter()
         .map(<span class="kw">move </span>|(key, value)| <span class="prelude-val">Ok</span>(indices.arrange(key, value))))
+}
+
+<span class="attr">#[derive(PartialEq, Eq, Hash)]
+</span><span class="kw">struct </span>AggregationKey(Vec&lt;Value&gt;);
+
+<span class="kw">impl </span>AggregationKey {
+    <span class="kw">fn </span>new&lt;E&gt;(variables: <span class="kw-2">&amp;</span>[Rc&lt;str&gt;], assignment: <span class="kw-2">&amp;</span>Assignment) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="self">Self</span>, E&gt; {
+        <span class="kw">let </span><span class="kw-2">mut </span>values = Vec::with_capacity(variables.len());
+        <span class="kw">for </span>variable <span class="kw">in </span>variables {
+            <span class="kw">match </span>assignment.get(variable) {
+                <span class="prelude-val">Some</span>(value) =&gt; values.push(value.clone()),
+                <span class="prelude-val">None </span>=&gt; <span class="kw">return </span><span class="prelude-val">Err</span>(QueryError::InvalidFindVariable(Rc::clone(variable))),
+            }
+        }
+        <span class="prelude-val">Ok</span>(<span class="self">Self</span>(values))
+    }
+}
+
+<span class="kw">struct </span>AggregatedValues(Vec&lt;AggregationState&gt;);
+
+<span class="kw">impl </span>AggregatedValues {
+    <span class="kw">fn </span>new(aggregates: <span class="kw-2">&amp;</span>[AggregationFunction]) -&gt; <span class="self">Self </span>{
+        <span class="self">Self</span>(
+            aggregates
+                .iter()
+                .map(|aggregate| aggregate.empty_state())
+                .collect(),
+        )
+    }
+
+    <span class="kw">fn </span>consume(<span class="kw-2">&amp;mut </span><span class="self">self</span>, assignment: <span class="kw-2">&amp;</span>Assignment) {
+        <span class="kw">for </span>agg <span class="kw">in </span><span class="self">self</span>.<span class="number">0</span>.iter_mut() {
+            agg.consume(assignment);
+        }
+    }
 }
 
 <span class="kw">struct </span>Indices {
@@ -285,44 +341,40 @@
 
 <span class="kw">impl </span>Indices {
     <span class="kw">fn </span>new(find: <span class="kw-2">&amp;</span>[Find]) -&gt; <span class="self">Self </span>{
-        <span class="kw">let </span>len = find.len();
-        <span class="kw">let </span><span class="kw-2">mut </span>variables = Vec::with_capacity(len);
-        <span class="kw">let </span><span class="kw-2">mut </span>aggregates = Vec::with_capacity(len);
-        <span class="kw">for </span>(index, f) <span class="kw">in </span>find.iter().enumerate() {
-            <span class="kw">match </span>f {
-                Find::Variable(<span class="kw">_</span>) =&gt; variables.push(index),
-                Find::Aggregate(<span class="kw">_</span>) =&gt; aggregates.push(index),
-            }
-        }
+        <span class="kw">let </span>(variables, aggregates) = partition(find.iter().enumerate(), |(index, f)| <span class="kw">match </span>f {
+            Find::Variable(<span class="kw">_</span>) =&gt; Left(index),
+            Find::Aggregate(<span class="kw">_</span>) =&gt; Right(index),
+        });
         <span class="self">Self </span>{
             variables,
             aggregates,
         }
     }
 
-    <span class="kw">fn </span>arrange(<span class="kw-2">&amp;</span><span class="self">self</span>, key: Vec&lt;Value&gt;, value: Vec&lt;Box&lt;<span class="kw">dyn </span>Aggregator&gt;&gt;) -&gt; Vec&lt;Value&gt; {
-        <span class="kw">let </span><span class="kw-2">mut </span>result = <span class="macro">vec!</span>[Value::U64(<span class="number">0</span>); key.len() + value.len()];
-        <span class="kw">for </span>(index, value) <span class="kw">in </span><span class="self">self</span>.variables.iter().zip(key.into_iter()) {
+    <span class="kw">fn </span>arrange(<span class="kw-2">&amp;</span><span class="self">self</span>, key: AggregationKey, value: AggregatedValues) -&gt; Vec&lt;Value&gt; {
+        <span class="kw">let </span><span class="kw-2">mut </span>result = <span class="macro">vec!</span>[Value::U64(<span class="number">0</span>); key.<span class="number">0</span>.len() + value.<span class="number">0</span>.len()];
+        <span class="kw">for </span>(index, value) <span class="kw">in </span><span class="self">self</span>.variables.iter().zip(key.<span class="number">0</span>.into_iter()) {
             result[<span class="kw-2">*</span>index] = value;
         }
-        <span class="kw">for </span>(index, agg) <span class="kw">in </span><span class="self">self</span>.aggregates.iter().zip(value.into_iter()) {
+        <span class="kw">for </span>(index, agg) <span class="kw">in </span><span class="self">self</span>.aggregates.iter().zip(value.<span class="number">0</span>.into_iter()) {
             result[<span class="kw-2">*</span>index] = agg.result();
         }
         result
     }
 }
 
-<span class="kw">fn </span>key_of(variables: <span class="kw-2">&amp;</span>[Rc&lt;str&gt;], assignment: <span class="kw-2">&amp;</span>Assignment) -&gt; Vec&lt;Value&gt; {
-    variables
-        .iter()
-        .map(|variable| assignment[variable].clone())
-        .collect()
-}
-
-<span class="kw">fn </span>init(aggregates: <span class="kw-2">&amp;</span>[Rc&lt;<span class="kw">dyn </span>ToAggregator&gt;]) -&gt; Vec&lt;Box&lt;<span class="kw">dyn </span>Aggregator&gt;&gt; {
-    aggregates
-        .iter()
-        .map(|aggregate| aggregate.to_aggregator())
-        .collect()
+<span class="kw">fn </span>partition&lt;T, A, B&gt;(
+    vec: <span class="kw">impl </span>ExactSizeIterator&lt;Item = T&gt;,
+    f: <span class="kw">impl </span>Fn(T) -&gt; Either&lt;A, B&gt;,
+) -&gt; (Vec&lt;A&gt;, Vec&lt;B&gt;) {
+    <span class="kw">let </span><span class="kw-2">mut </span>_as = Vec::with_capacity(vec.len());
+    <span class="kw">let </span><span class="kw-2">mut </span>_bs = Vec::with_capacity(vec.len());
+    <span class="kw">for </span>x <span class="kw">in </span>vec {
+        <span class="kw">match </span>f(x) {
+            Either::Left(a) =&gt; _as.push(a),
+            Either::Right(b) =&gt; _bs.push(b),
+        }
+    }
+    (_as, _bs)
 }
 </code></pre></div></section></main></body></html>

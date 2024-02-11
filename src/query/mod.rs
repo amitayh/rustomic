@@ -24,11 +24,11 @@ enum AggregationState {
     Count(u64),
     Min {
         variable: Rc<str>,
-        min: i64,
+        min: Option<i64>,
     },
     Max {
         variable: Rc<str>,
-        max: i64,
+        max: Option<i64>,
     },
     Average {
         variable: Rc<str>,
@@ -51,11 +51,17 @@ impl AggregationState {
     }
 
     fn min(variable: Rc<str>) -> Self {
-        Self::Min { variable, min: 0 }
+        Self::Min {
+            variable,
+            min: None,
+        }
     }
 
     fn max(variable: Rc<str>) -> Self {
-        Self::Max { variable, max: 0 }
+        Self::Max {
+            variable,
+            max: None,
+        }
     }
 
     fn average(variable: Rc<str>) -> Self {
@@ -82,12 +88,12 @@ impl AggregationState {
             Self::Count(count) => *count += 1,
             Self::Min { variable, min } => {
                 if let Some(Value::I64(value)) = assignment.get(variable) {
-                    *min = (*min).min(*value);
+                    *min = min.map_or_else(|| Some(*value), |prev| Some(prev.min(*value)));
                 }
             }
             Self::Max { variable, max } => {
                 if let Some(Value::I64(value)) = assignment.get(variable) {
-                    *max = (*max).max(*value);
+                    *max = max.map_or_else(|| Some(*value), |prev| Some(prev.max(*value)));
                 }
             }
             Self::Average {
@@ -118,8 +124,8 @@ impl AggregationState {
     fn result(self) -> Value {
         match self {
             Self::Count(count) => Value::U64(count),
-            Self::Min { min, .. } => Value::I64(min),
-            Self::Max { max, .. } => Value::I64(max),
+            Self::Min { min, .. } => min.map(Value::I64).unwrap_or(Value::Nil),
+            Self::Max { max, .. } => max.map(Value::I64).unwrap_or(Value::Nil),
             Self::Average { sum, count, .. } => Decimal::from_f64(sum / count)
                 .map(Value::Decimal)
                 .unwrap_or(Value::Nil),
@@ -171,6 +177,18 @@ impl Find {
 
     pub fn count() -> Self {
         Self::Aggregate(AggregationFunction::Count)
+    }
+
+    pub fn min(variable: &str) -> Self {
+        Self::Aggregate(AggregationFunction::Min(Rc::from(variable)))
+    }
+
+    pub fn max(variable: &str) -> Self {
+        Self::Aggregate(AggregationFunction::Max(Rc::from(variable)))
+    }
+
+    pub fn average(variable: &str) -> Self {
+        Self::Aggregate(AggregationFunction::Average(Rc::from(variable)))
     }
 
     pub fn sum(variable: &str) -> Self {

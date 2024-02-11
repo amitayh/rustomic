@@ -1,6 +1,6 @@
 pub mod assignment;
 pub mod clause;
-pub mod db;
+pub mod database;
 pub mod pattern;
 pub mod resolver;
 pub mod aggregation;
@@ -19,42 +19,6 @@ pub type Predicate = Rc<dyn Fn(&Assignment) -> bool>;
 pub type Result<T, E> = std::result::Result<T, QueryError<E>>;
 pub type AssignmentResult<E> = Result<Assignment, E>;
 pub type QueryResult<E> = Result<Vec<Value>, E>;
-
-#[derive(Clone)]
-pub enum Find {
-    Variable(Rc<str>),
-    Aggregate(AggregationFunction),
-}
-
-impl Find {
-    pub fn variable(name: &str) -> Self {
-        Self::Variable(Rc::from(name))
-    }
-
-    pub fn count() -> Self {
-        Self::Aggregate(AggregationFunction::Count)
-    }
-
-    pub fn min(variable: &str) -> Self {
-        Self::Aggregate(AggregationFunction::Min(Rc::from(variable)))
-    }
-
-    pub fn max(variable: &str) -> Self {
-        Self::Aggregate(AggregationFunction::Max(Rc::from(variable)))
-    }
-
-    pub fn average(variable: &str) -> Self {
-        Self::Aggregate(AggregationFunction::Average(Rc::from(variable)))
-    }
-
-    pub fn sum(variable: &str) -> Self {
-        Self::Aggregate(AggregationFunction::Sum(Rc::from(variable)))
-    }
-
-    pub fn count_distinct(variable: &str) -> Self {
-        Self::Aggregate(AggregationFunction::CountDistinct(Rc::from(variable)))
-    }
-}
 
 #[derive(Default, Clone)]
 pub struct Query {
@@ -92,6 +56,42 @@ impl Query {
             let value = assignment.get(variable);
             value.map_or(true, &predicate)
         })
+    }
+}
+
+#[derive(Clone)]
+pub enum Find {
+    Variable(Rc<str>),
+    Aggregate(AggregationFunction),
+}
+
+impl Find {
+    pub fn variable(name: &str) -> Self {
+        Self::Variable(Rc::from(name))
+    }
+
+    pub fn count() -> Self {
+        Self::Aggregate(AggregationFunction::Count)
+    }
+
+    pub fn min(variable: &str) -> Self {
+        Self::Aggregate(AggregationFunction::Min(Rc::from(variable)))
+    }
+
+    pub fn max(variable: &str) -> Self {
+        Self::Aggregate(AggregationFunction::Max(Rc::from(variable)))
+    }
+
+    pub fn average(variable: &str) -> Self {
+        Self::Aggregate(AggregationFunction::Average(Rc::from(variable)))
+    }
+
+    pub fn sum(variable: &str) -> Self {
+        Self::Aggregate(AggregationFunction::Sum(Rc::from(variable)))
+    }
+
+    pub fn count_distinct(variable: &str) -> Self {
+        Self::Aggregate(AggregationFunction::CountDistinct(Rc::from(variable)))
     }
 }
 

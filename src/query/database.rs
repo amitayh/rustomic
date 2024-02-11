@@ -6,12 +6,12 @@ use crate::storage::attribute_resolver::*;
 use crate::storage::*;
 use either::*;
 
-pub struct Db {
+pub struct Database {
     basis_tx: u64,
     attribute_resolver: AttributeResolver,
 }
 
-impl Db {
+impl Database {
     pub fn new(basis_tx: u64) -> Self {
         Self {
             basis_tx,

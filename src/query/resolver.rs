@@ -3,6 +3,11 @@ use crate::query::assignment::*;
 use crate::query::*;
 use crate::storage::*;
 
+/// The resolver is an iterator over the resolved assignments which satisfy the clauses. It uses a
+/// backtracking algorithm which builds up the assignment using matching datoms from storage until
+/// the assignment is complete (no more unassigned variables remaining). This algorithm is
+/// recursive by nature, but in order to implement the iterative `Iterator` trait it uses a stack
+/// with frames that contain current assignment state and remaining clauses to satisfy.
 pub struct Resolver<'a, S: ReadStorage<'a>> {
     storage: &'a S,
     clauses: Vec<Clause>,
@@ -43,9 +48,8 @@ impl<'a, S: ReadStorage<'a>> Resolver<'a, S> {
     }
 
     fn iterator(storage: &'a S, frame: &Frame, clauses: &[Clause], basis_tx: u64) -> S::Iter {
-        let clause = clauses.get(frame.clause_index);
         let restricts = Restricts::from(
-            clause.unwrap_or(&Clause::default()),
+            &clauses[frame.clause_index],
             &frame.assignment.assigned,
             basis_tx,
         );

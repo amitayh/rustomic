@@ -19,7 +19,7 @@ mod tests {
 
     use super::datom::*;
     use super::query::clause::*;
-    use super::query::db::*;
+    use super::query::database::*;
     use super::query::pattern::*;
     use super::query::*;
     use super::schema::attribute::*;
@@ -74,7 +74,7 @@ mod tests {
         }
 
         fn query_at_snapshot(&self, snapshot_tx: u64, query: Query) -> Vec<Vec<Value>> {
-            let mut db = Db::new(snapshot_tx);
+            let mut db = Database::new(snapshot_tx);
             let results = db.query(&self.storage, query).expect("Unable to query");
             results.filter_map(|result| result.ok()).collect()
         }
@@ -83,7 +83,7 @@ mod tests {
             &self,
             query: Query,
         ) -> crate::query::Result<Vec<QueryResult<StorageError<'_>>>, StorageError<'_>> {
-            let mut db = Db::new(self.last_tx);
+            let mut db = Database::new(self.last_tx);
             let result = db.query(&self.storage, query)?;
             Ok(result.collect())
         }

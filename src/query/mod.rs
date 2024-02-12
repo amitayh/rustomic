@@ -1,13 +1,13 @@
+pub mod aggregation;
 pub mod assignment;
 pub mod clause;
 pub mod database;
 pub mod pattern;
 pub mod resolver;
-pub mod aggregation;
 
 use crate::datom::Value;
-use crate::query::clause::*;
 use crate::query::aggregation::*;
+use crate::query::clause::*;
 use crate::storage::attribute_resolver::ResolveError;
 use std::collections::HashMap;
 use std::rc::Rc;

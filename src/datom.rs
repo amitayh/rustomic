@@ -3,6 +3,56 @@ use std::rc::Rc;
 
 use quickcheck::{Arbitrary, Gen};
 
+/// A datom is an immutable atomic fact that represents the addition or retraction of a relation
+/// between an entity, an attribute, a value, and a transaction.
+#[derive(Hash, Eq, PartialEq, Debug, Clone)]
+pub struct Datom {
+    pub entity: u64,
+    pub attribute: u64,
+    pub value: Value,
+    pub tx: u64,
+    pub op: Op,
+}
+
+impl Datom {
+    pub fn add(entity: u64, attribute: u64, value: impl Into<Value>, tx: u64) -> Self {
+        Self {
+            entity,
+            attribute,
+            value: value.into(),
+            tx,
+            op: Op::Added,
+        }
+    }
+
+    pub fn retract(entity: u64, attribute: u64, value: impl Into<Value>, tx: u64) -> Self {
+        Self {
+            entity,
+            attribute,
+            value: value.into(),
+            tx,
+            op: Op::Retracted,
+        }
+    }
+}
+
+impl Arbitrary for Datom {
+    fn arbitrary(u: &mut Gen) -> Self {
+        let entity = u64::arbitrary(u);
+        let attribute = u64::arbitrary(u);
+        let value = Value::arbitrary(u);
+        let tx = u64::arbitrary(u);
+        let op = Op::arbitrary(u);
+        Self {
+            entity,
+            attribute,
+            value,
+            tx,
+            op,
+        }
+    }
+}
+
 #[derive(Hash, Eq, PartialEq, Debug, Clone, PartialOrd, Ord)]
 pub enum Value {
     Nil,
@@ -57,7 +107,29 @@ impl From<&str> for Value {
 
 impl From<Rc<str>> for Value {
     fn from(val: Rc<str>) -> Self {
-        Self::Str(Rc::clone(&val))
+        Self::Str(val)
+    }
+}
+
+fn arbitrary_decimal(g: &mut Gen) -> Decimal {
+    let mut arr = [0u8; 16];
+    for x in &mut arr {
+        *x = Arbitrary::arbitrary(g);
+    }
+    Decimal::deserialize(arr)
+}
+
+impl Arbitrary for Value {
+    fn arbitrary(u: &mut Gen) -> Self {
+        match u.choose(&[0, 1, 2, 3, 4, 5]) {
+            Some(0) => Self::Nil,
+            Some(1) => Self::I64(i64::arbitrary(u)),
+            Some(2) => Self::U64(u64::arbitrary(u)),
+            Some(3) => Self::Decimal(arbitrary_decimal(u)),
+            Some(4) => Self::Str(String::arbitrary(u).into()),
+            Some(5) => Self::Ref(u64::arbitrary(u)),
+            _ => unreachable!(),
+        }
     }
 }
 
@@ -67,72 +139,12 @@ pub enum Op {
     Retracted,
 }
 
-#[derive(Hash, Eq, PartialEq, Debug, Clone)]
-pub struct Datom {
-    pub entity: u64,
-    pub attribute: u64,
-    pub value: Value,
-    pub tx: u64,
-    pub op: Op,
-}
-
-impl Datom {
-    pub fn add(entity: u64, attribute: u64, value: impl Into<Value>, tx: u64) -> Self {
-        Self {
-            entity,
-            attribute,
-            value: value.into(),
-            tx,
-            op: Op::Added,
-        }
-    }
-
-    pub fn retract(entity: u64, attribute: u64, value: impl Into<Value>, tx: u64) -> Self {
-        Self {
-            entity,
-            attribute,
-            value: value.into(),
-            tx,
-            op: Op::Retracted,
-        }
-    }
-}
-
-impl Arbitrary for Value {
-    fn arbitrary(u: &mut Gen) -> Self {
-        match u.choose(&[0, 1, 2, 3]) {
-            Some(0) => Self::I64(i64::arbitrary(u)),
-            Some(1) => Self::U64(u64::arbitrary(u)),
-            Some(2) => Self::Str(String::arbitrary(u).into()),
-            Some(3) => Self::Ref(u64::arbitrary(u)),
-            _ => unreachable!(),
-        }
-    }
-}
-
 impl Arbitrary for Op {
     fn arbitrary(u: &mut Gen) -> Self {
         if bool::arbitrary(u) {
             Self::Added
         } else {
             Self::Retracted
-        }
-    }
-}
-
-impl Arbitrary for Datom {
-    fn arbitrary(u: &mut Gen) -> Self {
-        let entity = u64::arbitrary(u);
-        let attribute = u64::arbitrary(u);
-        let value = Value::arbitrary(u);
-        let tx = u64::arbitrary(u);
-        let op = Op::arbitrary(u);
-        Self {
-            entity,
-            attribute,
-            value,
-            tx,
-            op,
         }
     }
 }

@@ -1,8 +1,11 @@
+use rust_decimal::Decimal;
 use std::rc::Rc;
 use thiserror::Error;
 
 use crate::datom::*;
 use crate::storage::*;
+
+use self::value::SIZE_DECIMAL;
 
 macro_rules! write_to_vec {
     ($first:expr $(, $rest:expr)*) => {{
@@ -163,10 +166,14 @@ pub mod index {
 }
 
 mod value {
-    pub const TAG_U64: u8 = 0x00;
-    pub const TAG_I64: u8 = 0x01;
-    pub const TAG_STR: u8 = 0x02;
-    pub const TAG_REF: u8 = 0x03;
+    pub const TAG_NIL: u8 = 0x00;
+    pub const TAG_U64: u8 = 0x01;
+    pub const TAG_I64: u8 = 0x02;
+    pub const TAG_DEC: u8 = 0x03;
+    pub const TAG_STR: u8 = 0x04;
+    pub const TAG_REF: u8 = 0x05;
+
+    pub const SIZE_DECIMAL: usize = 16;
 }
 
 mod op {
@@ -340,16 +347,20 @@ impl Writable for Value {
     fn size(&self) -> usize {
         std::mem::size_of::<u8>() + // Value tag
         match self {
+            Self::Nil => 0,
+            Self::Decimal(_) => SIZE_DECIMAL,
             Self::U64(value) => value.size(),
             Self::I64(value) => value.size(),
             Self::Str(value) => value.size(),
             Self::Ref(value) => value.size(),
-            _ => unimplemented!(),
         }
     }
 
     fn write(&self, buffer: &mut Bytes) {
         match self {
+            Self::Nil => {
+                value::TAG_NIL.write(buffer);
+            }
             Self::U64(value) => {
                 value::TAG_U64.write(buffer);
                 value.write(buffer);
@@ -357,6 +368,10 @@ impl Writable for Value {
             Self::I64(value) => {
                 value::TAG_I64.write(buffer);
                 value.write(buffer);
+            }
+            Self::Decimal(value) => {
+                value::TAG_DEC.write(buffer);
+                buffer.extend(value.serialize());
             }
             Self::Str(value) => {
                 value::TAG_STR.write(buffer);
@@ -366,7 +381,6 @@ impl Writable for Value {
                 value::TAG_REF.write(buffer);
                 value.write(buffer);
             }
-            _ => unimplemented!(),
         }
     }
 }
@@ -417,6 +431,8 @@ pub enum ReadError {
     InvalidInput,
     #[error("utf8 error")]
     Utf8Error(#[from] std::str::Utf8Error),
+    #[error("try from slice error")]
+    TryFromSliceError,
 }
 
 // -------------------------------------------------------------------------------------------------
@@ -457,6 +473,16 @@ impl<'a> Readable<i64> for Reader<'a> {
     }
 }
 
+impl<'a> Readable<Decimal> for Reader<'a> {
+    fn read(&mut self) -> ReadResult<Decimal> {
+        let buffer = self.read_next(SIZE_DECIMAL)?;
+        match buffer.try_into() {
+            Ok(bytes) => Ok(Decimal::deserialize(bytes)),
+            Err(_) => Err(ReadError::TryFromSliceError),
+        }
+    }
+}
+
 impl<'a> Readable<Rc<str>> for Reader<'a> {
     fn read(&mut self) -> ReadResult<Rc<str>> {
         let length: u16 = self.read()?;
@@ -469,8 +495,10 @@ impl<'a> Readable<Rc<str>> for Reader<'a> {
 impl<'a> Readable<Value> for Reader<'a> {
     fn read(&mut self) -> ReadResult<Value> {
         match self.read()? {
+            value::TAG_NIL => Ok(Value::Nil),
             value::TAG_U64 => Ok(Value::U64(self.read()?)),
             value::TAG_I64 => Ok(Value::I64(self.read()?)),
+            value::TAG_DEC => Ok(Value::Decimal(self.read()?)),
             value::TAG_STR => Ok(Value::Str(self.read()?)),
             value::TAG_REF => Ok(Value::Ref(self.read()?)),
             _ => Err(ReadError::InvalidInput),

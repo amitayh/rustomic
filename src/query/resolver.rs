@@ -48,8 +48,9 @@ impl<'a, S: ReadStorage<'a>> Resolver<'a, S> {
     }
 
     fn iterator(storage: &'a S, frame: &Frame, clauses: &[Clause], basis_tx: u64) -> S::Iter {
+        let clause = clauses.get(frame.clause_index);
         let restricts = Restricts::from(
-            &clauses[frame.clause_index],
+            clause.unwrap_or(&Clause::default()),
             &frame.assignment.assigned,
             basis_tx,
         );

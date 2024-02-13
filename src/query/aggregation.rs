@@ -124,7 +124,7 @@ impl AggregationState {
     }
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub enum AggregationFunction {
     Count,
     Min(Rc<str>),
@@ -196,12 +196,10 @@ mod tests {
         fn non_empty() {
             let variable = Rc::from("foo");
             let min = AggregationFunction::Min(Rc::clone(&variable));
-            let assignment1 = HashMap::from([(Rc::clone(&variable), Value::I64(1))]);
-            let assignment2 = HashMap::from([(Rc::clone(&variable), Value::I64(2))]);
 
             let mut state = min.empty_state();
-            state.consume(&assignment1);
-            state.consume(&assignment2);
+            state.consume(&HashMap::from([(Rc::clone(&variable), Value::I64(1))]));
+            state.consume(&HashMap::from([(Rc::clone(&variable), Value::I64(2))]));
 
             assert_eq!(Value::I64(1), state.result());
         }
@@ -220,12 +218,10 @@ mod tests {
         fn non_empty() {
             let variable = Rc::from("foo");
             let max = AggregationFunction::Max(Rc::clone(&variable));
-            let assignment1 = HashMap::from([(Rc::clone(&variable), Value::I64(1))]);
-            let assignment2 = HashMap::from([(Rc::clone(&variable), Value::I64(2))]);
 
             let mut state = max.empty_state();
-            state.consume(&assignment1);
-            state.consume(&assignment2);
+            state.consume(&HashMap::from([(Rc::clone(&variable), Value::I64(1))]));
+            state.consume(&HashMap::from([(Rc::clone(&variable), Value::I64(2))]));
 
             assert_eq!(Value::I64(2), state.result());
         }
@@ -244,12 +240,10 @@ mod tests {
         fn non_empty() {
             let variable = Rc::from("foo");
             let average = AggregationFunction::Average(Rc::clone(&variable));
-            let assignment1 = HashMap::from([(Rc::clone(&variable), Value::I64(1))]);
-            let assignment2 = HashMap::from([(Rc::clone(&variable), Value::I64(2))]);
 
             let mut state = average.empty_state();
-            state.consume(&assignment1);
-            state.consume(&assignment2);
+            state.consume(&HashMap::from([(Rc::clone(&variable), Value::I64(1))]));
+            state.consume(&HashMap::from([(Rc::clone(&variable), Value::I64(2))]));
 
             assert_eq!(
                 Value::Decimal(Decimal::from_f64(1.5).unwrap()),
@@ -271,12 +265,10 @@ mod tests {
         fn non_empty() {
             let variable = Rc::from("foo");
             let sum = AggregationFunction::Sum(Rc::clone(&variable));
-            let assignment1 = HashMap::from([(Rc::clone(&variable), Value::I64(1))]);
-            let assignment2 = HashMap::from([(Rc::clone(&variable), Value::I64(2))]);
 
             let mut state = sum.empty_state();
-            state.consume(&assignment1);
-            state.consume(&assignment2);
+            state.consume(&HashMap::from([(Rc::clone(&variable), Value::I64(1))]));
+            state.consume(&HashMap::from([(Rc::clone(&variable), Value::I64(2))]));
 
             assert_eq!(Value::I64(3), state.result());
         }
@@ -295,12 +287,10 @@ mod tests {
         fn equal_values() {
             let variable = Rc::from("foo");
             let count_distinct = AggregationFunction::CountDistinct(Rc::clone(&variable));
-            let assignment1 = HashMap::from([(Rc::clone(&variable), Value::U64(1))]);
-            let assignment2 = HashMap::from([(Rc::clone(&variable), Value::U64(1))]);
 
             let mut state = count_distinct.empty_state();
-            state.consume(&assignment1);
-            state.consume(&assignment2);
+            state.consume(&HashMap::from([(Rc::clone(&variable), Value::U64(1))]));
+            state.consume(&HashMap::from([(Rc::clone(&variable), Value::U64(1))]));
 
             assert_eq!(Value::U64(1), state.result());
         }
@@ -309,12 +299,10 @@ mod tests {
         fn distinct_values() {
             let variable = Rc::from("foo");
             let count_distinct = AggregationFunction::CountDistinct(Rc::clone(&variable));
-            let assignment1 = HashMap::from([(Rc::clone(&variable), Value::U64(1))]);
-            let assignment2 = HashMap::from([(Rc::clone(&variable), Value::U64(2))]);
 
             let mut state = count_distinct.empty_state();
-            state.consume(&assignment1);
-            state.consume(&assignment2);
+            state.consume(&HashMap::from([(Rc::clone(&variable), Value::U64(1))]));
+            state.consume(&HashMap::from([(Rc::clone(&variable), Value::U64(2))]));
 
             assert_eq!(Value::U64(2), state.result());
         }

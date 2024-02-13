@@ -52,6 +52,8 @@ impl PartialAssignment {
         )
     }
 
+    /// An assignment is considered "complete" when there are no more unassigned variables.
+    ///
     /// ```
     /// use std::rc::Rc;
     /// use std::collections::HashSet;

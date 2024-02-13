@@ -137,10 +137,72 @@
 <a href="#136" id="136">136</a>
 <a href="#137" id="137">137</a>
 <a href="#138" id="138">138</a>
+<a href="#139" id="139">139</a>
+<a href="#140" id="140">140</a>
+<a href="#141" id="141">141</a>
+<a href="#142" id="142">142</a>
+<a href="#143" id="143">143</a>
+<a href="#144" id="144">144</a>
+<a href="#145" id="145">145</a>
+<a href="#146" id="146">146</a>
+<a href="#147" id="147">147</a>
+<a href="#148" id="148">148</a>
+<a href="#149" id="149">149</a>
+<a href="#150" id="150">150</a>
 </pre></div><pre class="rust"><code><span class="kw">use </span>rust_decimal::prelude::<span class="kw-2">*</span>;
 <span class="kw">use </span>std::rc::Rc;
 
 <span class="kw">use </span>quickcheck::{Arbitrary, Gen};
+
+<span class="doccomment">/// A datom is an immutable atomic fact that represents the addition or retraction of a relation
+/// between an entity, an attribute, a value, and a transaction.
+</span><span class="attr">#[derive(Hash, Eq, PartialEq, Debug, Clone)]
+</span><span class="kw">pub struct </span>Datom {
+    <span class="kw">pub </span>entity: u64,
+    <span class="kw">pub </span>attribute: u64,
+    <span class="kw">pub </span>value: Value,
+    <span class="kw">pub </span>tx: u64,
+    <span class="kw">pub </span>op: Op,
+}
+
+<span class="kw">impl </span>Datom {
+    <span class="kw">pub fn </span>add(entity: u64, attribute: u64, value: <span class="kw">impl </span>Into&lt;Value&gt;, tx: u64) -&gt; <span class="self">Self </span>{
+        <span class="self">Self </span>{
+            entity,
+            attribute,
+            value: value.into(),
+            tx,
+            op: Op::Added,
+        }
+    }
+
+    <span class="kw">pub fn </span>retract(entity: u64, attribute: u64, value: <span class="kw">impl </span>Into&lt;Value&gt;, tx: u64) -&gt; <span class="self">Self </span>{
+        <span class="self">Self </span>{
+            entity,
+            attribute,
+            value: value.into(),
+            tx,
+            op: Op::Retracted,
+        }
+    }
+}
+
+<span class="kw">impl </span>Arbitrary <span class="kw">for </span>Datom {
+    <span class="kw">fn </span>arbitrary(u: <span class="kw-2">&amp;mut </span>Gen) -&gt; <span class="self">Self </span>{
+        <span class="kw">let </span>entity = u64::arbitrary(u);
+        <span class="kw">let </span>attribute = u64::arbitrary(u);
+        <span class="kw">let </span>value = Value::arbitrary(u);
+        <span class="kw">let </span>tx = u64::arbitrary(u);
+        <span class="kw">let </span>op = Op::arbitrary(u);
+        <span class="self">Self </span>{
+            entity,
+            attribute,
+            value,
+            tx,
+            op,
+        }
+    }
+}
 
 <span class="attr">#[derive(Hash, Eq, PartialEq, Debug, Clone, PartialOrd, Ord)]
 </span><span class="kw">pub enum </span>Value {
@@ -196,7 +258,29 @@
 
 <span class="kw">impl </span>From&lt;Rc&lt;str&gt;&gt; <span class="kw">for </span>Value {
     <span class="kw">fn </span>from(val: Rc&lt;str&gt;) -&gt; <span class="self">Self </span>{
-        <span class="self">Self</span>::Str(Rc::clone(<span class="kw-2">&amp;</span>val))
+        <span class="self">Self</span>::Str(val)
+    }
+}
+
+<span class="kw">fn </span>arbitrary_decimal(g: <span class="kw-2">&amp;mut </span>Gen) -&gt; Decimal {
+    <span class="kw">let </span><span class="kw-2">mut </span>arr = [<span class="number">0u8</span>; <span class="number">16</span>];
+    <span class="kw">for </span>x <span class="kw">in </span><span class="kw-2">&amp;mut </span>arr {
+        <span class="kw-2">*</span>x = Arbitrary::arbitrary(g);
+    }
+    Decimal::deserialize(arr)
+}
+
+<span class="kw">impl </span>Arbitrary <span class="kw">for </span>Value {
+    <span class="kw">fn </span>arbitrary(u: <span class="kw-2">&amp;mut </span>Gen) -&gt; <span class="self">Self </span>{
+        <span class="kw">match </span>u.choose(<span class="kw-2">&amp;</span>[<span class="number">0</span>, <span class="number">1</span>, <span class="number">2</span>, <span class="number">3</span>, <span class="number">4</span>, <span class="number">5</span>]) {
+            <span class="prelude-val">Some</span>(<span class="number">0</span>) =&gt; <span class="self">Self</span>::Nil,
+            <span class="prelude-val">Some</span>(<span class="number">1</span>) =&gt; <span class="self">Self</span>::I64(i64::arbitrary(u)),
+            <span class="prelude-val">Some</span>(<span class="number">2</span>) =&gt; <span class="self">Self</span>::U64(u64::arbitrary(u)),
+            <span class="prelude-val">Some</span>(<span class="number">3</span>) =&gt; <span class="self">Self</span>::Decimal(arbitrary_decimal(u)),
+            <span class="prelude-val">Some</span>(<span class="number">4</span>) =&gt; <span class="self">Self</span>::Str(String::arbitrary(u).into()),
+            <span class="prelude-val">Some</span>(<span class="number">5</span>) =&gt; <span class="self">Self</span>::Ref(u64::arbitrary(u)),
+            <span class="kw">_ </span>=&gt; <span class="macro">unreachable!</span>(),
+        }
     }
 }
 
@@ -206,72 +290,12 @@
     Retracted,
 }
 
-<span class="attr">#[derive(Hash, Eq, PartialEq, Debug, Clone)]
-</span><span class="kw">pub struct </span>Datom {
-    <span class="kw">pub </span>entity: u64,
-    <span class="kw">pub </span>attribute: u64,
-    <span class="kw">pub </span>value: Value,
-    <span class="kw">pub </span>tx: u64,
-    <span class="kw">pub </span>op: Op,
-}
-
-<span class="kw">impl </span>Datom {
-    <span class="kw">pub fn </span>add(entity: u64, attribute: u64, value: <span class="kw">impl </span>Into&lt;Value&gt;, tx: u64) -&gt; <span class="self">Self </span>{
-        <span class="self">Self </span>{
-            entity,
-            attribute,
-            value: value.into(),
-            tx,
-            op: Op::Added,
-        }
-    }
-
-    <span class="kw">pub fn </span>retract(entity: u64, attribute: u64, value: <span class="kw">impl </span>Into&lt;Value&gt;, tx: u64) -&gt; <span class="self">Self </span>{
-        <span class="self">Self </span>{
-            entity,
-            attribute,
-            value: value.into(),
-            tx,
-            op: Op::Retracted,
-        }
-    }
-}
-
-<span class="kw">impl </span>Arbitrary <span class="kw">for </span>Value {
-    <span class="kw">fn </span>arbitrary(u: <span class="kw-2">&amp;mut </span>Gen) -&gt; <span class="self">Self </span>{
-        <span class="kw">match </span>u.choose(<span class="kw-2">&amp;</span>[<span class="number">0</span>, <span class="number">1</span>, <span class="number">2</span>, <span class="number">3</span>]) {
-            <span class="prelude-val">Some</span>(<span class="number">0</span>) =&gt; <span class="self">Self</span>::I64(i64::arbitrary(u)),
-            <span class="prelude-val">Some</span>(<span class="number">1</span>) =&gt; <span class="self">Self</span>::U64(u64::arbitrary(u)),
-            <span class="prelude-val">Some</span>(<span class="number">2</span>) =&gt; <span class="self">Self</span>::Str(String::arbitrary(u).into()),
-            <span class="prelude-val">Some</span>(<span class="number">3</span>) =&gt; <span class="self">Self</span>::Ref(u64::arbitrary(u)),
-            <span class="kw">_ </span>=&gt; <span class="macro">unreachable!</span>(),
-        }
-    }
-}
-
 <span class="kw">impl </span>Arbitrary <span class="kw">for </span>Op {
     <span class="kw">fn </span>arbitrary(u: <span class="kw-2">&amp;mut </span>Gen) -&gt; <span class="self">Self </span>{
         <span class="kw">if </span>bool::arbitrary(u) {
             <span class="self">Self</span>::Added
         } <span class="kw">else </span>{
             <span class="self">Self</span>::Retracted
-        }
-    }
-}
-
-<span class="kw">impl </span>Arbitrary <span class="kw">for </span>Datom {
-    <span class="kw">fn </span>arbitrary(u: <span class="kw-2">&amp;mut </span>Gen) -&gt; <span class="self">Self </span>{
-        <span class="kw">let </span>entity = u64::arbitrary(u);
-        <span class="kw">let </span>attribute = u64::arbitrary(u);
-        <span class="kw">let </span>value = Value::arbitrary(u);
-        <span class="kw">let </span>tx = u64::arbitrary(u);
-        <span class="kw">let </span>op = Op::arbitrary(u);
-        <span class="self">Self </span>{
-            entity,
-            attribute,
-            value,
-            tx,
-            op,
         }
     }
 }

@@ -107,16 +107,16 @@
 <a href="#106" id="106">106</a>
 <a href="#107" id="107">107</a>
 <a href="#108" id="108">108</a>
-</pre></div><pre class="rust"><code><span class="kw">pub mod </span>assignment;
+</pre></div><pre class="rust"><code><span class="kw">pub mod </span>aggregation;
+<span class="kw">pub mod </span>assignment;
 <span class="kw">pub mod </span>clause;
-<span class="kw">pub mod </span>db;
+<span class="kw">pub mod </span>database;
 <span class="kw">pub mod </span>pattern;
 <span class="kw">pub mod </span>resolver;
-<span class="kw">pub mod </span>aggregation;
 
 <span class="kw">use </span><span class="kw">crate</span>::datom::Value;
-<span class="kw">use </span><span class="kw">crate</span>::query::clause::<span class="kw-2">*</span>;
 <span class="kw">use </span><span class="kw">crate</span>::query::aggregation::<span class="kw-2">*</span>;
+<span class="kw">use </span><span class="kw">crate</span>::query::clause::<span class="kw-2">*</span>;
 <span class="kw">use </span><span class="kw">crate</span>::storage::attribute_resolver::ResolveError;
 <span class="kw">use </span>std::collections::HashMap;
 <span class="kw">use </span>std::rc::Rc;
@@ -128,42 +128,6 @@
 <span class="kw">pub type </span><span class="prelude-ty">Result</span>&lt;T, E&gt; = std::result::Result&lt;T, QueryError&lt;E&gt;&gt;;
 <span class="kw">pub type </span>AssignmentResult&lt;E&gt; = <span class="prelude-ty">Result</span>&lt;Assignment, E&gt;;
 <span class="kw">pub type </span>QueryResult&lt;E&gt; = <span class="prelude-ty">Result</span>&lt;Vec&lt;Value&gt;, E&gt;;
-
-<span class="attr">#[derive(Clone)]
-</span><span class="kw">pub enum </span>Find {
-    Variable(Rc&lt;str&gt;),
-    Aggregate(AggregationFunction),
-}
-
-<span class="kw">impl </span>Find {
-    <span class="kw">pub fn </span>variable(name: <span class="kw-2">&amp;</span>str) -&gt; <span class="self">Self </span>{
-        <span class="self">Self</span>::Variable(Rc::from(name))
-    }
-
-    <span class="kw">pub fn </span>count() -&gt; <span class="self">Self </span>{
-        <span class="self">Self</span>::Aggregate(AggregationFunction::Count)
-    }
-
-    <span class="kw">pub fn </span>min(variable: <span class="kw-2">&amp;</span>str) -&gt; <span class="self">Self </span>{
-        <span class="self">Self</span>::Aggregate(AggregationFunction::Min(Rc::from(variable)))
-    }
-
-    <span class="kw">pub fn </span>max(variable: <span class="kw-2">&amp;</span>str) -&gt; <span class="self">Self </span>{
-        <span class="self">Self</span>::Aggregate(AggregationFunction::Max(Rc::from(variable)))
-    }
-
-    <span class="kw">pub fn </span>average(variable: <span class="kw-2">&amp;</span>str) -&gt; <span class="self">Self </span>{
-        <span class="self">Self</span>::Aggregate(AggregationFunction::Average(Rc::from(variable)))
-    }
-
-    <span class="kw">pub fn </span>sum(variable: <span class="kw-2">&amp;</span>str) -&gt; <span class="self">Self </span>{
-        <span class="self">Self</span>::Aggregate(AggregationFunction::Sum(Rc::from(variable)))
-    }
-
-    <span class="kw">pub fn </span>count_distinct(variable: <span class="kw-2">&amp;</span>str) -&gt; <span class="self">Self </span>{
-        <span class="self">Self</span>::Aggregate(AggregationFunction::CountDistinct(Rc::from(variable)))
-    }
-}
 
 <span class="attr">#[derive(Default, Clone)]
 </span><span class="kw">pub struct </span>Query {
@@ -201,6 +165,42 @@
             <span class="kw">let </span>value = assignment.get(variable);
             value.map_or(<span class="bool-val">true</span>, <span class="kw-2">&amp;</span>predicate)
         })
+    }
+}
+
+<span class="attr">#[derive(Clone)]
+</span><span class="kw">pub enum </span>Find {
+    Variable(Rc&lt;str&gt;),
+    Aggregate(AggregationFunction),
+}
+
+<span class="kw">impl </span>Find {
+    <span class="kw">pub fn </span>variable(name: <span class="kw-2">&amp;</span>str) -&gt; <span class="self">Self </span>{
+        <span class="self">Self</span>::Variable(Rc::from(name))
+    }
+
+    <span class="kw">pub fn </span>count() -&gt; <span class="self">Self </span>{
+        <span class="self">Self</span>::Aggregate(AggregationFunction::Count)
+    }
+
+    <span class="kw">pub fn </span>min(variable: <span class="kw-2">&amp;</span>str) -&gt; <span class="self">Self </span>{
+        <span class="self">Self</span>::Aggregate(AggregationFunction::Min(Rc::from(variable)))
+    }
+
+    <span class="kw">pub fn </span>max(variable: <span class="kw-2">&amp;</span>str) -&gt; <span class="self">Self </span>{
+        <span class="self">Self</span>::Aggregate(AggregationFunction::Max(Rc::from(variable)))
+    }
+
+    <span class="kw">pub fn </span>average(variable: <span class="kw-2">&amp;</span>str) -&gt; <span class="self">Self </span>{
+        <span class="self">Self</span>::Aggregate(AggregationFunction::Average(Rc::from(variable)))
+    }
+
+    <span class="kw">pub fn </span>sum(variable: <span class="kw-2">&amp;</span>str) -&gt; <span class="self">Self </span>{
+        <span class="self">Self</span>::Aggregate(AggregationFunction::Sum(Rc::from(variable)))
+    }
+
+    <span class="kw">pub fn </span>count_distinct(variable: <span class="kw-2">&amp;</span>str) -&gt; <span class="self">Self </span>{
+        <span class="self">Self</span>::Aggregate(AggregationFunction::CountDistinct(Rc::from(variable)))
     }
 }
 

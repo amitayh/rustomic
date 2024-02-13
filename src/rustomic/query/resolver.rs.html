@@ -86,12 +86,22 @@
 <a href="#85" id="85">85</a>
 <a href="#86" id="86">86</a>
 <a href="#87" id="87">87</a>
+<a href="#88" id="88">88</a>
+<a href="#89" id="89">89</a>
+<a href="#90" id="90">90</a>
+<a href="#91" id="91">91</a>
+<a href="#92" id="92">92</a>
 </pre></div><pre class="rust"><code><span class="kw">use </span><span class="kw">crate</span>::datom::Datom;
 <span class="kw">use </span><span class="kw">crate</span>::query::assignment::<span class="kw-2">*</span>;
 <span class="kw">use </span><span class="kw">crate</span>::query::<span class="kw-2">*</span>;
 <span class="kw">use </span><span class="kw">crate</span>::storage::<span class="kw-2">*</span>;
 
-<span class="kw">pub struct </span>Resolver&lt;<span class="lifetime">'a</span>, S: ReadStorage&lt;<span class="lifetime">'a</span>&gt;&gt; {
+<span class="doccomment">/// The resolver is an iterator over the resolved assignments which satisfy the clauses. It uses a
+/// backtracking algorithm which builds up the assignment using matching datoms from storage until
+/// the assignment is complete (no more unassigned variables remaining). This algorithm is
+/// recursive by nature, but in order to implement the iterative `Iterator` trait it uses a stack
+/// with frames that contain current assignment state and remaining clauses to satisfy.
+</span><span class="kw">pub struct </span>Resolver&lt;<span class="lifetime">'a</span>, S: ReadStorage&lt;<span class="lifetime">'a</span>&gt;&gt; {
     storage: <span class="kw-2">&amp;</span><span class="lifetime">'a </span>S,
     clauses: Vec&lt;Clause&gt;,
     frame: Frame,

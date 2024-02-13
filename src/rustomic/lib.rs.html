@@ -745,7 +745,7 @@
 
     <span class="kw">use </span><span class="kw">super</span>::datom::<span class="kw-2">*</span>;
     <span class="kw">use </span><span class="kw">super</span>::query::clause::<span class="kw-2">*</span>;
-    <span class="kw">use </span><span class="kw">super</span>::query::db::<span class="kw-2">*</span>;
+    <span class="kw">use </span><span class="kw">super</span>::query::database::<span class="kw-2">*</span>;
     <span class="kw">use </span><span class="kw">super</span>::query::pattern::<span class="kw-2">*</span>;
     <span class="kw">use </span><span class="kw">super</span>::query::<span class="kw-2">*</span>;
     <span class="kw">use </span><span class="kw">super</span>::schema::attribute::<span class="kw-2">*</span>;
@@ -800,7 +800,7 @@
         }
 
         <span class="kw">fn </span>query_at_snapshot(<span class="kw-2">&amp;</span><span class="self">self</span>, snapshot_tx: u64, query: Query) -&gt; Vec&lt;Vec&lt;Value&gt;&gt; {
-            <span class="kw">let </span><span class="kw-2">mut </span>db = Db::new(snapshot_tx);
+            <span class="kw">let </span><span class="kw-2">mut </span>db = Database::new(snapshot_tx);
             <span class="kw">let </span>results = db.query(<span class="kw-2">&amp;</span><span class="self">self</span>.storage, query).expect(<span class="string">"Unable to query"</span>);
             results.filter_map(|result| result.ok()).collect()
         }
@@ -809,7 +809,7 @@
             <span class="kw-2">&amp;</span><span class="self">self</span>,
             query: Query,
         ) -&gt; <span class="kw">crate</span>::query::Result&lt;Vec&lt;QueryResult&lt;StorageError&lt;<span class="lifetime">'_</span>&gt;&gt;&gt;, StorageError&lt;<span class="lifetime">'_</span>&gt;&gt; {
-            <span class="kw">let </span><span class="kw-2">mut </span>db = Db::new(<span class="self">self</span>.last_tx);
+            <span class="kw">let </span><span class="kw-2">mut </span>db = Database::new(<span class="self">self</span>.last_tx);
             <span class="kw">let </span>result = db.query(<span class="kw-2">&amp;</span><span class="self">self</span>.storage, query)<span class="question-mark">?</span>;
             <span class="prelude-val">Ok</span>(result.collect())
         }

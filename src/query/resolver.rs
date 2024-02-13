@@ -1,6 +1,7 @@
 use crate::datom::Datom;
 use crate::query::assignment::*;
 use crate::query::*;
+use crate::storage::restricts::*;
 use crate::storage::*;
 
 /// The resolver is an iterator over the resolved assignments which satisfy the clauses. It uses a

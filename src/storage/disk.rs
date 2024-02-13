@@ -3,6 +3,7 @@ use std::ops::Range;
 
 use rocksdb::*;
 
+use crate::storage::restricts::*;
 use crate::storage::serde::*;
 use crate::storage::*;
 use thiserror::Error;

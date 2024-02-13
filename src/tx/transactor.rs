@@ -6,6 +6,7 @@ use crate::datom::*;
 use crate::schema::attribute::*;
 use crate::schema::*;
 use crate::storage::attribute_resolver::*;
+use crate::storage::restricts::*;
 use crate::storage::*;
 use crate::tx::*;
 

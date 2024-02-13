@@ -7,6 +7,7 @@ mod tests {
     use googletest::prelude::*;
 
     use rustomic::datom::*;
+    use rustomic::storage::restricts::*;
     use rustomic::storage::*;
 
     trait TestStorage {

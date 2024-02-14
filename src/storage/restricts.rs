@@ -1,7 +1,7 @@
 use crate::datom::*;
+use crate::query::assignment::PartialAssignment;
 use crate::query::clause::*;
 use crate::query::pattern::*;
-use crate::query::Assignment;
 
 #[derive(Debug, Clone)]
 pub struct Restricts {
@@ -21,21 +21,15 @@ impl Restricts {
         }
     }
 
-    pub fn from(clause: &Clause, assignment: &Assignment, basis_tx: u64) -> Self {
+    pub fn from(clause: &Clause, assignment: &PartialAssignment, basis_tx: u64) -> Self {
         let entity = match clause.entity {
             Pattern::Constant(entity) => Some(entity),
-            Pattern::Variable(ref variable) => match assignment.get(variable) {
-                Some(&Value::Ref(entity)) => Some(entity),
-                _ => None,
-            },
+            Pattern::Variable(ref variable) => assignment.get_ref(variable),
             _ => None,
         };
         let attribute = match clause.attribute {
             Pattern::Constant(AttributeIdentifier::Id(attribute)) => Some(attribute),
-            Pattern::Variable(ref variable) => match assignment.get(variable) {
-                Some(&Value::Ref(entity)) => Some(entity),
-                _ => None,
-            },
+            Pattern::Variable(ref variable) => assignment.get_ref(variable),
             _ => None,
         };
         let value = match clause.value {
@@ -45,8 +39,8 @@ impl Restricts {
         };
         let tx = match clause.tx {
             Pattern::Constant(tx) => TxRestrict::Exact(tx),
-            Pattern::Variable(ref variable) => match assignment.get(variable) {
-                Some(&Value::Ref(entity)) => TxRestrict::Exact(entity),
+            Pattern::Variable(ref variable) => match assignment.get_ref(variable) {
+                Some(entity) => TxRestrict::Exact(entity),
                 _ => TxRestrict::AtMost(basis_tx),
             },
             _ => TxRestrict::AtMost(basis_tx),

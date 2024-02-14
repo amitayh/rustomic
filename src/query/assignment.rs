@@ -8,7 +8,7 @@ use crate::query::*;
 
 #[derive(Debug, Eq, PartialEq, Clone)]
 pub struct PartialAssignment {
-    pub assigned: Assignment,
+    assigned: Assignment,
     unassigned: HashSet<Rc<str>>,
 }
 
@@ -52,6 +52,17 @@ impl PartialAssignment {
         )
     }
 
+    pub fn get(&self, variable: &str) -> Option<&Value> {
+        self.assigned.get(variable)
+    }
+
+    pub fn get_ref(&self, variable: &str) -> Option<u64> {
+        match self.get(variable) {
+            Some(&Value::Ref(entity)) => Some(entity),
+            _ => None,
+        }
+    }
+
     /// An assignment is considered "complete" when there are no more unassigned variables.
     ///
     /// ```
@@ -72,6 +83,12 @@ impl PartialAssignment {
         self.unassigned.is_empty()
     }
 
+    pub fn complete(self) -> Assignment {
+        self.assigned
+    }
+
+    /// Creates a new assignment where free variables from `clause` are assigned from `datom`.
+    ///
     /// ```
     /// use std::collections::HashSet;
     /// use std::rc::Rc;
@@ -105,18 +122,18 @@ impl PartialAssignment {
     /// assert_eq!(Value::U64(value), updated.assigned["?value"]);
     /// assert_eq!(Value::Ref(tx), updated.assigned["?tx"]);
     /// ```
-    pub fn update_with(&self, pattern: &Clause, datom: Datom) -> Self {
+    pub fn update_with(&self, clause: &Clause, datom: Datom) -> Self {
         let mut assignment = self.clone();
-        if let Pattern::Variable(variable) = &pattern.entity {
+        if let Pattern::Variable(variable) = &clause.entity {
             assignment.assign_ref(variable, datom.entity);
         }
-        if let Pattern::Variable(variable) = &pattern.attribute {
+        if let Pattern::Variable(variable) = &clause.attribute {
             assignment.assign_ref(variable, datom.attribute);
         }
-        if let Pattern::Variable(variable) = &pattern.value {
+        if let Pattern::Variable(variable) = &clause.value {
             assignment.assign(variable, datom.value);
         }
-        if let Pattern::Variable(variable) = &pattern.tx {
+        if let Pattern::Variable(variable) = &clause.tx {
             assignment.assign_ref(variable, datom.tx);
         }
         assignment

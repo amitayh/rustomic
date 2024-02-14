@@ -36,7 +36,7 @@ impl<'a, S: ReadStorage<'a>> Resolver<'a, S> {
         let clause = self.clauses.get(self.frame.clause_index)?;
         let assignment = self.frame.assignment.update_with(clause, datom);
         if assignment.is_complete() {
-            return Some(Ok(assignment.assigned));
+            return Some(Ok(assignment.complete()));
         }
         self.stack.push(self.frame.next(assignment));
         self.next()
@@ -52,7 +52,7 @@ impl<'a, S: ReadStorage<'a>> Resolver<'a, S> {
         let clause = clauses.get(frame.clause_index);
         let restricts = Restricts::from(
             clause.unwrap_or(&Clause::default()),
-            &frame.assignment.assigned,
+            &frame.assignment,
             basis_tx,
         );
         storage.find(restricts)

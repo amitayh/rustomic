@@ -4,6 +4,7 @@ use std::collections::HashMap;
 use std::rc::Rc;
 
 use crate::datom::Datom;
+use crate::datom::Op;
 use crate::datom::Value;
 use crate::storage::attribute_resolver::ResolveError;
 use thiserror::Error;
@@ -24,6 +25,7 @@ pub enum AttributeValue {
 pub struct AttributeOperation {
     pub attribute: Rc<str>,
     pub value: AttributeValue,
+    pub op: Op,
 }
 
 pub struct EntityOperation {
@@ -52,19 +54,35 @@ impl EntityOperation {
     }
 
     pub fn set_value(self, attribute: &str, value: impl Into<Value>) -> Self {
-        self.set(Rc::from(attribute), AttributeValue::Value(value.into()))
+        self.set(
+            Rc::from(attribute),
+            AttributeValue::Value(value.into()),
+            Op::Added,
+        )
+    }
+
+    pub fn retract_value(self, attribute: &str, value: impl Into<Value>) -> Self {
+        self.set(
+            Rc::from(attribute),
+            AttributeValue::Value(value.into()),
+            Op::Retracted,
+        )
     }
 
     pub fn set_reference(self, attribute: &str, temp_id: &str) -> Self {
         self.set(
             Rc::from(attribute),
             AttributeValue::TempId(Rc::from(temp_id)),
+            Op::Added,
         )
     }
 
-    fn set(mut self, attribute: Rc<str>, value: AttributeValue) -> Self {
-        self.attributes
-            .push(AttributeOperation { attribute, value });
+    fn set(mut self, attribute: Rc<str>, value: AttributeValue, op: Op) -> Self {
+        self.attributes.push(AttributeOperation {
+            attribute,
+            value,
+            op,
+        });
         self
     }
 }
@@ -82,6 +100,13 @@ impl Transaction {
     pub fn with(mut self, o: impl Into<EntityOperation>) -> Self {
         self.operations.push(o.into());
         self
+    }
+
+    pub fn total_attribute_operations(&self) -> usize {
+        self.operations
+            .iter()
+            .map(|operation| operation.attributes.len())
+            .sum()
     }
 }
 
@@ -104,4 +129,6 @@ pub enum TransactionError<S> {
     TempIdNotFound(Rc<str>),
     #[error("resolve error")]
     ResolveError(#[from] ResolveError<S>),
+    #[error("duplicate value for attribute {attribute}")]
+    DuplicateUniqueValue { attribute: u64, value: Value },
 }

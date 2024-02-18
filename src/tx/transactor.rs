@@ -63,10 +63,18 @@ impl Transactor {
         transaction: Transaction,
         temp_ids: &TempIds,
     ) -> Result<Vec<Datom>, S::Error> {
-        let mut datoms = Vec::new();
+        let mut datoms = Vec::with_capacity(transaction.total_attribute_operations());
+        let mut unique_values = HashSet::new(); // TODO capacity?
         let tx = self.create_tx_datom(now);
         for operation in transaction.operations {
-            self.operation_datoms(storage, tx.entity, operation, temp_ids, &mut datoms)?;
+            self.operation_datoms(
+                storage,
+                tx.entity,
+                operation,
+                temp_ids,
+                &mut datoms,
+                &mut unique_values,
+            )?;
         }
         datoms.push(tx);
         Ok(datoms)
@@ -89,6 +97,7 @@ impl Transactor {
         operation: EntityOperation,
         temp_ids: &TempIds,
         datoms: &mut Vec<Datom>,
+        unique_values: &mut HashSet<(u64, Value)>,
     ) -> Result<(), S::Error> {
         let operation_attributes = operation.attributes.len();
         let entity = self.resolve_entity(operation.entity, temp_ids)?;
@@ -115,10 +124,30 @@ impl Transactor {
             }
 
             if attribute.definition.unique {
-                // TODO
+                if !unique_values.insert((attribute.id, value.clone())) {
+                    return Err(TransactionError::DuplicateUniqueValue {
+                        attribute: attribute.id,
+                        value,
+                    });
+                }
+                let restricts = Restricts::new(tx)
+                    .with_attribute(attribute.id)
+                    .with_value(value.clone());
+                if storage.find(restricts).count() > 0 {
+                    return Err(TransactionError::DuplicateUniqueValue {
+                        attribute: attribute.id,
+                        value,
+                    });
+                }
             }
 
-            datoms.push(Datom::add(entity, attribute.id, value, tx));
+            datoms.push(Datom {
+                entity,
+                attribute: attribute.id,
+                value,
+                tx,
+                op: attribute_value.op,
+            });
         }
 
         for attribute_id in retract_attributes {

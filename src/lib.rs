@@ -118,6 +118,11 @@ mod tests {
                     .many(),
             )
             .with(
+                AttributeDefinition::new("person/email", ValueType::Str)
+                    .with_doc("A person's email address. Unique across all people!")
+                    .unique(),
+            )
+            .with(
                 AttributeDefinition::new("artist/name", ValueType::Str)
                     .with_doc("An artist's name"),
             )
@@ -721,5 +726,86 @@ mod tests {
         );
     }
 
-    // TODO retract
+    #[test]
+    fn retract_facts() {
+        let mut sut = Sut::new();
+
+        // Insert data
+        let tx_result = sut.transact(
+            Transaction::new().with(
+                EntityOperation::on_temp_id("joe")
+                    .set_value("person/name", "Joe")
+                    .set_value("person/likes", "Pizza"),
+            ),
+        );
+
+        let joe_id = tx_result.temp_ids["joe"];
+        let query = Query::new().find(Find::variable("?likes")).with(
+            Clause::new()
+                .with_entity(Pattern::Constant(joe_id))
+                .with_attribute(Pattern::ident("person/likes"))
+                .with_value(Pattern::variable("?likes")),
+        );
+
+        assert_that!(
+            sut.query(query.clone()),
+            unordered_elements_are![elements_are![eq(Value::str("Pizza"))]]
+        );
+
+        // Retract
+        sut.transact(
+            Transaction::new()
+                .with(EntityOperation::on_id(joe_id).retract_value("person/likes", "Pizza")),
+        );
+
+        assert_that!(sut.query(query), empty());
+    }
+
+    mod reject_a_transaction_with_duplicate_unique_value {
+        use super::*;
+
+        #[test]
+        fn accross_transactions() {
+            let mut sut = Sut::new();
+
+            sut.transact(
+                Transaction::new().with(
+                    EntityOperation::on_new()
+                        .set_value("person/name", "Alice")
+                        .set_value("person/email", "foo@bar.com"),
+                ),
+            );
+
+            let tx_result = sut.try_transact(
+                Transaction::new().with(
+                    EntityOperation::on_new()
+                        .set_value("person/name", "Bob")
+                        .set_value("person/email", "foo@bar.com"),
+                ),
+            );
+
+            assert!(tx_result.is_none());
+        }
+
+        #[test]
+        fn within_a_transaction() {
+            let mut sut = Sut::new();
+
+            let tx_result = sut.try_transact(
+                Transaction::new()
+                    .with(
+                        EntityOperation::on_new()
+                            .set_value("person/name", "Alice")
+                            .set_value("person/email", "foo@bar.com"),
+                    )
+                    .with(
+                        EntityOperation::on_new()
+                            .set_value("person/name", "Bob")
+                            .set_value("person/email", "foo@bar.com"),
+                    ),
+            );
+
+            assert!(tx_result.is_none());
+        }
+    }
 }

@@ -1,4 +1,5 @@
 pub mod attribute_resolver;
+pub mod attribute_builder;
 pub mod disk;
 pub mod memory;
 pub mod restricts;

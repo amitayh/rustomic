@@ -22,7 +22,7 @@ pub struct Transactor {
 impl Transactor {
     pub fn new() -> Self {
         Self {
-            next_entity_id: 100,
+            next_entity_id: 100, // TODO: How to initialize with latest ID from storage?
             attribute_resolver: AttributeResolver::new(),
         }
     }
@@ -99,9 +99,8 @@ impl Transactor {
         datoms: &mut Vec<Datom>,
         unique_values: &mut HashSet<(u64, Value)>,
     ) -> Result<(), S::Error> {
-        let operation_attributes = operation.attributes.len();
         let entity = self.resolve_entity(operation.entity, temp_ids)?;
-        let mut retract_attributes = HashSet::with_capacity(operation_attributes);
+        let mut retract_attributes = HashSet::with_capacity(operation.attributes.len());
         for attribute_value in operation.attributes {
             let attribute =
                 self.attribute_resolver
@@ -113,32 +112,11 @@ impl Transactor {
                 retract_attributes.insert(attribute.id);
             }
 
-            let value = match attribute_value.value {
-                AttributeValue::Value(value) => Ok(value),
-                AttributeValue::TempId(temp_id) => temp_ids.get(&temp_id).map(Value::Ref),
-            }?;
-
-            if attribute.definition.value_type != ValueType::from(&value) {
-                // Value type is incompatible with attribute, reject transaction.
-                return Err(TransactionError::InvalidAttributeType);
-            }
-
+            let value = resolve_value(attribute_value.value, temp_ids)?;
+            verify_type(attribute, &value)?;
             if attribute.definition.unique {
-                if !unique_values.insert((attribute.id, value.clone())) {
-                    return Err(TransactionError::DuplicateUniqueValue {
-                        attribute: attribute.id,
-                        value,
-                    });
-                }
-                let restricts = Restricts::new(tx)
-                    .with_attribute(attribute.id)
-                    .with_value(value.clone());
-                if storage.find(restricts).count() > 0 {
-                    return Err(TransactionError::DuplicateUniqueValue {
-                        attribute: attribute.id,
-                        value,
-                    });
-                }
+                verify_uniqueness1(attribute, &value, unique_values)?;
+                verify_uniqueness2(attribute, &value, storage, tx)?;
             }
 
             datoms.push(Datom {
@@ -151,27 +129,9 @@ impl Transactor {
         }
 
         for attribute_id in retract_attributes {
-            self.retract_old_values(storage, entity, attribute_id, tx, datoms)?;
+            retract_old_values(storage, entity, attribute_id, tx, datoms)?;
         }
 
-        Ok(())
-    }
-
-    fn retract_old_values<'a, S: ReadStorage<'a>>(
-        &self,
-        storage: &'a S,
-        entity: u64,
-        attribute: u64,
-        tx: u64,
-        datoms: &mut Vec<Datom>,
-    ) -> Result<(), S::Error> {
-        // Retract previous values
-        let restricts = Restricts::new(tx)
-            .with_entity(entity)
-            .with_attribute(attribute);
-        for datom in storage.find(restricts) {
-            datoms.push(Datom::retract(entity, attribute, datom?.value, tx));
-        }
         Ok(())
     }
 
@@ -186,6 +146,75 @@ impl Transactor {
             OperatedEntity::TempId(temp_id) => temp_ids.get(&temp_id),
         }
     }
+}
+
+fn resolve_value<E>(attribute_value: AttributeValue, temp_ids: &TempIds) -> Result<Value, E> {
+    match attribute_value {
+        AttributeValue::Value(value) => Ok(value),
+        AttributeValue::TempId(temp_id) => temp_ids.get(&temp_id).map(Value::Ref),
+    }
+}
+
+fn verify_type<E>(attribute: &Attribute, value: &Value) -> Result<(), E> {
+    if attribute.definition.value_type != ValueType::from(value) {
+        // Value type is incompatible with attribute, reject transaction.
+        return Err(TransactionError::InvalidAttributeType {
+            attribute: attribute.id,
+            value: value.clone(),
+        });
+    }
+    Ok(())
+}
+
+fn verify_uniqueness1<E>(
+    attribute: &Attribute,
+    value: &Value,
+    unique_values: &mut HashSet<(u64, Value)>,
+) -> Result<(), E> {
+    // Find duplicate values within transaction.
+    if !unique_values.insert((attribute.id, value.clone())) {
+        return Err(TransactionError::DuplicateUniqueValue {
+            attribute: attribute.id,
+            value: value.clone(),
+        });
+    }
+    Ok(())
+}
+
+fn verify_uniqueness2<'a, S: ReadStorage<'a>>(
+    attribute: &Attribute,
+    value: &Value,
+    storage: &'a S,
+    basis_tx: u64,
+) -> Result<(), S::Error> {
+    // Find duplicate values previously saved.
+    let restricts = Restricts::new(basis_tx)
+        .with_attribute(attribute.id)
+        .with_value(value.clone());
+    if storage.find(restricts).count() > 0 {
+        return Err(TransactionError::DuplicateUniqueValue {
+            attribute: attribute.id,
+            value: value.clone(),
+        });
+    }
+    Ok(())
+}
+
+fn retract_old_values<'a, S: ReadStorage<'a>>(
+    storage: &'a S,
+    entity: u64,
+    attribute: u64,
+    tx: u64,
+    datoms: &mut Vec<Datom>,
+) -> Result<(), S::Error> {
+    // Retract previous values
+    let restricts = Restricts::new(tx)
+        .with_entity(entity)
+        .with_attribute(attribute);
+    for datom in storage.find(restricts) {
+        datoms.push(Datom::retract(entity, attribute, datom?.value, tx));
+    }
+    Ok(())
 }
 
 struct TempIds(HashMap<TempId, EntityId>);

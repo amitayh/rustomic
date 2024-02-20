@@ -122,7 +122,10 @@ pub enum TransactionError<S> {
     #[error("storage error")]
     StorageError(#[from] S),
     #[error("invalid attribute type")]
-    InvalidAttributeType,
+    InvalidAttributeType {
+        attribute: u64,
+        value: Value,
+    },
     #[error("duplicate temp ID `{0}`")]
     DuplicateTempId(Rc<str>),
     #[error("temp ID `{0}` not found")]

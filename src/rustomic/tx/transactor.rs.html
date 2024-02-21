@@ -169,6 +169,65 @@
 <a href="#168" id="168">168</a>
 <a href="#169" id="169">169</a>
 <a href="#170" id="170">170</a>
+<a href="#171" id="171">171</a>
+<a href="#172" id="172">172</a>
+<a href="#173" id="173">173</a>
+<a href="#174" id="174">174</a>
+<a href="#175" id="175">175</a>
+<a href="#176" id="176">176</a>
+<a href="#177" id="177">177</a>
+<a href="#178" id="178">178</a>
+<a href="#179" id="179">179</a>
+<a href="#180" id="180">180</a>
+<a href="#181" id="181">181</a>
+<a href="#182" id="182">182</a>
+<a href="#183" id="183">183</a>
+<a href="#184" id="184">184</a>
+<a href="#185" id="185">185</a>
+<a href="#186" id="186">186</a>
+<a href="#187" id="187">187</a>
+<a href="#188" id="188">188</a>
+<a href="#189" id="189">189</a>
+<a href="#190" id="190">190</a>
+<a href="#191" id="191">191</a>
+<a href="#192" id="192">192</a>
+<a href="#193" id="193">193</a>
+<a href="#194" id="194">194</a>
+<a href="#195" id="195">195</a>
+<a href="#196" id="196">196</a>
+<a href="#197" id="197">197</a>
+<a href="#198" id="198">198</a>
+<a href="#199" id="199">199</a>
+<a href="#200" id="200">200</a>
+<a href="#201" id="201">201</a>
+<a href="#202" id="202">202</a>
+<a href="#203" id="203">203</a>
+<a href="#204" id="204">204</a>
+<a href="#205" id="205">205</a>
+<a href="#206" id="206">206</a>
+<a href="#207" id="207">207</a>
+<a href="#208" id="208">208</a>
+<a href="#209" id="209">209</a>
+<a href="#210" id="210">210</a>
+<a href="#211" id="211">211</a>
+<a href="#212" id="212">212</a>
+<a href="#213" id="213">213</a>
+<a href="#214" id="214">214</a>
+<a href="#215" id="215">215</a>
+<a href="#216" id="216">216</a>
+<a href="#217" id="217">217</a>
+<a href="#218" id="218">218</a>
+<a href="#219" id="219">219</a>
+<a href="#220" id="220">220</a>
+<a href="#221" id="221">221</a>
+<a href="#222" id="222">222</a>
+<a href="#223" id="223">223</a>
+<a href="#224" id="224">224</a>
+<a href="#225" id="225">225</a>
+<a href="#226" id="226">226</a>
+<a href="#227" id="227">227</a>
+<a href="#228" id="228">228</a>
+<a href="#229" id="229">229</a>
 </pre></div><pre class="rust"><code><span class="kw">use </span>std::collections::HashMap;
 <span class="kw">use </span>std::collections::HashSet;
 
@@ -177,6 +236,7 @@
 <span class="kw">use </span><span class="kw">crate</span>::schema::attribute::<span class="kw-2">*</span>;
 <span class="kw">use </span><span class="kw">crate</span>::schema::<span class="kw-2">*</span>;
 <span class="kw">use </span><span class="kw">crate</span>::storage::attribute_resolver::<span class="kw-2">*</span>;
+<span class="kw">use </span><span class="kw">crate</span>::storage::restricts::<span class="kw-2">*</span>;
 <span class="kw">use </span><span class="kw">crate</span>::storage::<span class="kw-2">*</span>;
 <span class="kw">use </span><span class="kw">crate</span>::tx::<span class="kw-2">*</span>;
 
@@ -192,8 +252,8 @@
 <span class="kw">impl </span>Transactor {
     <span class="kw">pub fn </span>new() -&gt; <span class="self">Self </span>{
         <span class="self">Self </span>{
-            next_entity_id: <span class="number">100</span>,
-            attribute_resolver: AttributeResolver::new(),
+            next_entity_id: <span class="number">100</span>, <span class="comment">// TODO: How to initialize with latest ID from storage?
+            </span>attribute_resolver: AttributeResolver::new(),
         }
     }
 
@@ -233,10 +293,18 @@
         transaction: Transaction,
         temp_ids: <span class="kw-2">&amp;</span>TempIds,
     ) -&gt; <span class="prelude-ty">Result</span>&lt;Vec&lt;Datom&gt;, S::Error&gt; {
-        <span class="kw">let </span><span class="kw-2">mut </span>datoms = Vec::new();
-        <span class="kw">let </span>tx = <span class="self">self</span>.create_tx_datom(now);
+        <span class="kw">let </span><span class="kw-2">mut </span>datoms = Vec::with_capacity(transaction.total_attribute_operations());
+        <span class="kw">let </span><span class="kw-2">mut </span>unique_values = HashSet::new(); <span class="comment">// TODO capacity?
+        </span><span class="kw">let </span>tx = <span class="self">self</span>.create_tx_datom(now);
         <span class="kw">for </span>operation <span class="kw">in </span>transaction.operations {
-            <span class="self">self</span>.operation_datoms(storage, tx.entity, operation, temp_ids, <span class="kw-2">&amp;mut </span>datoms)<span class="question-mark">?</span>;
+            <span class="self">self</span>.operation_datoms(
+                storage,
+                tx.entity,
+                operation,
+                temp_ids,
+                <span class="kw-2">&amp;mut </span>datoms,
+                <span class="kw-2">&amp;mut </span>unique_values,
+            )<span class="question-mark">?</span>;
         }
         datoms.push(tx);
         <span class="prelude-val">Ok</span>(datoms)
@@ -259,10 +327,10 @@
         operation: EntityOperation,
         temp_ids: <span class="kw-2">&amp;</span>TempIds,
         datoms: <span class="kw-2">&amp;mut </span>Vec&lt;Datom&gt;,
+        unique_values: <span class="kw-2">&amp;mut </span>HashSet&lt;(u64, Value)&gt;,
     ) -&gt; <span class="prelude-ty">Result</span>&lt;(), S::Error&gt; {
-        <span class="kw">let </span>operation_attributes = operation.attributes.len();
         <span class="kw">let </span>entity = <span class="self">self</span>.resolve_entity(operation.entity, temp_ids)<span class="question-mark">?</span>;
-        <span class="kw">let </span><span class="kw-2">mut </span>retract_attributes = HashSet::with_capacity(operation_attributes);
+        <span class="kw">let </span><span class="kw-2">mut </span>retract_attributes = HashSet::with_capacity(operation.attributes.len());
         <span class="kw">for </span>attribute_value <span class="kw">in </span>operation.attributes {
             <span class="kw">let </span>attribute =
                 <span class="self">self</span>.attribute_resolver
@@ -274,45 +342,26 @@
                 </span>retract_attributes.insert(attribute.id);
             }
 
-            <span class="kw">let </span>value = <span class="kw">match </span>attribute_value.value {
-                AttributeValue::Value(value) =&gt; <span class="prelude-val">Ok</span>(value),
-                AttributeValue::TempId(temp_id) =&gt; temp_ids.get(<span class="kw-2">&amp;</span>temp_id).map(Value::Ref),
-            }<span class="question-mark">?</span>;
-
-            <span class="kw">if </span>attribute.definition.value_type != ValueType::from(<span class="kw-2">&amp;</span>value) {
-                <span class="comment">// Value type is incompatible with attribute, reject transaction.
-                </span><span class="kw">return </span><span class="prelude-val">Err</span>(TransactionError::InvalidAttributeType);
+            <span class="kw">let </span>value = resolve_value(attribute_value.value, temp_ids)<span class="question-mark">?</span>;
+            verify_type(attribute, <span class="kw-2">&amp;</span>value)<span class="question-mark">?</span>;
+            <span class="kw">if </span>attribute.definition.unique {
+                verify_uniqueness1(attribute, <span class="kw-2">&amp;</span>value, unique_values)<span class="question-mark">?</span>;
+                verify_uniqueness2(attribute, <span class="kw-2">&amp;</span>value, storage, tx)<span class="question-mark">?</span>;
             }
 
-            <span class="kw">if </span>attribute.definition.unique {
-                <span class="comment">// TODO
-            </span>}
-
-            datoms.push(Datom::add(entity, attribute.id, value, tx));
+            datoms.push(Datom {
+                entity,
+                attribute: attribute.id,
+                value,
+                tx,
+                op: attribute_value.op,
+            });
         }
 
         <span class="kw">for </span>attribute_id <span class="kw">in </span>retract_attributes {
-            <span class="self">self</span>.retract_old_values(storage, entity, attribute_id, tx, datoms)<span class="question-mark">?</span>;
+            retract_old_values(storage, entity, attribute_id, tx, datoms)<span class="question-mark">?</span>;
         }
 
-        <span class="prelude-val">Ok</span>(())
-    }
-
-    <span class="kw">fn </span>retract_old_values&lt;<span class="lifetime">'a</span>, S: ReadStorage&lt;<span class="lifetime">'a</span>&gt;&gt;(
-        <span class="kw-2">&amp;</span><span class="self">self</span>,
-        storage: <span class="kw-2">&amp;</span><span class="lifetime">'a </span>S,
-        entity: u64,
-        attribute: u64,
-        tx: u64,
-        datoms: <span class="kw-2">&amp;mut </span>Vec&lt;Datom&gt;,
-    ) -&gt; <span class="prelude-ty">Result</span>&lt;(), S::Error&gt; {
-        <span class="comment">// Retract previous values
-        </span><span class="kw">let </span>restricts = Restricts::new(tx)
-            .with_entity(entity)
-            .with_attribute(attribute);
-        <span class="kw">for </span>datom <span class="kw">in </span>storage.find(restricts) {
-            datoms.push(Datom::retract(entity, attribute, datom<span class="question-mark">?</span>.value, tx));
-        }
         <span class="prelude-val">Ok</span>(())
     }
 
@@ -327,6 +376,75 @@
             OperatedEntity::TempId(temp_id) =&gt; temp_ids.get(<span class="kw-2">&amp;</span>temp_id),
         }
     }
+}
+
+<span class="kw">fn </span>resolve_value&lt;E&gt;(attribute_value: AttributeValue, temp_ids: <span class="kw-2">&amp;</span>TempIds) -&gt; <span class="prelude-ty">Result</span>&lt;Value, E&gt; {
+    <span class="kw">match </span>attribute_value {
+        AttributeValue::Value(value) =&gt; <span class="prelude-val">Ok</span>(value),
+        AttributeValue::TempId(temp_id) =&gt; temp_ids.get(<span class="kw-2">&amp;</span>temp_id).map(Value::Ref),
+    }
+}
+
+<span class="kw">fn </span>verify_type&lt;E&gt;(attribute: <span class="kw-2">&amp;</span>Attribute, value: <span class="kw-2">&amp;</span>Value) -&gt; <span class="prelude-ty">Result</span>&lt;(), E&gt; {
+    <span class="kw">if </span>attribute.definition.value_type != ValueType::from(value) {
+        <span class="comment">// Value type is incompatible with attribute, reject transaction.
+        </span><span class="kw">return </span><span class="prelude-val">Err</span>(TransactionError::InvalidAttributeType {
+            attribute: attribute.id,
+            value: value.clone(),
+        });
+    }
+    <span class="prelude-val">Ok</span>(())
+}
+
+<span class="kw">fn </span>verify_uniqueness1&lt;E&gt;(
+    attribute: <span class="kw-2">&amp;</span>Attribute,
+    value: <span class="kw-2">&amp;</span>Value,
+    unique_values: <span class="kw-2">&amp;mut </span>HashSet&lt;(u64, Value)&gt;,
+) -&gt; <span class="prelude-ty">Result</span>&lt;(), E&gt; {
+    <span class="comment">// Find duplicate values within transaction.
+    </span><span class="kw">if </span>!unique_values.insert((attribute.id, value.clone())) {
+        <span class="kw">return </span><span class="prelude-val">Err</span>(TransactionError::DuplicateUniqueValue {
+            attribute: attribute.id,
+            value: value.clone(),
+        });
+    }
+    <span class="prelude-val">Ok</span>(())
+}
+
+<span class="kw">fn </span>verify_uniqueness2&lt;<span class="lifetime">'a</span>, S: ReadStorage&lt;<span class="lifetime">'a</span>&gt;&gt;(
+    attribute: <span class="kw-2">&amp;</span>Attribute,
+    value: <span class="kw-2">&amp;</span>Value,
+    storage: <span class="kw-2">&amp;</span><span class="lifetime">'a </span>S,
+    basis_tx: u64,
+) -&gt; <span class="prelude-ty">Result</span>&lt;(), S::Error&gt; {
+    <span class="comment">// Find duplicate values previously saved.
+    </span><span class="kw">let </span>restricts = Restricts::new(basis_tx)
+        .with_attribute(attribute.id)
+        .with_value(value.clone());
+    <span class="kw">if </span>storage.find(restricts).count() &gt; <span class="number">0 </span>{
+        <span class="kw">return </span><span class="prelude-val">Err</span>(TransactionError::DuplicateUniqueValue {
+            attribute: attribute.id,
+            value: value.clone(),
+        });
+    }
+    <span class="prelude-val">Ok</span>(())
+}
+
+<span class="kw">fn </span>retract_old_values&lt;<span class="lifetime">'a</span>, S: ReadStorage&lt;<span class="lifetime">'a</span>&gt;&gt;(
+    storage: <span class="kw-2">&amp;</span><span class="lifetime">'a </span>S,
+    entity: u64,
+    attribute: u64,
+    tx: u64,
+    datoms: <span class="kw-2">&amp;mut </span>Vec&lt;Datom&gt;,
+) -&gt; <span class="prelude-ty">Result</span>&lt;(), S::Error&gt; {
+    <span class="comment">// Retract previous values
+    </span><span class="kw">let </span>restricts = Restricts::new(tx)
+        .with_entity(entity)
+        .with_attribute(attribute);
+    <span class="kw">for </span>datom <span class="kw">in </span>storage.find(restricts) {
+        datoms.push(Datom::retract(entity, attribute, datom<span class="question-mark">?</span>.value, tx));
+    }
+    <span class="prelude-val">Ok</span>(())
 }
 
 <span class="kw">struct </span>TempIds(HashMap&lt;TempId, EntityId&gt;);

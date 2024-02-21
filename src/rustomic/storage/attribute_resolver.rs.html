@@ -188,80 +188,6 @@
 <a href="#187" id="187">187</a>
 <a href="#188" id="188">188</a>
 <a href="#189" id="189">189</a>
-<a href="#190" id="190">190</a>
-<a href="#191" id="191">191</a>
-<a href="#192" id="192">192</a>
-<a href="#193" id="193">193</a>
-<a href="#194" id="194">194</a>
-<a href="#195" id="195">195</a>
-<a href="#196" id="196">196</a>
-<a href="#197" id="197">197</a>
-<a href="#198" id="198">198</a>
-<a href="#199" id="199">199</a>
-<a href="#200" id="200">200</a>
-<a href="#201" id="201">201</a>
-<a href="#202" id="202">202</a>
-<a href="#203" id="203">203</a>
-<a href="#204" id="204">204</a>
-<a href="#205" id="205">205</a>
-<a href="#206" id="206">206</a>
-<a href="#207" id="207">207</a>
-<a href="#208" id="208">208</a>
-<a href="#209" id="209">209</a>
-<a href="#210" id="210">210</a>
-<a href="#211" id="211">211</a>
-<a href="#212" id="212">212</a>
-<a href="#213" id="213">213</a>
-<a href="#214" id="214">214</a>
-<a href="#215" id="215">215</a>
-<a href="#216" id="216">216</a>
-<a href="#217" id="217">217</a>
-<a href="#218" id="218">218</a>
-<a href="#219" id="219">219</a>
-<a href="#220" id="220">220</a>
-<a href="#221" id="221">221</a>
-<a href="#222" id="222">222</a>
-<a href="#223" id="223">223</a>
-<a href="#224" id="224">224</a>
-<a href="#225" id="225">225</a>
-<a href="#226" id="226">226</a>
-<a href="#227" id="227">227</a>
-<a href="#228" id="228">228</a>
-<a href="#229" id="229">229</a>
-<a href="#230" id="230">230</a>
-<a href="#231" id="231">231</a>
-<a href="#232" id="232">232</a>
-<a href="#233" id="233">233</a>
-<a href="#234" id="234">234</a>
-<a href="#235" id="235">235</a>
-<a href="#236" id="236">236</a>
-<a href="#237" id="237">237</a>
-<a href="#238" id="238">238</a>
-<a href="#239" id="239">239</a>
-<a href="#240" id="240">240</a>
-<a href="#241" id="241">241</a>
-<a href="#242" id="242">242</a>
-<a href="#243" id="243">243</a>
-<a href="#244" id="244">244</a>
-<a href="#245" id="245">245</a>
-<a href="#246" id="246">246</a>
-<a href="#247" id="247">247</a>
-<a href="#248" id="248">248</a>
-<a href="#249" id="249">249</a>
-<a href="#250" id="250">250</a>
-<a href="#251" id="251">251</a>
-<a href="#252" id="252">252</a>
-<a href="#253" id="253">253</a>
-<a href="#254" id="254">254</a>
-<a href="#255" id="255">255</a>
-<a href="#256" id="256">256</a>
-<a href="#257" id="257">257</a>
-<a href="#258" id="258">258</a>
-<a href="#259" id="259">259</a>
-<a href="#260" id="260">260</a>
-<a href="#261" id="261">261</a>
-<a href="#262" id="262">262</a>
-<a href="#263" id="263">263</a>
 </pre></div><pre class="rust"><code><span class="kw">use </span>std::collections::HashMap;
 <span class="kw">use </span>std::rc::Rc;
 <span class="kw">use </span>thiserror::Error;
@@ -269,6 +195,7 @@
 <span class="kw">use </span><span class="kw">crate</span>::datom::<span class="kw-2">*</span>;
 <span class="kw">use </span><span class="kw">crate</span>::schema::attribute::<span class="kw-2">*</span>;
 <span class="kw">use </span><span class="kw">crate</span>::schema::<span class="kw-2">*</span>;
+<span class="kw">use </span><span class="kw">crate</span>::storage::attribute_builder::<span class="kw-2">*</span>;
 <span class="kw">use </span><span class="kw">crate</span>::storage::ReadStorage;
 
 <span class="kw">use </span><span class="kw">super</span>::Restricts;
@@ -325,88 +252,13 @@
     attribute_id: u64,
     tx: u64,
 ) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="prelude-ty">Option</span>&lt;Attribute&gt;, S::Error&gt; {
-    <span class="kw">let </span><span class="kw-2">mut </span>builder = Builder::new(attribute_id);
+    <span class="kw">let </span><span class="kw-2">mut </span>builder = AttributeBuilder::new(attribute_id);
     <span class="comment">// [?attribute _ _]
     </span><span class="kw">let </span>restricts = Restricts::new(tx).with_entity(attribute_id);
     <span class="kw">for </span>datom <span class="kw">in </span>storage.find(restricts) {
         builder.consume(datom<span class="question-mark">?</span>);
     }
     <span class="prelude-val">Ok</span>(builder.build())
-}
-
-<span class="comment">// ------------------------------------------------------------------------------------------------
-
-</span><span class="kw">struct </span>Builder {
-    id: u64,
-    version: u64,
-    ident: <span class="prelude-ty">Option</span>&lt;Rc&lt;str&gt;&gt;,
-    value_type: <span class="prelude-ty">Option</span>&lt;ValueType&gt;,
-    cardinality: <span class="prelude-ty">Option</span>&lt;Cardinality&gt;,
-    doc: <span class="prelude-ty">Option</span>&lt;Rc&lt;str&gt;&gt;,
-    unique: bool,
-}
-
-<span class="kw">impl </span>Builder {
-    <span class="kw">fn </span>new(id: u64) -&gt; <span class="self">Self </span>{
-        <span class="self">Self </span>{
-            id,
-            version: <span class="number">0</span>,
-            ident: <span class="prelude-val">None</span>,
-            value_type: <span class="prelude-val">None</span>,
-            cardinality: <span class="prelude-val">None</span>,
-            doc: <span class="prelude-val">None</span>,
-            unique: <span class="bool-val">false</span>,
-        }
-    }
-
-    <span class="kw">fn </span>consume(<span class="kw-2">&amp;mut </span><span class="self">self</span>, datom: Datom) {
-        <span class="self">self</span>.version = <span class="self">self</span>.version.max(datom.tx);
-        <span class="kw">match </span>datom {
-            Datom {
-                attribute: DB_ATTR_IDENT_ID,
-                value: Value::Str(ident),
-                ..
-            } =&gt; <span class="self">self</span>.ident = <span class="prelude-val">Some</span>(ident),
-            Datom {
-                attribute: DB_ATTR_TYPE_ID,
-                value: Value::U64(value_type),
-                ..
-            } =&gt; <span class="self">self</span>.value_type = ValueType::try_from(value_type).ok(),
-            Datom {
-                attribute: DB_ATTR_CARDINALITY_ID,
-                value: Value::U64(cardinality),
-                ..
-            } =&gt; <span class="self">self</span>.cardinality = Cardinality::try_from(cardinality).ok(),
-            Datom {
-                attribute: DB_ATTR_DOC_ID,
-                value: Value::Str(doc),
-                ..
-            } =&gt; <span class="self">self</span>.doc = <span class="prelude-val">Some</span>(doc),
-            Datom {
-                attribute: DB_ATTR_UNIQUE_ID,
-                value: Value::U64(<span class="number">1</span>),
-                ..
-            } =&gt; <span class="self">self</span>.unique = <span class="bool-val">true</span>,
-            <span class="kw">_ </span>=&gt; (),
-        }
-    }
-
-    <span class="kw">fn </span>build(<span class="self">self</span>) -&gt; <span class="prelude-ty">Option</span>&lt;Attribute&gt; {
-        <span class="kw">let </span>ident = <span class="self">self</span>.ident<span class="question-mark">?</span>;
-        <span class="kw">let </span>value_type = <span class="self">self</span>.value_type<span class="question-mark">?</span>;
-        <span class="kw">let </span>cardinality = <span class="self">self</span>.cardinality<span class="question-mark">?</span>;
-        <span class="prelude-val">Some</span>(Attribute {
-            id: <span class="self">self</span>.id,
-            version: <span class="self">self</span>.version,
-            definition: AttributeDefinition {
-                ident,
-                value_type,
-                cardinality,
-                doc: <span class="self">self</span>.doc,
-                unique: <span class="self">self</span>.unique,
-            },
-        })
-    }
 }
 
 <span class="attr">#[cfg(test)]

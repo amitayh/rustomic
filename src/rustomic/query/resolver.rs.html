@@ -91,9 +91,11 @@
 <a href="#90" id="90">90</a>
 <a href="#91" id="91">91</a>
 <a href="#92" id="92">92</a>
+<a href="#93" id="93">93</a>
 </pre></div><pre class="rust"><code><span class="kw">use </span><span class="kw">crate</span>::datom::Datom;
 <span class="kw">use </span><span class="kw">crate</span>::query::assignment::<span class="kw-2">*</span>;
 <span class="kw">use </span><span class="kw">crate</span>::query::<span class="kw-2">*</span>;
+<span class="kw">use </span><span class="kw">crate</span>::storage::restricts::<span class="kw-2">*</span>;
 <span class="kw">use </span><span class="kw">crate</span>::storage::<span class="kw-2">*</span>;
 
 <span class="doccomment">/// The resolver is an iterator over the resolved assignments which satisfy the clauses. It uses a
@@ -128,7 +130,7 @@
         <span class="kw">let </span>clause = <span class="self">self</span>.clauses.get(<span class="self">self</span>.frame.clause_index)<span class="question-mark">?</span>;
         <span class="kw">let </span>assignment = <span class="self">self</span>.frame.assignment.update_with(clause, datom);
         <span class="kw">if </span>assignment.is_complete() {
-            <span class="kw">return </span><span class="prelude-val">Some</span>(<span class="prelude-val">Ok</span>(assignment.assigned));
+            <span class="kw">return </span><span class="prelude-val">Some</span>(<span class="prelude-val">Ok</span>(assignment.complete()));
         }
         <span class="self">self</span>.stack.push(<span class="self">self</span>.frame.next(assignment));
         <span class="self">self</span>.next()
@@ -144,7 +146,7 @@
         <span class="kw">let </span>clause = clauses.get(frame.clause_index);
         <span class="kw">let </span>restricts = Restricts::from(
             clause.unwrap_or(<span class="kw-2">&amp;</span>Clause::default()),
-            <span class="kw-2">&amp;</span>frame.assignment.assigned,
+            <span class="kw-2">&amp;</span>frame.assignment,
             basis_tx,
         );
         storage.find(restricts)

@@ -133,6 +133,23 @@
 <a href="#132" id="132">132</a>
 <a href="#133" id="133">133</a>
 <a href="#134" id="134">134</a>
+<a href="#135" id="135">135</a>
+<a href="#136" id="136">136</a>
+<a href="#137" id="137">137</a>
+<a href="#138" id="138">138</a>
+<a href="#139" id="139">139</a>
+<a href="#140" id="140">140</a>
+<a href="#141" id="141">141</a>
+<a href="#142" id="142">142</a>
+<a href="#143" id="143">143</a>
+<a href="#144" id="144">144</a>
+<a href="#145" id="145">145</a>
+<a href="#146" id="146">146</a>
+<a href="#147" id="147">147</a>
+<a href="#148" id="148">148</a>
+<a href="#149" id="149">149</a>
+<a href="#150" id="150">150</a>
+<a href="#151" id="151">151</a>
 </pre></div><pre class="rust"><code><span class="kw">use </span>std::collections::HashMap;
 <span class="kw">use </span>std::collections::HashSet;
 <span class="kw">use </span>std::rc::Rc;
@@ -143,7 +160,7 @@
 
 <span class="attr">#[derive(Debug, Eq, PartialEq, Clone)]
 </span><span class="kw">pub struct </span>PartialAssignment {
-    <span class="kw">pub </span>assigned: Assignment,
+    assigned: Assignment,
     unassigned: HashSet&lt;Rc&lt;str&gt;&gt;,
 }
 
@@ -187,6 +204,17 @@
         )
     }
 
+    <span class="kw">pub fn </span>get(<span class="kw-2">&amp;</span><span class="self">self</span>, variable: <span class="kw-2">&amp;</span>str) -&gt; <span class="prelude-ty">Option</span>&lt;<span class="kw-2">&amp;</span>Value&gt; {
+        <span class="self">self</span>.assigned.get(variable)
+    }
+
+    <span class="kw">pub fn </span>get_ref(<span class="kw-2">&amp;</span><span class="self">self</span>, variable: <span class="kw-2">&amp;</span>str) -&gt; <span class="prelude-ty">Option</span>&lt;u64&gt; {
+        <span class="kw">match </span><span class="self">self</span>.get(variable) {
+            <span class="prelude-val">Some</span>(<span class="kw-2">&amp;</span>Value::Ref(entity)) =&gt; <span class="prelude-val">Some</span>(entity),
+            <span class="kw">_ </span>=&gt; <span class="prelude-val">None</span>,
+        }
+    }
+
     <span class="doccomment">/// An assignment is considered "complete" when there are no more unassigned variables.
     ///
     /// ```
@@ -207,7 +235,13 @@
         <span class="self">self</span>.unassigned.is_empty()
     }
 
-    <span class="doccomment">/// ```
+    <span class="kw">pub fn </span>complete(<span class="self">self</span>) -&gt; Assignment {
+        <span class="self">self</span>.assigned
+    }
+
+    <span class="doccomment">/// Creates a new assignment where free variables from `clause` are assigned from `datom`.
+    ///
+    /// ```
     /// use std::collections::HashSet;
     /// use std::rc::Rc;
     /// use rustomic::query::assignment::*;
@@ -240,18 +274,18 @@
     /// assert_eq!(Value::U64(value), updated.assigned["?value"]);
     /// assert_eq!(Value::Ref(tx), updated.assigned["?tx"]);
     /// ```
-    </span><span class="kw">pub fn </span>update_with(<span class="kw-2">&amp;</span><span class="self">self</span>, pattern: <span class="kw-2">&amp;</span>Clause, datom: Datom) -&gt; <span class="self">Self </span>{
+    </span><span class="kw">pub fn </span>update_with(<span class="kw-2">&amp;</span><span class="self">self</span>, clause: <span class="kw-2">&amp;</span>Clause, datom: Datom) -&gt; <span class="self">Self </span>{
         <span class="kw">let </span><span class="kw-2">mut </span>assignment = <span class="self">self</span>.clone();
-        <span class="kw">if let </span>Pattern::Variable(variable) = <span class="kw-2">&amp;</span>pattern.entity {
+        <span class="kw">if let </span>Pattern::Variable(variable) = <span class="kw-2">&amp;</span>clause.entity {
             assignment.assign_ref(variable, datom.entity);
         }
-        <span class="kw">if let </span>Pattern::Variable(variable) = <span class="kw-2">&amp;</span>pattern.attribute {
+        <span class="kw">if let </span>Pattern::Variable(variable) = <span class="kw-2">&amp;</span>clause.attribute {
             assignment.assign_ref(variable, datom.attribute);
         }
-        <span class="kw">if let </span>Pattern::Variable(variable) = <span class="kw-2">&amp;</span>pattern.value {
+        <span class="kw">if let </span>Pattern::Variable(variable) = <span class="kw-2">&amp;</span>clause.value {
             assignment.assign(variable, datom.value);
         }
-        <span class="kw">if let </span>Pattern::Variable(variable) = <span class="kw-2">&amp;</span>pattern.tx {
+        <span class="kw">if let </span>Pattern::Variable(variable) = <span class="kw-2">&amp;</span>clause.tx {
             assignment.assign_ref(variable, datom.tx);
         }
         assignment

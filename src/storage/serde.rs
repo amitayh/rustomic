@@ -19,6 +19,36 @@ macro_rules! write_to_vec {
 
 pub type Bytes = Vec<u8>;
 
+#[derive(Debug, Clone, Copy)]
+pub enum Partition {
+    Eavt,
+    Aevt,
+    Avet,
+    System,
+}
+
+impl Into<&'static str> for Partition {
+    fn into(self) -> &'static str {
+        match self {
+            Self::Eavt => "eavt",
+            Self::Aevt => "eavt",
+            Self::Avet => "eavt",
+            Self::System => "eavt",
+        }
+    }
+}
+
+impl Partition {
+    pub fn all() -> [&'static str; 4] {
+        [
+            Self::Eavt.into(),
+            Self::Aevt.into(),
+            Self::Avet.into(),
+            Self::System.into(),
+        ]
+    }
+}
+
 /// +-------+---------------------------------+--------------------------------+
 /// | Index | Sort order                      | Contains                       |
 /// +-------+---------------------------------+--------------------------------+

@@ -92,7 +92,6 @@ mod tests {
 
     mod disk {
         use super::*;
-        use rocksdb::{Options, DB};
         use rustomic::storage::disk::*;
         use tempdir::TempDir;
 
@@ -109,19 +108,15 @@ mod tests {
             }
 
             fn save(&mut self, datoms: &[Datom]) {
-                let mut options = Options::default();
-                options.create_if_missing(true);
-                let db = DB::open(&options, &self.path).expect("Unable to open DB");
-                DiskStorage::new(db)
+                DiskStorage::read_write(&self.path)
+                    .expect("Unable to open DB")
                     .save(datoms)
                     .expect("Unable to save datoms")
             }
 
             fn find(&self, restricts: Restricts) -> HashSet<Datom> {
-                let db = DB::open_for_read_only(&Options::default(), &self.path, true)
-                    .expect("Unable to open DB");
-
-                DiskStorage::new(db)
+                DiskStorage::read_only(&self.path)
+                    .expect("Unable to open DB")
                     .find(restricts)
                     .map(|result| result.expect("Error while reading datom"))
                     .collect()

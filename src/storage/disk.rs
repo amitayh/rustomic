@@ -1,5 +1,4 @@
 use std::marker::PhantomData;
-use std::ops::Range;
 use std::path::Path;
 
 use rocksdb::*;
@@ -9,42 +8,14 @@ use crate::storage::serde::*;
 use crate::storage::*;
 use thiserror::Error;
 
+use super::serde::index::BytesRange;
+
 pub struct ReadOnly;
 pub struct ReadWrite;
 
 pub struct DiskStorage<'a, Mode> {
     db: rocksdb::DB,
     marker: PhantomData<&'a Mode>,
-}
-
-#[derive(Debug, Clone, Copy)]
-pub enum Partition {
-    Eavt,
-    Aevt,
-    Avet,
-    System,
-}
-
-impl Into<&'static str> for Partition {
-    fn into(self) -> &'static str {
-        match self {
-            Self::Eavt => "eavt",
-            Self::Aevt => "eavt",
-            Self::Avet => "eavt",
-            Self::System => "eavt",
-        }
-    }
-}
-
-impl Partition {
-    fn all() -> [&'static str; 4] {
-        [
-            Self::Eavt.into(),
-            Self::Aevt.into(),
-            Self::Avet.into(),
-            Self::System.into(),
-        ]
-    }
 }
 
 impl<'a, Mode> DiskStorage<'a, Mode> {
@@ -54,18 +25,19 @@ impl<'a, Mode> DiskStorage<'a, Mode> {
             marker: PhantomData,
         }
     }
+}
 
-    fn cf_handle(&self, partition: Partition) -> Result<&rocksdb::ColumnFamily, DiskStorageError> {
-        self.db
-            .cf_handle(partition.into())
-            .ok_or(DiskStorageError::ColumnFamilyNotFound(partition))
-    }
+fn cf_handle(db: &rocksdb::DB, partition: Partition) -> Result<&ColumnFamily, DiskStorageError> {
+    db.cf_handle(partition.into())
+        .ok_or(DiskStorageError::ColumnFamilyNotFound(partition))
 }
 
 impl<'a> DiskStorage<'a, ReadOnly> {
     pub fn read_only(path: impl AsRef<Path>) -> Result<Self, DiskStorageError> {
-        let options = Options::default();
-        let db = DB::open_for_read_only(&options, path, true)?;
+        let mut options = Options::default();
+        options.create_if_missing(true);
+        options.create_missing_column_families(true);
+        let db = DB::open_cf_for_read_only(&options, path, Partition::all(), false)?;
         Ok(Self::new(db))
     }
 }
@@ -84,21 +56,14 @@ impl<'a> WriteStorage for DiskStorage<'a, ReadWrite> {
     type Error = DiskStorageError;
 
     fn save(&mut self, datoms: &[Datom]) -> Result<(), Self::Error> {
+        let eavt = cf_handle(&self.db, Partition::Eavt)?;
+        let aevt = cf_handle(&self.db, Partition::Aevt)?;
+        let avet = cf_handle(&self.db, Partition::Avet)?;
         let mut batch = rocksdb::WriteBatch::default();
-        //let cf = self.column_families().unwrap();
-        let eavt = self.cf_handle(Partition::Eavt)?;
-        let aevt = self.cf_handle(Partition::Aevt)?;
-        let avet = self.cf_handle(Partition::Avet)?;
-        // TODO: should we use 3 different DBs, or 1 DB with tag?
-        // 3 different column families?
         for datom in datoms {
             batch.put_cf(eavt, datom::serialize::eavt(datom), "");
             batch.put_cf(aevt, datom::serialize::aevt(datom), "");
             batch.put_cf(avet, datom::serialize::avet(datom), "");
-
-            batch.put(datom::serialize::eavt(datom), "");
-            batch.put(datom::serialize::aevt(datom), "");
-            batch.put(datom::serialize::avet(datom), "");
         }
         self.db.write(batch)?;
         Ok(())
@@ -116,18 +81,33 @@ impl<'a, Mode> ReadStorage<'a> for DiskStorage<'a, Mode> {
 
 pub struct DiskStorageIter<'a> {
     iterator: DBRawIteratorWithThreadMode<'a, DBWithThreadMode<SingleThreaded>>,
-    end: Bytes,
+    end: Option<Bytes>,
+    partition: Partition,
     restricts: Restricts,
 }
 
 impl<'a> DiskStorageIter<'a> {
     fn new(restricts: Restricts, db: &'a rocksdb::DB) -> Self {
-        let Range { start, end } = index::key_range(&restricts);
-        let mut iterator = db.raw_iterator();
-        iterator.seek(&start);
+        let (partition, range) = index::key_range(&restricts);
+        let cf = cf_handle(db, partition).unwrap(); // TODO
+        let mut iterator = db.raw_iterator_cf(cf);
+        let mut end = None;
+        match range {
+            BytesRange::Full => {
+                iterator.seek_to_first();
+            }
+            BytesRange::From(start) => {
+                iterator.seek(start);
+            }
+            BytesRange::Between(start, e) => {
+                iterator.seek(start);
+                end = Some(e);
+            }
+        }
         Self {
             iterator,
             end,
+            partition,
             restricts,
         }
     }
@@ -145,14 +125,17 @@ impl Iterator for DiskStorageIter<'_> {
         }
 
         let bytes = self.iterator.key()?;
-        if bytes >= &self.end {
-            return None;
+        if let Some(end) = &self.end {
+            if bytes >= end {
+                return None;
+            }
         }
 
-        match datom::deserialize(bytes) {
+        match datom::deserialize(self.partition, bytes) {
             Ok(datom) if !self.restricts.test(&datom) => {
-                let key = index::seek_key(&datom.value, bytes, self.restricts.tx.value());
-                self.iterator.seek(key);
+                if let Some(key) = index::seek_key(&datom.value, bytes, self.restricts.tx.value()) {
+                    self.iterator.seek(key);
+                }
                 self.next()
             }
             Ok(datom) => {

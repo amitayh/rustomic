@@ -1,11 +1,12 @@
 use rust_decimal::Decimal;
+use std::ops::Bound;
 use std::rc::Rc;
 use thiserror::Error;
 
 use crate::datom::*;
 use crate::storage::*;
 
-use self::value::SIZE_DECIMAL;
+use value::SIZE_DECIMAL;
 
 macro_rules! write_to_vec {
     ($first:expr $(, $rest:expr)*) => {{
@@ -21,9 +22,64 @@ pub type Bytes = Vec<u8>;
 
 #[derive(Debug, Clone, Copy)]
 pub enum Partition {
+    /// The EAVT index provides efficient access to everything about a given entity. Conceptually
+    /// this is very similar to row access style in a SQL database, except that entities can
+    /// possess arbitrary attributes rather than being limited to a predefined set of columns.
+    ///
+    /// The example below shows all of the facts about entity 42 grouped together:
+    ///
+    ///  +----+----------------+------------------------+------+-------+
+    ///  | E  | A              | V                      | Tx   | Op    |
+    ///  +----+----------------+------------------------+------+-------+
+    ///  | 41 | release/name   | "Abbey Road"           | 1100 | Added |
+    ///  | 42 | release/name   | "Magical Mystery Tour" | 1007 | Added | *
+    ///  | 42 | release/year   | 1967                   | 1007 | Added | *
+    ///  | 42 | release/artist | "The Beatles"          | 1007 | Added | *
+    ///  | 43 | release/name   | "Let It Be"            | 1234 | Added |
+    ///  +----+----------------+------------------------+------+-------+
+    ///
+    /// EAVT is also useful in master or detail lookups, since the references to detail entities
+    /// are just ordinary versus alongside the scalar attributes of the master entity. Better
+    /// still, Datomic assigns entity ids so that when master and detail records are created in the
+    /// same transaction, they are colocated in EAVT.
     Eavt,
+
+    /// The AEVT index provides efficient access to all values for a given attribute, comparable to
+    /// the traditional column access style. In the table below, notice how all release/name
+    /// attributes are grouped together. This allows Datomic to efficiently query for all values of
+    /// the release/name attribute, because they reside next to one another in this index.
+    ///
+    ///  +----------------+----+------------------------+------+-------+
+    ///  | A              | E  | V                      | Tx   | Op    |
+    ///  +----------------+----+------------------------+------+-------+
+    ///  | release/artist | 42 | "The Beatles"          | 1007 | Added |
+    ///  | release/name   | 41 | "Abbey Road"           | 1100 | Added | *
+    ///  | release/name   | 42 | "Magical Mystery Tour" | 1007 | Added | *
+    ///  | release/name   | 43 | "Let It Be"            | 1234 | Added | *
+    ///  | release/year   | 42 | 1967                   | 1007 | Added |
+    ///  +----------------+----+------------------------+------+-------+
     Aevt,
+
+    /// The AVET index provides efficient access to particular combinations of attribute and value.
+    /// The example below shows a portion of the AVET index allowing lookup by release/names.
+    ///
+    /// The AVET index is more expensive to maintain than other indexes, and as such it is the only
+    /// index that is not enabled by default. To maintain AVET for an attribute, specify db/index
+    /// true (or some value for db/unique) when installing or altering the attribute.
+    ///
+    ///  +----------------+------------------------+----+------+-------+
+    ///  | A              | V                      | E  | Tx   | Op    |
+    ///  +----------------+------------------------+----+------+-------+
+    ///  | release/name   | "Abbey Road"           | 41 | 1100 | Added |
+    ///  | release/name   | "Let It Be"            | 43 | 1234 | Added | *
+    ///  | release/name   | "Let It Be"            | 55 | 2367 | Added | *
+    ///  | release/name   | "Magical Mystery Tour" | 42 | 1007 | Added |
+    ///  | release/year   | 1967                   | 42 | 1007 | Added |
+    ///  | release/year   | 1984                   | 55 | 2367 | Added |
+    ///  +----------------+------------------------+----+------+-------+
     Avet,
+
+    /// The system partition is used to store internal DB related metadata.
     System,
 }
 
@@ -31,9 +87,9 @@ impl Into<&'static str> for Partition {
     fn into(self) -> &'static str {
         match self {
             Self::Eavt => "eavt",
-            Self::Aevt => "eavt",
-            Self::Avet => "eavt",
-            Self::System => "eavt",
+            Self::Aevt => "aevt",
+            Self::Avet => "avet",
+            Self::System => "system",
         }
     }
 }
@@ -59,117 +115,102 @@ impl Partition {
 ///
 /// https://docs.datomic.com/pro/query/indexes.html
 pub mod index {
-    use std::ops::Range;
+    use std::ops::RangeBounds;
 
     use super::*;
 
-    /// The EAVT index provides efficient access to everything about a given entity. Conceptually
-    /// this is very similar to row access style in a SQL database, except that entities can
-    /// possess arbitrary attributes rather than being limited to a predefined set of columns.
-    ///
-    /// The example below shows all of the facts about entity 42 grouped together:
-    ///
-    ///   +----+----------------+------------------------+------+--------+
-    ///   | E  | A              | V                      | Tx   | Op    |
-    ///   +----+----------------+------------------------+------+--------+
-    ///   | 41 | release/name   | "Abbey Road"           | 1100 | Added |
-    /// * | 42 | release/name   | "Magical Mystery Tour" | 1007 | Added |
-    /// * | 42 | release/year   | 1967                   | 1007 | Added |
-    /// * | 42 | release/artist | "The Beatles"          | 1007 | Added |
-    ///   | 43 | release/name   | "Let It Be"            | 1234 | Added |
-    ///   +----+----------------+------------------------+------+--------+
-    ///
-    /// EAVT is also useful in master or detail lookups, since the references to detail entities
-    /// are just ordinary versus alongside the scalar attributes of the master entity. Better
-    /// still, Datomic assigns entity ids so that when master and detail records are created in the
-    /// same transaction, they are colocated in EAVT.
-    pub const TAG_EAVT: u8 = 0x00;
+    pub enum BytesRange {
+        Full,
+        From(Bytes),
+        Between(Bytes, Bytes),
+    }
 
-    /// The AEVT index provides efficient access to all values for a given attribute, comparable to
-    /// the traditional column access style. In the table below, notice how all release/name
-    /// attributes are grouped together. This allows Datomic to efficiently query for all values of
-    /// the release/name attribute, because they reside next to one another in this index.
-    ///
-    ///   +----------------+----+------------------------+------+--------+
-    ///   | A              | E  | V                      | Tx   | Op    |
-    ///   +----------------+----+------------------------+------+--------+
-    ///   | release/artist | 42 | "The Beatles"          | 1007 | Added |
-    /// * | release/name   | 41 | "Abbey Road"           | 1100 | Added |
-    /// * | release/name   | 42 | "Magical Mystery Tour" | 1007 | Added |
-    /// * | release/name   | 43 | "Let It Be"            | 1234 | Added |
-    ///   | release/year   | 42 | 1967                   | 1007 | Added |
-    ///   +----------------+----+------------------------+------+--------+
-    pub const TAG_AEVT: u8 = 0x01;
+    impl BytesRange {
+        fn from(start: Bytes) -> Self {
+            match next_prefix(&start) {
+                Some(end) => Self::Between(start, end),
+                None => Self::From(start),
+            }
+        }
 
-    /// The AVET index provides efficient access to particular combinations of attribute and value.
-    /// The example below shows a portion of the AVET index allowing lookup by release/names.
-    ///
-    /// The AVET index is more expensive to maintain than other indexes, and as such it is the only
-    /// index that is not enabled by default. To maintain AVET for an attribute, specify db/index
-    /// true (or some value for db/unique) when installing or altering the attribute.
-    ///
-    ///   +----------------+------------------------+----+------+--------+
-    ///   | A              | V                      | E  | Tx   | Op    |
-    ///   +----------------+------------------------+----+------+--------+
-    ///   | release/name   | "Abbey Road"           | 41 | 1100 | Added |
-    /// * | release/name   | "Let It Be"            | 43 | 1234 | Added |
-    /// * | release/name   | "Let It Be"            | 55 | 2367 | Added |
-    ///   | release/name   | "Magical Mystery Tour" | 42 | 1007 | Added |
-    ///   | release/year   | 1967                   | 42 | 1007 | Added |
-    ///   | release/year   | 1984                   | 55 | 2367 | Added |
-    ///   +----------------+------------------------+----+------+--------+
-    pub const TAG_AVET: u8 = 0x02;
+        fn full() -> Self {
+            Self::Full
+        }
+    }
 
-    const BASE_KEY_SIZE: usize = std::mem::size_of::<u8>() // Index tag
-            + std::mem::size_of::<u64>() // Entity
-            + std::mem::size_of::<u64>(); // Attribute
+    impl RangeBounds<[u8]> for BytesRange {
+        fn start_bound(&self) -> Bound<&[u8]> {
+            match self {
+                Self::Full => Bound::Unbounded,
+                Self::From(start) => Bound::Included(start),
+                Self::Between(start, _) => Bound::Included(start),
+            }
+        }
 
-    pub fn key_range(restricts: &Restricts) -> Range<Bytes> {
-        let start = match restricts {
+        fn end_bound(&self) -> Bound<&[u8]> {
+            match self {
+                Self::Full | Self::From(_) => Bound::Unbounded,
+                Self::Between(_, end) => Bound::Excluded(end),
+            }
+        }
+    }
+
+    pub fn key_range(restricts: &Restricts) -> (Partition, BytesRange) {
+        match restricts {
             Restricts {
                 entity: Some(entity),
                 attribute: Some(attribute),
                 value: Some(value),
                 tx,
                 ..
-            } => write_to_vec!(&TAG_EAVT, entity, attribute, value, &!(tx.value())),
+            } => (
+                Partition::Eavt,
+                BytesRange::from(write_to_vec!(entity, attribute, value, &!(tx.value()))),
+            ),
             Restricts {
                 entity: Some(entity),
                 attribute: Some(attribute),
                 ..
-            } => write_to_vec!(&TAG_EAVT, entity, attribute),
+            } => (
+                Partition::Eavt,
+                BytesRange::from(write_to_vec!(entity, attribute)),
+            ),
             Restricts {
                 entity: Some(entity),
                 ..
-            } => write_to_vec!(&TAG_EAVT, entity),
+            } => (Partition::Eavt, BytesRange::from(write_to_vec!(entity))),
             Restricts {
                 attribute: Some(attribute),
                 value: Some(value),
                 ..
-            } => write_to_vec!(&TAG_AVET, attribute, value),
+            } => (
+                Partition::Avet,
+                BytesRange::from(write_to_vec!(attribute, value)),
+            ),
             Restricts {
                 attribute: Some(attribute),
                 ..
-            } => write_to_vec!(&TAG_AEVT, attribute),
-            _ => write_to_vec!(&TAG_AEVT),
-        };
-        let end = next_prefix(&start);
-        start..end
+            } => (Partition::Aevt, BytesRange::from(write_to_vec!(attribute))),
+            _ => (Partition::Aevt, BytesRange::full()),
+        }
     }
 
-    pub fn seek_key(value: &Value, datom_bytes: &[u8], basis_tx: u64) -> Bytes {
+    pub fn seek_key(value: &Value, datom_bytes: &[u8], basis_tx: u64) -> Option<Bytes> {
         // For bytes of a given datom [e a v _ _], seek to the next immediate datom in the index
         // which differs in the [e a v] combination.
-        let mut key = next_prefix(&datom_bytes[..key_size(value)]);
-        // Also include the tx ID to quickly skip datoms that don't belong to DB snapshot.
-        (!basis_tx).write(&mut key);
-        key
+        next_prefix(&datom_bytes[..key_size(value)]).map(|mut key| {
+            // Also include the tx ID to quickly skip datoms that don't belong to DB snapshot.
+            (!basis_tx).write(&mut key);
+            key
+        })
     }
 
     /// Number of bytes used to encode a datom with value `value`.
     /// Excluding `tx` and `op` (prefix only).
     fn key_size(value: &Value) -> usize {
-        BASE_KEY_SIZE + value.size()
+        std::mem::size_of::<u64>() // Entity
+        + std::mem::size_of::<u64>() // Attribute
+        + value.size()
     }
 
     /// Returns lowest value following largest value with given prefix.
@@ -180,18 +221,16 @@ pub mod index {
     /// range.
     ///
     /// For example, for prefix `foo` the function returns `fop`.
-    fn next_prefix(prefix: &[u8]) -> Bytes {
+    fn next_prefix(prefix: &[u8]) -> Option<Bytes> {
         let ffs = prefix
             .iter()
             .rev()
             .take_while(|&&byte| byte == u8::MAX)
             .count();
         let mut next = prefix[..(prefix.len() - ffs)].to_vec();
-        let last = next
-            .last_mut()
-            .expect("There should be at least one non-0xFF byte");
+        let last = next.last_mut()?;
         *last += 1;
-        next
+        Some(next)
     }
 }
 
@@ -219,7 +258,6 @@ pub mod datom {
 
         pub fn eavt(datom: &Datom) -> Bytes {
             write_to_vec!(
-                index::TAG_EAVT,
                 datom.entity,
                 datom.attribute,
                 datom.value,
@@ -230,7 +268,6 @@ pub mod datom {
 
         pub fn aevt(datom: &Datom) -> Bytes {
             write_to_vec!(
-                index::TAG_AEVT,
                 datom.attribute,
                 datom.entity,
                 datom.value,
@@ -241,7 +278,6 @@ pub mod datom {
 
         pub fn avet(datom: &Datom) -> Bytes {
             write_to_vec!(
-                index::TAG_AVET,
                 datom.attribute,
                 datom.value,
                 datom.entity,
@@ -251,12 +287,12 @@ pub mod datom {
         }
     }
 
-    pub fn deserialize(buffer: &[u8]) -> ReadResult<Datom> {
+    pub fn deserialize(partition: Partition, buffer: &[u8]) -> ReadResult<Datom> {
         let mut reader = Reader::new(buffer);
-        match reader.read()? {
-            index::TAG_EAVT => deserialize::eavt(&mut reader),
-            index::TAG_AEVT => deserialize::aevt(&mut reader),
-            index::TAG_AVET => deserialize::avet(&mut reader),
+        match partition {
+            Partition::Eavt => deserialize::eavt(&mut reader),
+            Partition::Aevt => deserialize::aevt(&mut reader),
+            Partition::Avet => deserialize::avet(&mut reader),
             _ => Err(ReadError::InvalidInput),
         }
     }

@@ -20,8 +20,17 @@ macro_rules! write_to_vec {
 
 pub type Bytes = Vec<u8>;
 
+/// +-------+---------------------------------+--------------------------------+
+/// | Index | Sort order                      | Contains                       |
+/// +-------+---------------------------------+--------------------------------+
+/// | EAVT  | entity / attribute / value / tx | All datoms                     |
+/// | AEVT  | attribute / entity / value / tx | All datoms                     |
+/// | AVET  | attribute / value / entity / tx | Datoms with indexed attributes |
+/// +-------+---------------------------------+--------------------------------+
+///
+/// https://docs.datomic.com/pro/query/indexes.html
 #[derive(Debug, Clone, Copy)]
-pub enum Partition {
+pub enum Index {
     /// The EAVT index provides efficient access to everything about a given entity. Conceptually
     /// this is very similar to row access style in a SQL database, except that entities can
     /// possess arbitrary attributes rather than being limited to a predefined set of columns.
@@ -78,67 +87,29 @@ pub enum Partition {
     ///  | release/year   | 1984                   | 55 | 2367 | Added |
     ///  +----------------+------------------------+----+------+-------+
     Avet,
-
-    /// The system partition is used to store internal DB related metadata.
-    System,
 }
 
-impl Into<&'static str> for Partition {
-    fn into(self) -> &'static str {
-        match self {
-            Self::Eavt => "eavt",
-            Self::Aevt => "aevt",
-            Self::Avet => "avet",
-            Self::System => "system",
-        }
-    }
-}
-
-impl Partition {
-    pub fn all() -> [&'static str; 4] {
-        [
-            Self::Eavt.into(),
-            Self::Aevt.into(),
-            Self::Avet.into(),
-            Self::System.into(),
-        ]
-    }
-}
-
-/// +-------+---------------------------------+--------------------------------+
-/// | Index | Sort order                      | Contains                       |
-/// +-------+---------------------------------+--------------------------------+
-/// | EAVT  | entity / attribute / value / tx | All datoms                     |
-/// | AEVT  | attribute / entity / value / tx | All datoms                     |
-/// | AVET  | attribute / value / entity / tx | Datoms with indexed attributes |
-/// +-------+---------------------------------+--------------------------------+
-///
-/// https://docs.datomic.com/pro/query/indexes.html
 pub mod index {
     use std::ops::RangeBounds;
 
     use super::*;
 
-    pub enum BytesRange {
+    pub enum Range {
         Full,
         From(Bytes),
         Between(Bytes, Bytes),
     }
 
-    impl BytesRange {
+    impl Range {
         fn from(start: Bytes) -> Self {
             match next_prefix(&start) {
                 Some(end) => Self::Between(start, end),
                 None => Self::From(start),
             }
         }
-
-        fn full() -> Self {
-            Self::Full
-        }
     }
 
-    impl RangeBounds<[u8]> for BytesRange {
+    impl RangeBounds<[u8]> for Range {
         fn start_bound(&self) -> Bound<&[u8]> {
             match self {
                 Self::Full => Bound::Unbounded,
@@ -155,49 +126,47 @@ pub mod index {
         }
     }
 
-    pub fn key_range(restricts: &Restricts) -> (Partition, BytesRange) {
-        match restricts {
-            Restricts {
-                entity: Some(entity),
-                attribute: Some(attribute),
-                value: Some(value),
-                tx,
-                ..
-            } => (
-                Partition::Eavt,
-                BytesRange::from(write_to_vec!(entity, attribute, value, &!(tx.value()))),
-            ),
-            Restricts {
-                entity: Some(entity),
-                attribute: Some(attribute),
-                ..
-            } => (
-                Partition::Eavt,
-                BytesRange::from(write_to_vec!(entity, attribute)),
-            ),
-            Restricts {
-                entity: Some(entity),
-                ..
-            } => (Partition::Eavt, BytesRange::from(write_to_vec!(entity))),
-            Restricts {
-                attribute: Some(attribute),
-                value: Some(value),
-                ..
-            } => (
-                Partition::Avet,
-                BytesRange::from(write_to_vec!(attribute, value)),
-            ),
-            Restricts {
-                attribute: Some(attribute),
-                ..
-            } => (Partition::Aevt, BytesRange::from(write_to_vec!(attribute))),
-            _ => (Partition::Aevt, BytesRange::full()),
+    pub struct IndexedRange(pub Index, pub Range);
+
+    impl IndexedRange {
+        pub fn from(restricts: &Restricts) -> Self {
+            match restricts {
+                Restricts {
+                    entity: Some(entity),
+                    attribute: Some(attribute),
+                    value: Some(value),
+                    tx,
+                    ..
+                } => Self(
+                    Index::Eavt,
+                    Range::from(write_to_vec!(entity, attribute, value, &!(tx.value()))),
+                ),
+                Restricts {
+                    entity: Some(entity),
+                    attribute: Some(attribute),
+                    ..
+                } => Self(Index::Eavt, Range::from(write_to_vec!(entity, attribute))),
+                Restricts {
+                    entity: Some(entity),
+                    ..
+                } => Self(Index::Eavt, Range::from(write_to_vec!(entity))),
+                Restricts {
+                    attribute: Some(attribute),
+                    value: Some(value),
+                    ..
+                } => Self(Index::Avet, Range::from(write_to_vec!(attribute, value))),
+                Restricts {
+                    attribute: Some(attribute),
+                    ..
+                } => Self(Index::Aevt, Range::from(write_to_vec!(attribute))),
+                _ => Self(Index::Aevt, Range::Full),
+            }
         }
     }
 
+    /// For bytes of a given datom [e a v _ _], seek to the next immediate datom in the index which
+    /// differs in the [e a v] combination.
     pub fn seek_key(value: &Value, datom_bytes: &[u8], basis_tx: u64) -> Option<Bytes> {
-        // For bytes of a given datom [e a v _ _], seek to the next immediate datom in the index
-        // which differs in the [e a v] combination.
         next_prefix(&datom_bytes[..key_size(value)]).map(|mut key| {
             // Also include the tx ID to quickly skip datoms that don't belong to DB snapshot.
             (!basis_tx).write(&mut key);
@@ -287,13 +256,12 @@ pub mod datom {
         }
     }
 
-    pub fn deserialize(partition: Partition, buffer: &[u8]) -> ReadResult<Datom> {
+    pub fn deserialize(index: Index, buffer: &[u8]) -> ReadResult<Datom> {
         let mut reader = Reader::new(buffer);
-        match partition {
-            Partition::Eavt => deserialize::eavt(&mut reader),
-            Partition::Aevt => deserialize::aevt(&mut reader),
-            Partition::Avet => deserialize::avet(&mut reader),
-            _ => Err(ReadError::InvalidInput),
+        match index {
+            Index::Eavt => deserialize::eavt(&mut reader),
+            Index::Aevt => deserialize::aevt(&mut reader),
+            Index::Avet => deserialize::avet(&mut reader),
         }
     }
 

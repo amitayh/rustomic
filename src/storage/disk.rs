@@ -8,7 +8,8 @@ use crate::storage::serde::*;
 use crate::storage::*;
 use thiserror::Error;
 
-use super::serde::index::BytesRange;
+use super::serde::index::IndexedRange;
+use super::serde::index::Range;
 
 pub struct ReadOnly;
 pub struct ReadWrite;
@@ -27,9 +28,43 @@ impl<'a, Mode> DiskStorage<'a, Mode> {
     }
 }
 
-fn cf_handle(db: &rocksdb::DB, partition: Partition) -> Result<&ColumnFamily, DiskStorageError> {
-    db.cf_handle(partition.into())
-        .ok_or(DiskStorageError::ColumnFamilyNotFound(partition))
+trait Partition {
+    fn name(&self) -> &'static str;
+}
+
+impl Partition for Index {
+    fn name(&self) -> &'static str {
+        match self {
+            Self::Eavt => "eavt",
+            Self::Aevt => "aevt",
+            Self::Avet => "avet",
+        }
+    }
+}
+
+struct System;
+
+impl Partition for System {
+    fn name(&self) -> &'static str {
+        "system"
+    }
+}
+
+fn partitions() -> [&'static str; 4] {
+    [
+        Index::Eavt.name(),
+        Index::Aevt.name(),
+        Index::Avet.name(),
+        System.name(),
+    ]
+}
+
+fn cf_handle(
+    db: &rocksdb::DB,
+    partition: impl Partition,
+) -> Result<&ColumnFamily, DiskStorageError> {
+    db.cf_handle(partition.name())
+        .ok_or_else(|| DiskStorageError::ColumnFamilyNotFound(partition.name()))
 }
 
 impl<'a> DiskStorage<'a, ReadOnly> {
@@ -37,7 +72,7 @@ impl<'a> DiskStorage<'a, ReadOnly> {
         let mut options = Options::default();
         options.create_if_missing(true);
         options.create_missing_column_families(true);
-        let db = DB::open_cf_for_read_only(&options, path, Partition::all(), false)?;
+        let db = DB::open_cf_for_read_only(&options, path, partitions(), false)?;
         Ok(Self::new(db))
     }
 }
@@ -47,7 +82,7 @@ impl<'a> DiskStorage<'a, ReadWrite> {
         let mut options = Options::default();
         options.create_if_missing(true);
         options.create_missing_column_families(true);
-        let db = DB::open_cf(&options, path, Partition::all())?;
+        let db = DB::open_cf(&options, path, partitions())?;
         Ok(Self::new(db))
     }
 }
@@ -56,9 +91,9 @@ impl<'a> WriteStorage for DiskStorage<'a, ReadWrite> {
     type Error = DiskStorageError;
 
     fn save(&mut self, datoms: &[Datom]) -> Result<(), Self::Error> {
-        let eavt = cf_handle(&self.db, Partition::Eavt)?;
-        let aevt = cf_handle(&self.db, Partition::Aevt)?;
-        let avet = cf_handle(&self.db, Partition::Avet)?;
+        let eavt = cf_handle(&self.db, Index::Eavt)?;
+        let aevt = cf_handle(&self.db, Index::Aevt)?;
+        let avet = cf_handle(&self.db, Index::Avet)?;
         let mut batch = rocksdb::WriteBatch::default();
         for datom in datoms {
             batch.put_cf(eavt, datom::serialize::eavt(datom), "");
@@ -82,24 +117,24 @@ impl<'a, Mode> ReadStorage<'a> for DiskStorage<'a, Mode> {
 pub struct DiskStorageIter<'a> {
     iterator: DBRawIteratorWithThreadMode<'a, DBWithThreadMode<SingleThreaded>>,
     end: Option<Bytes>,
-    partition: Partition,
+    index: Index,
     restricts: Restricts,
 }
 
 impl<'a> DiskStorageIter<'a> {
     fn new(restricts: Restricts, db: &'a rocksdb::DB) -> Self {
-        let (partition, range) = index::key_range(&restricts);
-        let cf = cf_handle(db, partition).unwrap(); // TODO
+        let IndexedRange(index, range) = IndexedRange::from(&restricts);
+        let cf = cf_handle(db, index).unwrap(); // TODO
         let mut iterator = db.raw_iterator_cf(cf);
         let mut end = None;
         match range {
-            BytesRange::Full => {
+            Range::Full => {
                 iterator.seek_to_first();
             }
-            BytesRange::From(start) => {
+            Range::From(start) => {
                 iterator.seek(start);
             }
-            BytesRange::Between(start, e) => {
+            Range::Between(start, e) => {
                 iterator.seek(start);
                 end = Some(e);
             }
@@ -107,7 +142,7 @@ impl<'a> DiskStorageIter<'a> {
         Self {
             iterator,
             end,
-            partition,
+            index,
             restricts,
         }
     }
@@ -131,7 +166,7 @@ impl Iterator for DiskStorageIter<'_> {
             }
         }
 
-        match datom::deserialize(self.partition, bytes) {
+        match datom::deserialize(self.index, bytes) {
             Ok(datom) if !self.restricts.test(&datom) => {
                 if let Some(key) = index::seek_key(&datom.value, bytes, self.restricts.tx.value()) {
                     self.iterator.seek(key);
@@ -154,5 +189,5 @@ pub enum DiskStorageError {
     #[error("read error")]
     ReadError(#[from] ReadError),
     #[error("column family {:?} not found", 0)]
-    ColumnFamilyNotFound(Partition),
+    ColumnFamilyNotFound(&'static str),
 }

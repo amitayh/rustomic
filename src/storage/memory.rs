@@ -1,4 +1,3 @@
-use core::panic;
 use std::collections::btree_set::Range;
 use std::collections::BTreeSet;
 use std::convert::Infallible;
@@ -7,7 +6,7 @@ use std::marker::PhantomData;
 use crate::storage::serde::*;
 use crate::storage::*;
 
-use super::serde::index::BytesRange;
+use super::serde::index::IndexedRange;
 
 #[derive(Default)]
 pub struct InMemoryStorage<'a> {
@@ -49,22 +48,21 @@ pub struct InMemoryStorageIter<'a> {
     index: &'a BTreeSet<Bytes>,
     range: Range<'a, Bytes>,
     end: Option<Bytes>,
-    partition: Partition,
+    partition: Index,
     restricts: Restricts,
 }
 
 impl<'a> InMemoryStorageIter<'a> {
     fn new(storage: &'a InMemoryStorage, restricts: Restricts) -> Self {
-        let (partition, range) = index::key_range(&restricts);
+        let IndexedRange(partition, range) = IndexedRange::from(&restricts);
         let end = match &range {
-            BytesRange::Between(_, end) => Some(end.clone()),
-            BytesRange::Full | BytesRange::From(_) => None,
+            index::Range::Between(_, end) => Some(end.clone()),
+            index::Range::Full | index::Range::From(_) => None,
         };
         let index = match partition {
-            Partition::Eavt => &storage.eavt,
-            Partition::Aevt => &storage.aevt,
-            Partition::Avet => &storage.avet,
-            _ => panic!("wtf"),
+            Index::Eavt => &storage.eavt,
+            Index::Aevt => &storage.aevt,
+            Index::Avet => &storage.avet,
         };
         Self {
             index,

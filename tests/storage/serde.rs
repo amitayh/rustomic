@@ -10,7 +10,16 @@ fn test_serialization(datom: Datom) {
     let aevt = serde::datom::serialize::aevt(&datom);
     let avet = serde::datom::serialize::avet(&datom);
 
-    assert_eq!(datom, serde::datom::deserialize(serde::Index::Eavt, &eavt).unwrap());
-    assert_eq!(datom, serde::datom::deserialize(serde::Index::Aevt, &aevt).unwrap());
-    assert_eq!(datom, serde::datom::deserialize(serde::Index::Avet, &avet).unwrap());
+    assert_eq!(
+        datom,
+        serde::datom::deserialize(serde::Index::Eavt, &eavt).unwrap()
+    );
+    assert_eq!(
+        datom,
+        serde::datom::deserialize(serde::Index::Aevt, &aevt).unwrap()
+    );
+    assert_eq!(
+        datom,
+        serde::datom::deserialize(serde::Index::Avet, &avet).unwrap()
+    );
 }

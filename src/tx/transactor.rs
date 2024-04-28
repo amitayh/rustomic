@@ -115,8 +115,8 @@ impl Transactor {
             let value = resolve_value(attribute_value.value, temp_ids)?;
             verify_type(attribute, &value)?;
             if attribute.definition.unique {
-                verify_uniqueness1(attribute, &value, unique_values)?;
-                verify_uniqueness2(attribute, &value, storage, tx)?;
+                verify_uniqueness_tx(attribute, &value, unique_values)?;
+                verify_uniqueness_db(attribute, &value, storage, tx)?;
             }
 
             datoms.push(Datom {
@@ -166,7 +166,7 @@ fn verify_type<E>(attribute: &Attribute, value: &Value) -> Result<(), E> {
     Ok(())
 }
 
-fn verify_uniqueness1<E>(
+fn verify_uniqueness_tx<E>(
     attribute: &Attribute,
     value: &Value,
     unique_values: &mut HashSet<(u64, Value)>,
@@ -181,7 +181,7 @@ fn verify_uniqueness1<E>(
     Ok(())
 }
 
-fn verify_uniqueness2<'a, S: ReadStorage<'a>>(
+fn verify_uniqueness_db<'a, S: ReadStorage<'a>>(
     attribute: &Attribute,
     value: &Value,
     storage: &'a S,

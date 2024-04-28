@@ -1,10 +1,68 @@
+use either::Either;
 use rust_decimal::Decimal;
+use std::fmt::Debug;
 use std::ops::Bound;
 use std::rc::Rc;
 use thiserror::Error;
 
 use crate::datom::*;
 use crate::storage::*;
+
+// -------------------------------------------------------------------------------------------------
+
+trait SeekableIterator {
+    type Error: std::error::Error;
+
+    fn next(&mut self) -> Option<Result<&[u8], Self::Error>>;
+
+    fn seek(&mut self, key: &[u8]) -> Result<(), Self::Error>;
+}
+
+struct DatomsIterator<T> {
+    restricts: Restricts,
+    range: index::IndexedRange,
+    bytes_iterator: T,
+}
+
+impl<T> DatomsIterator<T> {
+    fn new(bytes_iterator: T, restricts: Restricts) -> Self {
+        let range = index::IndexedRange::from(&restricts);
+        Self {
+            restricts,
+            range,
+            bytes_iterator,
+        }
+    }
+}
+
+impl<T: SeekableIterator> Iterator for DatomsIterator<T> {
+    type Item = Result<Datom, Either<T::Error, ReadError>>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        let bytes = match self.bytes_iterator.next()? {
+            Ok(bytes) => bytes,
+            Err(err) => {
+                return Some(Err(Either::Left(err)));
+            }
+        };
+        match datom::deserialize(self.range.0, bytes) {
+            Ok(datom) if self.restricts.test(&datom) => Some(Ok(datom)),
+            Ok(datom) => {
+                if let Some(key) = index::seek_key(&datom.value, bytes, self.restricts.tx.value()) {
+                    if let Err(err) = self.bytes_iterator.seek(&key) {
+                        return Some(Err(Either::Left(err)));
+                    }
+                }
+                self.next()
+            }
+            Err(err) => {
+                return Some(Err(Either::Right(err)));
+            }
+        }
+    }
+}
+
+// -------------------------------------------------------------------------------------------------
 
 use value::SIZE_DECIMAL;
 
@@ -100,7 +158,7 @@ pub mod index {
         Between(Bytes, Bytes),
     }
 
-    impl Range {
+    impl From<Bytes> for Range {
         fn from(start: Bytes) -> Self {
             match next_prefix(&start) {
                 Some(end) => Self::Between(start, end),
@@ -128,8 +186,8 @@ pub mod index {
 
     pub struct IndexedRange(pub Index, pub Range);
 
-    impl IndexedRange {
-        pub fn from(restricts: &Restricts) -> Self {
+    impl From<&Restricts> for IndexedRange {
+        fn from(restricts: &Restricts) -> Self {
             match restricts {
                 Restricts {
                     entity: Some(entity),

@@ -37,23 +37,20 @@ mod tests {
 
     impl<'a> Sut<'a> {
         fn new() -> Self {
-            let mut sut = Self::new_without_schema();
-            sut.transact(create_schema());
-            sut
-        }
-
-        fn new_without_schema() -> Self {
             let transactor = Transactor::new();
             let mut storage = InMemoryStorage::new();
             storage
                 .save(&default_datoms())
                 .expect("Unable to save default datoms");
 
-            Self {
+            let mut sut = Self {
                 transactor,
                 storage,
                 last_tx: 0,
-            }
+            };
+
+            sut.transact(create_schema());
+            sut
         }
 
         fn transact(&mut self, transaction: Transaction) -> TransctionResult {
@@ -286,49 +283,36 @@ mod tests {
 
     #[test]
     fn return_latest_value_with_cardinality_one() {
-        let mut sut = Sut::new_without_schema();
-
-        // Create the schema
-        sut.transact(
-            Transaction::new()
-                .with(
-                    AttributeDefinition::new("person/name", ValueType::Str)
-                        .with_doc("A person's name"),
-                )
-                .with(
-                    AttributeDefinition::new("person/likes", ValueType::Str)
-                        .with_doc("Things a person likes"),
-                ),
-        );
+        let mut sut = Sut::new();
 
         // Insert initial data
         let tx_result = sut.transact(
             Transaction::new().with(
                 EntityOperation::on_temp_id("joe")
                     .set_value("person/name", "Joe")
-                    .set_value("person/likes", "Pizza"),
+                    .set_value("person/email", "foo@bar.com"),
             ),
         );
         let joe_id = tx_result.temp_ids["joe"];
 
-        // Update what Joe likes
+        // Update Joe's email
         sut.transact(
             Transaction::new()
-                .with(EntityOperation::on_id(joe_id).set_value("person/likes", "Ice cream")),
+                .with(EntityOperation::on_id(joe_id).set_value("person/email", "foo@baz.com")),
         );
 
         let query_result = sut.query(
-            Query::new().find(Find::variable("?likes")).with(
+            Query::new().find(Find::variable("?email")).with(
                 Clause::new()
                     .with_entity(Pattern::Constant(joe_id))
-                    .with_attribute(Pattern::ident("person/likes"))
-                    .with_value(Pattern::variable("?likes")),
+                    .with_attribute(Pattern::ident("person/email"))
+                    .with_value(Pattern::variable("?email")),
             ),
         );
 
         assert_that!(
             query_result,
-            unordered_elements_are![elements_are![eq(Value::str("Ice cream"))]]
+            unordered_elements_are![elements_are![eq(Value::str("foo@baz.com"))]]
         );
     }
 

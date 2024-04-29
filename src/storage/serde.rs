@@ -10,7 +10,7 @@ use crate::storage::*;
 
 // -------------------------------------------------------------------------------------------------
 
-trait SeekableIterator {
+pub trait SeekableIterator {
     type Error: std::error::Error;
 
     fn next(&mut self) -> Option<Result<&[u8], Self::Error>>;
@@ -18,14 +18,14 @@ trait SeekableIterator {
     fn seek(&mut self, key: &[u8]) -> Result<(), Self::Error>;
 }
 
-struct DatomsIterator<T> {
+pub struct DatomsIterator<T> {
     restricts: Restricts,
     range: index::IndexedRange,
     bytes_iterator: T,
 }
 
 impl<T> DatomsIterator<T> {
-    fn new(bytes_iterator: T, restricts: Restricts) -> Self {
+    pub fn new(bytes_iterator: T, restricts: Restricts) -> Self {
         let range = index::IndexedRange::from(&restricts);
         Self {
             restricts,

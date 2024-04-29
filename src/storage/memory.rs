@@ -3,6 +3,8 @@ use std::collections::BTreeSet;
 use std::convert::Infallible;
 use std::marker::PhantomData;
 
+use either::Either;
+
 use crate::storage::serde::*;
 use crate::storage::*;
 
@@ -36,11 +38,12 @@ impl<'a> WriteStorage for InMemoryStorage<'a> {
 }
 
 impl<'a> ReadStorage<'a> for InMemoryStorage<'a> {
-    type Error = ReadError;
-    type Iter = InMemoryStorageIter<'a>;
+    type Error = Either<Infallible, ReadError>;
+    type Iter = DatomsIterator<InMemoryStorageIter<'a>>;
 
     fn find(&'a self, restricts: Restricts) -> Self::Iter {
-        InMemoryStorageIter::new(&self, restricts)
+        let iter = InMemoryStorageIter::new(&self, &restricts);
+        DatomsIterator::new(iter, restricts)
     }
 }
 
@@ -48,13 +51,11 @@ pub struct InMemoryStorageIter<'a> {
     index: &'a BTreeSet<Bytes>,
     range: Range<'a, Bytes>,
     end: Option<Bytes>,
-    partition: Index,
-    restricts: Restricts,
 }
 
 impl<'a> InMemoryStorageIter<'a> {
-    fn new(storage: &'a InMemoryStorage, restricts: Restricts) -> Self {
-        let IndexedRange(partition, range) = IndexedRange::from(&restricts);
+    fn new(storage: &'a InMemoryStorage, restricts: &Restricts) -> Self {
+        let IndexedRange(partition, range) = IndexedRange::from(restricts);
         let end = match &range {
             index::Range::Between(_, end) => Some(end.clone()),
             index::Range::Full | index::Range::From(_) => None,
@@ -68,8 +69,6 @@ impl<'a> InMemoryStorageIter<'a> {
             index,
             range: index.range(range),
             end,
-            partition,
-            restricts,
         }
     }
 
@@ -81,19 +80,18 @@ impl<'a> InMemoryStorageIter<'a> {
     }
 }
 
-impl<'a> Iterator for InMemoryStorageIter<'a> {
-    type Item = Result<Datom, ReadError>;
+// -------------------------------------------------------------------------------------------------
 
-    fn next(&mut self) -> Option<Self::Item> {
+impl SeekableIterator for InMemoryStorageIter<'_> {
+    type Error = Infallible;
+
+    fn next(&mut self) -> Option<Result<&[u8], Self::Error>> {
         let bytes = self.range.next()?;
-        match datom::deserialize(self.partition, bytes) {
-            Ok(datom) if !self.restricts.test(&datom) => {
-                if let Some(key) = index::seek_key(&datom.value, bytes, self.restricts.tx.value()) {
-                    self.seek(key);
-                }
-                self.next()
-            }
-            result => Some(result),
-        }
+        Some(Ok(bytes))
+    }
+
+    fn seek(&mut self, key: &[u8]) -> Result<(), Self::Error> {
+        self.seek(key.to_vec());
+        Ok(())
     }
 }

@@ -50,16 +50,11 @@ impl<'a> ReadStorage<'a> for InMemoryStorage<'a> {
 pub struct InMemoryStorageIter<'a> {
     index: &'a BTreeSet<Bytes>,
     range: Range<'a, Bytes>,
-    end: Option<Bytes>,
 }
 
 impl<'a> InMemoryStorageIter<'a> {
     fn new(storage: &'a InMemoryStorage, restricts: &Restricts) -> Self {
         let IndexedRange(partition, range) = IndexedRange::from(restricts);
-        let end = match &range {
-            index::Range::Between(_, end) => Some(end.clone()),
-            index::Range::Full | index::Range::From(_) => None,
-        };
         let index = match partition {
             Index::Eavt => &storage.eavt,
             Index::Aevt => &storage.aevt,
@@ -68,7 +63,6 @@ impl<'a> InMemoryStorageIter<'a> {
         Self {
             index,
             range: index.range(range),
-            end,
         }
     }
 }
@@ -83,12 +77,8 @@ impl SeekableIterator for InMemoryStorageIter<'_> {
         Some(Ok(bytes))
     }
 
-    fn seek(&mut self, start: &[u8]) -> Result<(), Self::Error> {
-        let start = start.to_vec(); // TODO avoid copy?
-        self.range = match &self.end {
-            Some(end) => self.index.range::<Bytes, _>(&start..end),
-            None => self.index.range::<Bytes, _>(&start..),
-        };
+    fn seek(&mut self, start: Bytes) -> Result<(), Self::Error> {
+        self.range = self.index.range(start..);
         Ok(())
     }
 }

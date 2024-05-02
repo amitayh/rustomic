@@ -15,7 +15,7 @@ pub trait SeekableIterator {
 
     fn next(&mut self) -> Option<Result<&[u8], Self::Error>>;
 
-    fn seek(&mut self, key: &[u8]) -> Result<(), Self::Error>;
+    fn seek(&mut self, key: Bytes) -> Result<(), Self::Error>;
 }
 
 pub struct DatomsIterator<T> {
@@ -49,7 +49,7 @@ impl<T: SeekableIterator> Iterator for DatomsIterator<T> {
             Ok(datom) if self.restricts.test(&datom) => Some(Ok(datom)),
             Ok(datom) => {
                 if let Some(key) = index::seek_key(&datom.value, bytes, self.restricts.tx.value()) {
-                    if let Err(err) = self.bytes_iterator.seek(&key) {
+                    if let Err(err) = self.bytes_iterator.seek(key) {
                         return Some(Err(Either::Left(err)));
                     }
                 }

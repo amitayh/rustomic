@@ -148,42 +148,6 @@ impl<'a> DiskStorageIter<'a> {
     }
 }
 
-/*
-impl Iterator for DiskStorageIter<'_> {
-    type Item = Result<Datom, DiskStorageError>;
-
-    fn next(&mut self) -> Option<Self::Item> {
-        if !self.iterator.valid() {
-            return match self.iterator.status() {
-                Ok(_) => None,
-                Err(err) => Some(Err(DiskStorageError::DbError(err))),
-            };
-        }
-
-        let bytes = self.iterator.key()?;
-        if let Some(end) = &self.end {
-            if bytes >= end {
-                return None;
-            }
-        }
-
-        match datom::deserialize(self.index, bytes) {
-            Ok(datom) if !self.restricts.test(&datom) => {
-                if let Some(key) = index::seek_key(&datom.value, bytes, self.restricts.tx.value()) {
-                    self.iterator.seek(key);
-                }
-                self.next()
-            }
-            Ok(datom) => {
-                self.iterator.next();
-                Some(Ok(datom))
-            }
-            Err(err) => Some(Err(DiskStorageError::ReadError(err))),
-        }
-    }
-}
-*/
-
 #[derive(Debug, Error)]
 pub enum DiskStorageError {
     #[error("storage error")]
@@ -220,7 +184,7 @@ impl SeekableIterator for DiskStorageIter<'_> {
         Some(Ok(bytes))
     }
 
-    fn seek(&mut self, key: &[u8]) -> Result<(), Self::Error> {
+    fn seek(&mut self, key: Bytes) -> Result<(), Self::Error> {
         self.iterator.seek(key);
         self.should_continue = false;
         Ok(())

@@ -71,13 +71,6 @@ impl<'a> InMemoryStorageIter<'a> {
             end,
         }
     }
-
-    fn seek(&mut self, start: Bytes) {
-        self.range = match &self.end {
-            Some(end) => self.index.range::<Bytes, _>(&start..end),
-            None => self.index.range::<Bytes, _>(&start..),
-        }
-    }
 }
 
 // -------------------------------------------------------------------------------------------------
@@ -90,8 +83,12 @@ impl SeekableIterator for InMemoryStorageIter<'_> {
         Some(Ok(bytes))
     }
 
-    fn seek(&mut self, key: &[u8]) -> Result<(), Self::Error> {
-        self.seek(key.to_vec());
+    fn seek(&mut self, start: &[u8]) -> Result<(), Self::Error> {
+        let start = start.to_vec(); // TODO avoid copy?
+        self.range = match &self.end {
+            Some(end) => self.index.range::<Bytes, _>(&start..end),
+            None => self.index.range::<Bytes, _>(&start..),
+        };
         Ok(())
     }
 }

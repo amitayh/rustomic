@@ -1,6 +1,7 @@
 use std::marker::PhantomData;
 use std::path::Path;
 
+use either::Either;
 use rocksdb::*;
 
 use crate::storage::restricts::*;
@@ -106,24 +107,24 @@ impl<'a> WriteStorage for DiskStorage<'a, ReadWrite> {
 }
 
 impl<'a, Mode> ReadStorage<'a> for DiskStorage<'a, Mode> {
-    type Error = DiskStorageError;
-    type Iter = DiskStorageIter<'a>;
+    type Error = Either<DiskStorageError, ReadError>;
+    type Iter = DatomsIterator<DiskStorageIter<'a>>;
 
     fn find(&'a self, restricts: Restricts) -> Self::Iter {
-        DiskStorageIter::new(restricts, &self.db)
+        let iter = DiskStorageIter::new(&restricts, &self.db);
+        DatomsIterator::new(iter, restricts)
     }
 }
 
 pub struct DiskStorageIter<'a> {
     iterator: DBRawIteratorWithThreadMode<'a, DBWithThreadMode<SingleThreaded>>,
     end: Option<Bytes>,
-    index: Index,
-    restricts: Restricts,
+    should_continue: bool,
 }
 
 impl<'a> DiskStorageIter<'a> {
-    fn new(restricts: Restricts, db: &'a rocksdb::DB) -> Self {
-        let IndexedRange(index, range) = IndexedRange::from(&restricts);
+    fn new(restricts: &Restricts, db: &'a rocksdb::DB) -> Self {
+        let IndexedRange(index, range) = IndexedRange::from(restricts);
         let cf = cf_handle(db, index).unwrap(); // TODO
         let mut iterator = db.raw_iterator_cf(cf);
         let mut end = None;
@@ -142,12 +143,12 @@ impl<'a> DiskStorageIter<'a> {
         Self {
             iterator,
             end,
-            index,
-            restricts,
+            should_continue: false,
         }
     }
 }
 
+/*
 impl Iterator for DiskStorageIter<'_> {
     type Item = Result<Datom, DiskStorageError>;
 
@@ -181,13 +182,47 @@ impl Iterator for DiskStorageIter<'_> {
         }
     }
 }
+*/
 
 #[derive(Debug, Error)]
 pub enum DiskStorageError {
     #[error("storage error")]
     DbError(#[from] rocksdb::Error),
-    #[error("read error")]
-    ReadError(#[from] ReadError),
     #[error("column family {:?} not found", 0)]
     ColumnFamilyNotFound(&'static str),
+}
+
+// -------------------------------------------------------------------------------------------------
+
+impl SeekableIterator for DiskStorageIter<'_> {
+    type Error = DiskStorageError;
+
+    fn next(&mut self) -> Option<Result<&[u8], Self::Error>> {
+        if self.should_continue {
+            self.should_continue = false;
+            self.iterator.next();
+        }
+
+        if !self.iterator.valid() {
+            return match self.iterator.status() {
+                Ok(_) => None,
+                Err(err) => Some(Err(DiskStorageError::DbError(err))),
+            };
+        }
+
+        let bytes = self.iterator.key()?;
+        if let Some(end) = &self.end {
+            if bytes >= end {
+                return None;
+            }
+        }
+        self.should_continue = true;
+        Some(Ok(bytes))
+    }
+
+    fn seek(&mut self, key: &[u8]) -> Result<(), Self::Error> {
+        self.iterator.seek(key);
+        self.should_continue = false;
+        Ok(())
+    }
 }

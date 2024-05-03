@@ -16,17 +16,17 @@ pub trait SeekableIterator {
 
 pub struct DatomsIterator<T> {
     restricts: Restricts,
-    range: IndexedRange,
-    bytes_iterator: T,
+    index: Index,
+    bytes: T,
 }
 
 impl<T> DatomsIterator<T> {
-    pub fn new(bytes_iterator: T, restricts: Restricts) -> Self {
-        let range = IndexedRange::from(&restricts);
+    pub fn new(bytes: T, restricts: Restricts) -> Self {
+        let IndexedRange(index, _) = IndexedRange::from(&restricts);
         Self {
             restricts,
-            range,
-            bytes_iterator,
+            index,
+            bytes,
         }
     }
 }
@@ -35,17 +35,17 @@ impl<T: SeekableIterator> Iterator for DatomsIterator<T> {
     type Item = Result<Datom, Either<T::Error, ReadError>>;
 
     fn next(&mut self) -> Option<Self::Item> {
-        let bytes = match self.bytes_iterator.next()? {
+        let bytes = match self.bytes.next()? {
             Ok(bytes) => bytes,
             Err(err) => {
                 return Some(Err(Either::Left(err)));
             }
         };
-        match datom::deserialize(self.range.0, bytes) {
+        match datom::deserialize(self.index, bytes) {
             Ok(datom) if self.restricts.test(&datom) => Some(Ok(datom)),
             Ok(datom) => {
                 if let Some(key) = index::seek_key(&datom.value, bytes, self.restricts.tx.value()) {
-                    if let Err(err) = self.bytes_iterator.seek(key) {
+                    if let Err(err) = self.bytes.seek(key) {
                         return Some(Err(Either::Left(err)));
                     }
                 }

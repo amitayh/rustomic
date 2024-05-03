@@ -117,31 +117,20 @@ impl<'a, Mode> ReadStorage<'a> for DiskStorage<'a, Mode> {
 
 pub struct DiskStorageIter<'a> {
     iterator: DBRawIteratorWithThreadMode<'a, DBWithThreadMode<SingleThreaded>>,
-    end: Option<Bytes>,
     should_continue: bool,
 }
 
 impl<'a> DiskStorageIter<'a> {
     fn new(restricts: &Restricts, db: &'a rocksdb::DB) -> Self {
-        let IndexedRange(index, range) = IndexedRange::from(restricts);
+        let IndexedRange { index, start, .. } = IndexedRange::from(restricts);
         let cf = cf_handle(db, index).unwrap(); // TODO
         let mut iterator = db.raw_iterator_cf(cf);
-        let mut end = None;
-        match range {
-            Range::Full => {
-                iterator.seek_to_first();
-            }
-            Range::From(start) => {
-                iterator.seek(start);
-            }
-            Range::Between(start, e) => {
-                iterator.seek(start);
-                end = Some(e);
-            }
+        match start {
+            None => iterator.seek_to_first(),
+            Some(start) => iterator.seek(start),
         }
         Self {
             iterator,
-            end,
             should_continue: false,
         }
     }
@@ -172,11 +161,6 @@ impl SeekableIterator for DiskStorageIter<'_> {
         }
 
         let bytes = self.iterator.key()?;
-        if let Some(end) = &self.end {
-            if bytes >= end {
-                return None;
-            }
-        }
         self.should_continue = true;
         Some(Ok(bytes))
     }

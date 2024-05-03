@@ -54,16 +54,21 @@ pub struct InMemoryStorageIter<'a> {
 
 impl<'a> InMemoryStorageIter<'a> {
     fn new(storage: &'a InMemoryStorage, restricts: &Restricts) -> Self {
-        let IndexedRange(partition, range) = IndexedRange::from(restricts);
+        let IndexedRange {
+            index: partition,
+            start,
+            ..
+        } = IndexedRange::from(restricts);
         let index = match partition {
             Index::Eavt => &storage.eavt,
             Index::Aevt => &storage.aevt,
             Index::Avet => &storage.avet,
         };
-        Self {
-            index,
-            range: index.range(range),
-        }
+        let range = match start {
+            Some(start) => index.range(start..),
+            None => index.range::<Bytes, _>(..),
+        };
+        Self { index, range }
     }
 }
 

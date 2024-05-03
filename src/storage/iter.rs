@@ -22,7 +22,7 @@ pub struct DatomsIterator<T> {
 
 impl<T> DatomsIterator<T> {
     pub fn new(bytes: T, restricts: Restricts) -> Self {
-        let IndexedRange(index, _) = IndexedRange::from(&restricts);
+        let IndexedRange { index, .. } = IndexedRange::from(&restricts);
         Self {
             restricts,
             index,

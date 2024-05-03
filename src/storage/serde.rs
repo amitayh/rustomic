@@ -1,6 +1,5 @@
 use rust_decimal::Decimal;
 use std::fmt::Debug;
-use std::ops::Bound;
 use std::rc::Rc;
 use thiserror::Error;
 
@@ -91,43 +90,13 @@ pub enum Index {
 }
 
 pub mod index {
-    use std::ops::RangeBounds;
-
     use super::*;
 
-    pub enum Range {
-        Full,
-        From(Bytes),
-        Between(Bytes, Bytes),
+    pub struct IndexedRange {
+        //pub restricts: Restricts,
+        pub index: Index,
+        pub start: Option<Bytes>,
     }
-
-    impl From<Bytes> for Range {
-        fn from(start: Bytes) -> Self {
-            match next_prefix(&start) {
-                Some(end) => Self::Between(start, end),
-                None => Self::From(start),
-            }
-        }
-    }
-
-    impl RangeBounds<[u8]> for Range {
-        fn start_bound(&self) -> Bound<&[u8]> {
-            match self {
-                Self::Full => Bound::Unbounded,
-                Self::From(start) => Bound::Included(start),
-                Self::Between(start, _) => Bound::Included(start),
-            }
-        }
-
-        fn end_bound(&self) -> Bound<&[u8]> {
-            match self {
-                Self::Full | Self::From(_) => Bound::Unbounded,
-                Self::Between(_, end) => Bound::Excluded(end),
-            }
-        }
-    }
-
-    pub struct IndexedRange(pub Index, pub Range);
 
     impl From<&Restricts> for IndexedRange {
         fn from(restricts: &Restricts) -> Self {
@@ -138,29 +107,44 @@ pub mod index {
                     value: Some(value),
                     tx,
                     ..
-                } => Self(
-                    Index::Eavt,
-                    Range::from(write_to_vec!(entity, attribute, value, &!(tx.value()))),
-                ),
+                } => Self {
+                    index: Index::Eavt,
+                    start: Some(write_to_vec!(entity, attribute, value, &!(tx.value()))),
+                },
                 Restricts {
                     entity: Some(entity),
                     attribute: Some(attribute),
                     ..
-                } => Self(Index::Eavt, Range::from(write_to_vec!(entity, attribute))),
+                } => Self {
+                    index: Index::Eavt,
+                    start: Some(write_to_vec!(entity, attribute)),
+                },
                 Restricts {
                     entity: Some(entity),
                     ..
-                } => Self(Index::Eavt, Range::from(write_to_vec!(entity))),
+                } => Self {
+                    index: Index::Eavt,
+                    start: Some(write_to_vec!(entity)),
+                },
                 Restricts {
                     attribute: Some(attribute),
                     value: Some(value),
                     ..
-                } => Self(Index::Avet, Range::from(write_to_vec!(attribute, value))),
+                } => Self {
+                    index: Index::Avet,
+                    start: Some(write_to_vec!(attribute, value)),
+                },
                 Restricts {
                     attribute: Some(attribute),
                     ..
-                } => Self(Index::Aevt, Range::from(write_to_vec!(attribute))),
-                _ => Self(Index::Aevt, Range::Full),
+                } => Self {
+                    index: Index::Aevt,
+                    start: Some(write_to_vec!(attribute)),
+                },
+                _ => Self {
+                    index: Index::Aevt,
+                    start: None,
+                },
             }
         }
     }

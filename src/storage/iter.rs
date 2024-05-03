@@ -1,8 +1,7 @@
 use either::Either;
 
 use crate::datom::*;
-use crate::storage::serde::index::IndexedRange;
-use crate::storage::*;
+use crate::storage::serde::index::Range;
 
 use crate::storage::serde::*;
 
@@ -15,19 +14,13 @@ pub trait SeekableIterator {
 }
 
 pub struct DatomsIterator<T> {
-    restricts: Restricts,
-    index: Index,
+    range: Range,
     bytes: T,
 }
 
 impl<T> DatomsIterator<T> {
-    pub fn new(bytes: T, restricts: Restricts) -> Self {
-        let IndexedRange { index, .. } = IndexedRange::from(&restricts);
-        Self {
-            restricts,
-            index,
-            bytes,
-        }
+    pub fn new(bytes: T, range: Range) -> Self {
+        Self { range, bytes }
     }
 }
 
@@ -41,10 +34,10 @@ impl<T: SeekableIterator> Iterator for DatomsIterator<T> {
                 return Some(Err(Either::Left(err)));
             }
         };
-        match datom::deserialize(self.index, bytes) {
-            Ok(datom) if self.restricts.test(&datom) => Some(Ok(datom)),
+        match datom::deserialize(self.range.index, bytes) {
+            Ok(datom) if self.range.contains(&datom) => Some(Ok(datom)),
             Ok(datom) => {
-                if let Some(key) = index::seek_key(&datom.value, bytes, self.restricts.tx.value()) {
+                if let Some(key) = index::seek_key(&datom.value, bytes, self.range.tx_value()) {
                     if let Err(err) = self.bytes.seek(key) {
                         return Some(Err(Either::Left(err)));
                     }

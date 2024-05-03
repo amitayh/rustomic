@@ -6,7 +6,7 @@ use std::marker::PhantomData;
 use either::Either;
 
 use crate::storage::iter::*;
-use crate::storage::serde::index::*;
+use crate::storage::serde::index;
 use crate::storage::serde::*;
 use crate::storage::*;
 
@@ -42,8 +42,9 @@ impl<'a> ReadStorage<'a> for InMemoryStorage<'a> {
     type Iter = DatomsIterator<InMemoryStorageIter<'a>>;
 
     fn find(&'a self, restricts: Restricts) -> Self::Iter {
-        let iter = InMemoryStorageIter::new(self, &restricts);
-        DatomsIterator::new(iter, restricts)
+        let range = index::Range::from(restricts);
+        let iter = InMemoryStorageIter::new(self, &range);
+        DatomsIterator::new(iter, range)
     }
 }
 
@@ -53,19 +54,14 @@ pub struct InMemoryStorageIter<'a> {
 }
 
 impl<'a> InMemoryStorageIter<'a> {
-    fn new(storage: &'a InMemoryStorage, restricts: &Restricts) -> Self {
-        let IndexedRange {
-            index: partition,
-            start,
-            ..
-        } = IndexedRange::from(restricts);
-        let index = match partition {
+    fn new(storage: &'a InMemoryStorage, range: &index::Range) -> Self {
+        let index = match range.index {
             Index::Eavt => &storage.eavt,
             Index::Aevt => &storage.aevt,
             Index::Avet => &storage.avet,
         };
-        let range = match start {
-            Some(start) => index.range(start..),
+        let range = match &range.start {
+            Some(start) => index.range::<Bytes, _>(start..),
             None => index.range::<Bytes, _>(..),
         };
         Self { index, range }

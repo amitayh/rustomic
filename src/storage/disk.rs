@@ -110,8 +110,9 @@ impl<'a, Mode> ReadStorage<'a> for DiskStorage<'a, Mode> {
     type Iter = DatomsIterator<DiskStorageIter<'a>>;
 
     fn find(&'a self, restricts: Restricts) -> Self::Iter {
-        let iter = DiskStorageIter::new(&restricts, &self.db);
-        DatomsIterator::new(iter, restricts)
+        let range = Range::from(restricts);
+        let iter = DiskStorageIter::new(&range, &self.db);
+        DatomsIterator::new(iter, range)
     }
 }
 
@@ -121,11 +122,10 @@ pub struct DiskStorageIter<'a> {
 }
 
 impl<'a> DiskStorageIter<'a> {
-    fn new(restricts: &Restricts, db: &'a rocksdb::DB) -> Self {
-        let IndexedRange { index, start, .. } = IndexedRange::from(restricts);
-        let cf = cf_handle(db, index).unwrap(); // TODO
+    fn new(range: &Range, db: &'a rocksdb::DB) -> Self {
+        let cf = cf_handle(db, range.index).unwrap(); // TODO
         let mut iterator = db.raw_iterator_cf(cf);
-        match start {
+        match &range.start {
             None => iterator.seek_to_first(),
             Some(start) => iterator.seek(start),
         }

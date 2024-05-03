@@ -92,59 +92,59 @@ pub enum Index {
 pub mod index {
     use super::*;
 
-    pub struct IndexedRange {
-        //pub restricts: Restricts,
+    pub struct Range {
+        pub restricts: Restricts,
         pub index: Index,
         pub start: Option<Bytes>,
     }
 
-    impl From<&Restricts> for IndexedRange {
-        fn from(restricts: &Restricts) -> Self {
-            match restricts {
+    impl Range {
+        pub fn contains(&self, datom: &Datom) -> bool {
+            self.restricts.test(datom)
+        }
+
+        pub fn tx_value(&self) -> u64 {
+            self.restricts.tx.value()
+        }
+    }
+
+    impl From<Restricts> for Range {
+        fn from(restricts: Restricts) -> Self {
+            let (index, start) = match &restricts {
                 Restricts {
                     entity: Some(entity),
                     attribute: Some(attribute),
                     value: Some(value),
                     tx,
                     ..
-                } => Self {
-                    index: Index::Eavt,
-                    start: Some(write_to_vec!(entity, attribute, value, &!(tx.value()))),
-                },
+                } => (
+                    Index::Eavt,
+                    Some(write_to_vec!(entity, attribute, value, &!(tx.value()))),
+                ),
                 Restricts {
                     entity: Some(entity),
                     attribute: Some(attribute),
                     ..
-                } => Self {
-                    index: Index::Eavt,
-                    start: Some(write_to_vec!(entity, attribute)),
-                },
+                } => (Index::Eavt, Some(write_to_vec!(entity, attribute))),
                 Restricts {
                     entity: Some(entity),
                     ..
-                } => Self {
-                    index: Index::Eavt,
-                    start: Some(write_to_vec!(entity)),
-                },
+                } => (Index::Eavt, Some(write_to_vec!(entity))),
                 Restricts {
                     attribute: Some(attribute),
                     value: Some(value),
                     ..
-                } => Self {
-                    index: Index::Avet,
-                    start: Some(write_to_vec!(attribute, value)),
-                },
+                } => (Index::Avet, Some(write_to_vec!(attribute, value))),
                 Restricts {
                     attribute: Some(attribute),
                     ..
-                } => Self {
-                    index: Index::Aevt,
-                    start: Some(write_to_vec!(attribute)),
-                },
-                _ => Self {
-                    index: Index::Aevt,
-                    start: None,
-                },
+                } => (Index::Aevt, Some(write_to_vec!(attribute))),
+                _ => (Index::Aevt, None),
+            };
+            Self {
+                restricts,
+                index,
+                start,
             }
         }
     }

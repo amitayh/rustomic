@@ -5,10 +5,10 @@ use std::marker::PhantomData;
 
 use either::Either;
 
+use crate::storage::iter::*;
+use crate::storage::serde::index::*;
 use crate::storage::serde::*;
 use crate::storage::*;
-
-use super::serde::index::IndexedRange;
 
 #[derive(Default)]
 pub struct InMemoryStorage<'a> {
@@ -42,7 +42,7 @@ impl<'a> ReadStorage<'a> for InMemoryStorage<'a> {
     type Iter = DatomsIterator<InMemoryStorageIter<'a>>;
 
     fn find(&'a self, restricts: Restricts) -> Self::Iter {
-        let iter = InMemoryStorageIter::new(&self, &restricts);
+        let iter = InMemoryStorageIter::new(self, &restricts);
         DatomsIterator::new(iter, restricts)
     }
 }
@@ -66,8 +66,6 @@ impl<'a> InMemoryStorageIter<'a> {
         }
     }
 }
-
-// -------------------------------------------------------------------------------------------------
 
 impl SeekableIterator for InMemoryStorageIter<'_> {
     type Error = Infallible;

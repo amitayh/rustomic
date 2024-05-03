@@ -3,14 +3,13 @@ use std::path::Path;
 
 use either::Either;
 use rocksdb::*;
-
-use crate::storage::restricts::*;
-use crate::storage::serde::*;
-use crate::storage::*;
 use thiserror::Error;
 
-use super::serde::index::IndexedRange;
-use super::serde::index::Range;
+use crate::storage::iter::*;
+use crate::storage::restricts::*;
+use crate::storage::serde::index::*;
+use crate::storage::serde::*;
+use crate::storage::*;
 
 pub struct ReadOnly;
 pub struct ReadWrite;
@@ -155,8 +154,6 @@ pub enum DiskStorageError {
     #[error("column family {:?} not found", 0)]
     ColumnFamilyNotFound(&'static str),
 }
-
-// -------------------------------------------------------------------------------------------------
 
 impl SeekableIterator for DiskStorageIter<'_> {
     type Error = DiskStorageError;

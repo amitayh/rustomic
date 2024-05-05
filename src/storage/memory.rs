@@ -1,4 +1,4 @@
-use std::collections::btree_set::Range;
+use std::collections::btree_set;
 use std::collections::BTreeSet;
 use std::convert::Infallible;
 use std::marker::PhantomData;
@@ -6,7 +6,7 @@ use std::marker::PhantomData;
 use either::Either;
 
 use crate::storage::iter::*;
-use crate::storage::serde::index;
+use crate::storage::serde::index::Range;
 use crate::storage::serde::*;
 use crate::storage::*;
 
@@ -42,7 +42,7 @@ impl<'a> ReadStorage<'a> for InMemoryStorage<'a> {
     type Iter = DatomsIterator<InMemoryStorageIter<'a>>;
 
     fn find(&'a self, restricts: Restricts) -> Self::Iter {
-        let range = index::Range::from(restricts);
+        let range = Range::from(restricts);
         let iter = InMemoryStorageIter::new(self, &range);
         DatomsIterator::new(iter, range)
     }
@@ -50,11 +50,11 @@ impl<'a> ReadStorage<'a> for InMemoryStorage<'a> {
 
 pub struct InMemoryStorageIter<'a> {
     index: &'a BTreeSet<Bytes>,
-    range: Range<'a, Bytes>,
+    range: btree_set::Range<'a, Bytes>,
 }
 
 impl<'a> InMemoryStorageIter<'a> {
-    fn new(storage: &'a InMemoryStorage, range: &index::Range) -> Self {
+    fn new(storage: &'a InMemoryStorage, range: &Range) -> Self {
         let index = match range.index {
             Index::Eavt => &storage.eavt,
             Index::Aevt => &storage.aevt,

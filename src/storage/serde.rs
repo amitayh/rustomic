@@ -148,44 +148,6 @@ pub mod index {
             }
         }
     }
-
-    /// For bytes of a given datom [e a v _ _], seek to the next immediate datom in the index which
-    /// differs in the [e a v] combination.
-    pub fn seek_key(value: &Value, datom_bytes: &[u8], basis_tx: u64) -> Option<Bytes> {
-        next_prefix(&datom_bytes[..key_size(value)]).map(|mut key| {
-            // Also include the tx ID to quickly skip datoms that don't belong to DB snapshot.
-            (!basis_tx).write(&mut key);
-            key
-        })
-    }
-
-    /// Number of bytes used to encode a datom with value `value`.
-    /// Excluding `tx` and `op` (prefix only).
-    fn key_size(value: &Value) -> usize {
-        std::mem::size_of::<u64>() // Entity
-        + std::mem::size_of::<u64>() // Attribute
-        + value.size()
-    }
-
-    /// Returns lowest value following largest value with given prefix.
-    ///
-    /// In other words, computes upper bound for a prefix scan over list of keys
-    /// sorted in lexicographical order.  This means that a prefix scan can be
-    /// expressed as range scan over a right-open `[prefix, next_prefix(prefix))`
-    /// range.
-    ///
-    /// For example, for prefix `foo` the function returns `fop`.
-    fn next_prefix(prefix: &[u8]) -> Option<Bytes> {
-        let ffs = prefix
-            .iter()
-            .rev()
-            .take_while(|&&byte| byte == u8::MAX)
-            .count();
-        let mut next = prefix[..(prefix.len() - ffs)].to_vec();
-        let last = next.last_mut()?;
-        *last += 1;
-        Some(next)
-    }
 }
 
 mod value {

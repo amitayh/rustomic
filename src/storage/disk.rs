@@ -136,14 +136,6 @@ impl<'a> DiskStorageIter<'a> {
     }
 }
 
-#[derive(Debug, Error)]
-pub enum DiskStorageError {
-    #[error("storage error")]
-    DbError(#[from] rocksdb::Error),
-    #[error("column family {:?} not found", 0)]
-    ColumnFamilyNotFound(&'static str),
-}
-
 impl SeekableIterator for DiskStorageIter<'_> {
     type Error = DiskStorageError;
 
@@ -170,4 +162,12 @@ impl SeekableIterator for DiskStorageIter<'_> {
         self.should_continue = false;
         Ok(())
     }
+}
+
+#[derive(Debug, Error)]
+pub enum DiskStorageError {
+    #[error("storage error")]
+    DbError(#[from] rocksdb::Error),
+    #[error("column family {:?} not found", 0)]
+    ColumnFamilyNotFound(&'static str),
 }

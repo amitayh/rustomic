@@ -53,19 +53,19 @@ impl EntityOperation {
         Self::new(OperatedEntity::TempId(Rc::from(temp_id)))
     }
 
-    pub fn set_value(self, attribute: &str, value: impl Into<Value>) -> Self {
+    pub fn assert(self, attribute: &str, value: impl Into<Value>) -> Self {
         self.set(
             Rc::from(attribute),
             AttributeValue::Value(value.into()),
-            Op::Added,
+            Op::Assert,
         )
     }
 
-    pub fn retract_value(self, attribute: &str, value: impl Into<Value>) -> Self {
+    pub fn retract(self, attribute: &str, value: impl Into<Value>) -> Self {
         self.set(
             Rc::from(attribute),
             AttributeValue::Value(value.into()),
-            Op::Retracted,
+            Op::Retract,
         )
     }
 
@@ -73,7 +73,7 @@ impl EntityOperation {
         self.set(
             Rc::from(attribute),
             AttributeValue::TempId(Rc::from(temp_id)),
-            Op::Added,
+            Op::Assert,
         )
     }
 

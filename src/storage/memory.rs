@@ -6,7 +6,7 @@ use std::marker::PhantomData;
 use either::Either;
 
 use crate::storage::iter::*;
-use crate::storage::serde::index::Range;
+use crate::storage::serde::index::RestrictedIndexRange;
 use crate::storage::serde::*;
 use crate::storage::*;
 
@@ -42,7 +42,7 @@ impl<'a> ReadStorage<'a> for InMemoryStorage<'a> {
     type Iter = DatomsIterator<InMemoryStorageIter<'a>>;
 
     fn find(&'a self, restricts: Restricts) -> Self::Iter {
-        let range = Range::from(restricts);
+        let range = RestrictedIndexRange::from(restricts);
         let iter = InMemoryStorageIter::new(self, &range);
         DatomsIterator::new(iter, range)
     }
@@ -54,7 +54,7 @@ pub struct InMemoryStorageIter<'a> {
 }
 
 impl<'a> InMemoryStorageIter<'a> {
-    fn new(storage: &'a InMemoryStorage, range: &Range) -> Self {
+    fn new(storage: &'a InMemoryStorage, range: &RestrictedIndexRange) -> Self {
         let index = match range.index {
             Index::Eavt => &storage.eavt,
             Index::Aevt => &storage.aevt,

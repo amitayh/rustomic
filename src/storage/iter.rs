@@ -1,7 +1,7 @@
 use either::Either;
 
 use crate::datom::*;
-use crate::storage::serde::index::Range;
+use crate::storage::serde::index::RestrictedIndexRange;
 
 use crate::storage::serde::*;
 
@@ -14,12 +14,12 @@ pub trait SeekableIterator {
 }
 
 pub struct DatomsIterator<T> {
-    range: Range,
+    range: RestrictedIndexRange,
     bytes: T,
 }
 
 impl<T> DatomsIterator<T> {
-    pub fn new(bytes: T, range: Range) -> Self {
+    pub fn new(bytes: T, range: RestrictedIndexRange) -> Self {
         Self { range, bytes }
     }
 }

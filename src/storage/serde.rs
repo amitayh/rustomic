@@ -92,13 +92,13 @@ pub enum Index {
 pub mod index {
     use super::*;
 
-    pub struct Range {
+    pub struct RestrictedIndexRange {
         pub restricts: Restricts,
         pub index: Index,
         pub start: Option<Bytes>,
     }
 
-    impl Range {
+    impl RestrictedIndexRange {
         pub fn contains(&self, datom: &Datom) -> bool {
             self.restricts.test(datom)
         }
@@ -108,7 +108,7 @@ pub mod index {
         }
     }
 
-    impl From<Restricts> for Range {
+    impl From<Restricts> for RestrictedIndexRange {
         fn from(restricts: Restricts) -> Self {
             let (index, start) = match &restricts {
                 Restricts {
@@ -162,8 +162,8 @@ mod value {
 }
 
 mod op {
-    pub const TAG_ADDED: u8 = 0x00;
-    pub const TAG_RETRACTED: u8 = 0x01;
+    pub const TAG_ASSERT: u8 = 0x00;
+    pub const TAG_RETRACT: u8 = 0x01;
 }
 
 pub mod datom {
@@ -373,8 +373,8 @@ impl Writable for Op {
 
     fn write(&self, buffer: &mut Bytes) {
         match self {
-            Self::Added => op::TAG_ADDED,
-            Self::Retracted => op::TAG_RETRACTED,
+            Self::Assert => op::TAG_ASSERT,
+            Self::Retract => op::TAG_RETRACT,
         }
         .write(buffer)
     }
@@ -490,8 +490,8 @@ impl<'a> Readable<Value> for Reader<'a> {
 impl<'a> Readable<Op> for Reader<'a> {
     fn read(&mut self) -> ReadResult<Op> {
         match self.read()? {
-            op::TAG_ADDED => Ok(Op::Added),
-            op::TAG_RETRACTED => Ok(Op::Retracted),
+            op::TAG_ASSERT => Ok(Op::Assert),
+            op::TAG_RETRACT => Ok(Op::Retract),
             _ => Err(ReadError::InvalidInput),
         }
     }

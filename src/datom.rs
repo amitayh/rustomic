@@ -21,7 +21,7 @@ impl Datom {
             attribute,
             value: value.into(),
             tx,
-            op: Op::Added,
+            op: Op::Assert,
         }
     }
 
@@ -31,7 +31,7 @@ impl Datom {
             attribute,
             value: value.into(),
             tx,
-            op: Op::Retracted,
+            op: Op::Retract,
         }
     }
 }
@@ -135,16 +135,16 @@ impl Arbitrary for Value {
 
 #[derive(Hash, Eq, PartialEq, Debug, Clone, Copy)]
 pub enum Op {
-    Added,
-    Retracted,
+    Assert,
+    Retract,
 }
 
 impl Arbitrary for Op {
     fn arbitrary(u: &mut Gen) -> Self {
         if bool::arbitrary(u) {
-            Self::Added
+            Self::Assert
         } else {
-            Self::Retracted
+            Self::Retract
         }
     }
 }

@@ -138,23 +138,23 @@ mod tests {
         Transaction::new()
             .with(
                 EntityOperation::on_new()
-                    .set_value("person/name", "John")
-                    .set_value("person/born", 1940),
+                    .assert("person/name", "John")
+                    .assert("person/born", 1940),
             )
             .with(
                 EntityOperation::on_new()
-                    .set_value("person/name", "Paul")
-                    .set_value("person/born", 1942),
+                    .assert("person/name", "Paul")
+                    .assert("person/born", 1942),
             )
             .with(
                 EntityOperation::on_new()
-                    .set_value("person/name", "George")
-                    .set_value("person/born", 1943),
+                    .assert("person/name", "George")
+                    .assert("person/born", 1943),
             )
             .with(
                 EntityOperation::on_new()
-                    .set_value("person/name", "Ringo")
-                    .set_value("person/born", 1940),
+                    .assert("person/name", "Ringo")
+                    .assert("person/born", 1940),
             )
     }
 
@@ -165,8 +165,8 @@ mod tests {
         // Insert data
         sut.transact(
             Transaction::new()
-                .with(EntityOperation::on_new().set_value("person/name", "Alice"))
-                .with(EntityOperation::on_new().set_value("person/name", "Bob")),
+                .with(EntityOperation::on_new().assert("person/name", "Alice"))
+                .with(EntityOperation::on_new().assert("person/name", "Bob")),
         );
 
         let query_result = sut.query(
@@ -188,7 +188,7 @@ mod tests {
         // Insert data
         let tx_result = sut.transact(
             Transaction::new()
-                .with(EntityOperation::on_temp_id("joe").set_value("person/name", "Joe")),
+                .with(EntityOperation::on_temp_id("joe").assert("person/name", "Joe")),
         );
 
         let query_result = sut.query(
@@ -214,7 +214,7 @@ mod tests {
         let mut sut = Sut::new();
 
         // This transaction should fail: "person/name" is of type `ValueType::Str`.
-        let tx = Transaction::new().with(EntityOperation::on_new().set_value("person/name", 42));
+        let tx = Transaction::new().with(EntityOperation::on_new().assert("person/name", 42));
         let tx_result = sut.try_transact(tx);
 
         assert!(tx_result.is_none());
@@ -226,8 +226,8 @@ mod tests {
 
         // This transaction should fail: temp ID "duplicate" should only be used once.
         let tx = Transaction::new()
-            .with(EntityOperation::on_temp_id("duplicate").set_value("person/name", "Alice"))
-            .with(EntityOperation::on_temp_id("duplicate").set_value("person/name", "Bob"));
+            .with(EntityOperation::on_temp_id("duplicate").assert("person/name", "Alice"))
+            .with(EntityOperation::on_temp_id("duplicate").assert("person/name", "Bob"));
         let tx_result = sut.try_transact(tx);
 
         assert!(tx_result.is_none());
@@ -240,13 +240,11 @@ mod tests {
         // Insert data
         sut.transact(
             Transaction::new()
-                .with(EntityOperation::on_temp_id("john").set_value("artist/name", "John Lenon"))
-                .with(
-                    EntityOperation::on_temp_id("paul").set_value("artist/name", "Paul McCartney"),
-                )
+                .with(EntityOperation::on_temp_id("john").assert("artist/name", "John Lenon"))
+                .with(EntityOperation::on_temp_id("paul").assert("artist/name", "Paul McCartney"))
                 .with(
                     EntityOperation::on_temp_id("abbey-road")
-                        .set_value("release/name", "Abbey Road")
+                        .assert("release/name", "Abbey Road")
                         .set_reference("release/artists", "john")
                         .set_reference("release/artists", "paul"),
                 ),
@@ -289,8 +287,8 @@ mod tests {
         let tx_result = sut.transact(
             Transaction::new().with(
                 EntityOperation::on_temp_id("joe")
-                    .set_value("person/name", "Joe")
-                    .set_value("person/email", "foo@bar.com"),
+                    .assert("person/name", "Joe")
+                    .assert("person/email", "foo@bar.com"),
             ),
         );
         let joe_id = tx_result.temp_ids["joe"];
@@ -298,7 +296,7 @@ mod tests {
         // Update Joe's email
         sut.transact(
             Transaction::new()
-                .with(EntityOperation::on_id(joe_id).set_value("person/email", "foo@baz.com")),
+                .with(EntityOperation::on_id(joe_id).assert("person/email", "foo@baz.com")),
         );
 
         let query_result = sut.query(
@@ -324,8 +322,8 @@ mod tests {
         let tx_result = sut.transact(
             Transaction::new().with(
                 EntityOperation::on_temp_id("joe")
-                    .set_value("person/name", "Joe")
-                    .set_value("person/likes", "Pizza"),
+                    .assert("person/name", "Joe")
+                    .assert("person/likes", "Pizza"),
             ),
         );
         let joe_id = tx_result.temp_ids["joe"];
@@ -333,7 +331,7 @@ mod tests {
         // Update what Joe likes
         sut.transact(
             Transaction::new()
-                .with(EntityOperation::on_id(joe_id).set_value("person/likes", "Ice cream")),
+                .with(EntityOperation::on_id(joe_id).assert("person/likes", "Ice cream")),
         );
 
         let query_result = sut.query(
@@ -362,8 +360,8 @@ mod tests {
         let first_tx_result = sut.transact(
             Transaction::new().with(
                 EntityOperation::on_temp_id("joe")
-                    .set_value("person/name", "Joe")
-                    .set_value("person/likes", "Pizza"),
+                    .assert("person/name", "Joe")
+                    .assert("person/likes", "Pizza"),
             ),
         );
         let joe_id = first_tx_result.temp_ids["joe"];
@@ -372,8 +370,8 @@ mod tests {
         sut.transact(
             Transaction::new().with(
                 EntityOperation::on_id(joe_id)
-                    .set_value("person/name", "Joe")
-                    .set_value("person/likes", "Ice cream"),
+                    .assert("person/name", "Joe")
+                    .assert("person/likes", "Ice cream"),
             ),
         );
 
@@ -399,7 +397,7 @@ mod tests {
 
         // Insert initial data
         let tx_result = sut.transact(
-            Transaction::new().with(EntityOperation::on_new().set_value("person/name", "Joe")),
+            Transaction::new().with(EntityOperation::on_new().assert("person/name", "Joe")),
         );
 
         let query_result = sut.query(
@@ -435,7 +433,7 @@ mod tests {
 
         // Insert initial data
         let tx_result = sut.transact(
-            Transaction::new().with(EntityOperation::on_new().set_value("person/name", "Joe")),
+            Transaction::new().with(EntityOperation::on_new().assert("person/name", "Joe")),
         );
 
         // Find all datoms belonging to transaction
@@ -474,7 +472,7 @@ mod tests {
 
         // Insert data
         sut.transact(
-            Transaction::new().with(EntityOperation::on_new().set_value("person/name", "John")),
+            Transaction::new().with(EntityOperation::on_new().assert("person/name", "John")),
         );
 
         let query_result = sut.query(
@@ -570,29 +568,29 @@ mod tests {
             Transaction::new()
                 .with(
                     EntityOperation::on_new()
-                        .set_value("person/name", "John")
-                        .set_value("person/likes", "Pizza")
-                        .set_value("person/likes", "Ice cream")
-                        .set_value("person/born", 1967),
+                        .assert("person/name", "John")
+                        .assert("person/likes", "Pizza")
+                        .assert("person/likes", "Ice cream")
+                        .assert("person/born", 1967),
                 )
                 .with(
                     EntityOperation::on_new()
-                        .set_value("person/name", "John")
-                        .set_value("person/likes", "Pizza")
-                        .set_value("person/likes", "Beer")
-                        .set_value("person/born", 1967),
+                        .assert("person/name", "John")
+                        .assert("person/likes", "Pizza")
+                        .assert("person/likes", "Beer")
+                        .assert("person/born", 1967),
                 )
                 .with(
                     EntityOperation::on_new()
-                        .set_value("person/name", "Mike")
-                        .set_value("person/likes", "Pizza")
-                        .set_value("person/born", 1967),
+                        .assert("person/name", "Mike")
+                        .assert("person/likes", "Pizza")
+                        .assert("person/born", 1967),
                 )
                 .with(
                     EntityOperation::on_new()
-                        .set_value("person/name", "James")
-                        .set_value("person/likes", "Beer")
-                        .set_value("person/born", 1963),
+                        .assert("person/name", "James")
+                        .assert("person/likes", "Beer")
+                        .assert("person/born", 1963),
                 ),
         );
 
@@ -718,8 +716,8 @@ mod tests {
         let tx_result = sut.transact(
             Transaction::new().with(
                 EntityOperation::on_temp_id("joe")
-                    .set_value("person/name", "Joe")
-                    .set_value("person/likes", "Pizza"),
+                    .assert("person/name", "Joe")
+                    .assert("person/likes", "Pizza"),
             ),
         );
 
@@ -739,7 +737,7 @@ mod tests {
         // Retract
         sut.transact(
             Transaction::new()
-                .with(EntityOperation::on_id(joe_id).retract_value("person/likes", "Pizza")),
+                .with(EntityOperation::on_id(joe_id).retract("person/likes", "Pizza")),
         );
 
         assert_that!(sut.query(query), empty());
@@ -755,16 +753,16 @@ mod tests {
             sut.transact(
                 Transaction::new().with(
                     EntityOperation::on_new()
-                        .set_value("person/name", "Alice")
-                        .set_value("person/email", "foo@bar.com"),
+                        .assert("person/name", "Alice")
+                        .assert("person/email", "foo@bar.com"),
                 ),
             );
 
             let tx_result = sut.try_transact(
                 Transaction::new().with(
                     EntityOperation::on_new()
-                        .set_value("person/name", "Bob")
-                        .set_value("person/email", "foo@bar.com"),
+                        .assert("person/name", "Bob")
+                        .assert("person/email", "foo@bar.com"),
                 ),
             );
 
@@ -779,13 +777,13 @@ mod tests {
                 Transaction::new()
                     .with(
                         EntityOperation::on_new()
-                            .set_value("person/name", "Alice")
-                            .set_value("person/email", "foo@bar.com"),
+                            .assert("person/name", "Alice")
+                            .assert("person/email", "foo@bar.com"),
                     )
                     .with(
                         EntityOperation::on_new()
-                            .set_value("person/name", "Bob")
-                            .set_value("person/email", "foo@bar.com"),
+                            .assert("person/name", "Bob")
+                            .assert("person/email", "foo@bar.com"),
                     ),
             );
 

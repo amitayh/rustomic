@@ -74,7 +74,7 @@ impl Restricts {
     }
 
     pub fn test(&self, datom: &Datom) -> bool {
-        datom.op == Op::Added
+        datom.op == Op::Assert
             && self.entity.map_or(true, |e| datom.entity == e)
             && self.attribute.map_or(true, |a| datom.attribute == a)
             && self.value.as_ref().map_or(true, |v| &datom.value == v)

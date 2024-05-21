@@ -17,6 +17,8 @@ pub trait ReadStorage<'a> {
     /// Iterator might fail with `Self::Error` during iteration.
     /// Ordering of datoms is not guaranteed.
     fn find(&'a self, restricts: Restricts) -> Self::Iter;
+
+    fn latest_tx(&self) -> Result<u64, Self::Error>;
 }
 
 pub trait WriteStorage {

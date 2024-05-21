@@ -46,6 +46,10 @@ impl<'a> ReadStorage<'a> for InMemoryStorage<'a> {
         let iter = InMemoryStorageIter::new(self, &range);
         DatomsIterator::new(iter, range)
     }
+
+    fn latest_tx(&self) -> Result<u64, Self::Error> {
+        todo!()
+    }
 }
 
 pub struct InMemoryStorageIter<'a> {

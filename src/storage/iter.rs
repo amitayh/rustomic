@@ -15,12 +15,15 @@ pub trait SeekableIterator {
 
 pub struct DatomsIterator<T> {
     range: RestrictedIndexRange,
-    bytes: T,
+    bytes_iterator: T,
 }
 
 impl<T> DatomsIterator<T> {
-    pub fn new(bytes: T, range: RestrictedIndexRange) -> Self {
-        Self { range, bytes }
+    pub fn new(bytes_iterator: T, range: RestrictedIndexRange) -> Self {
+        Self {
+            range,
+            bytes_iterator,
+        }
     }
 }
 
@@ -28,7 +31,7 @@ impl<T: SeekableIterator> Iterator for DatomsIterator<T> {
     type Item = Result<Datom, Either<T::Error, ReadError>>;
 
     fn next(&mut self) -> Option<Self::Item> {
-        let bytes = match self.bytes.next()? {
+        let bytes = match self.bytes_iterator.next()? {
             Ok(bytes) => bytes,
             Err(err) => {
                 return Some(Err(Either::Left(err)));
@@ -38,9 +41,8 @@ impl<T: SeekableIterator> Iterator for DatomsIterator<T> {
             Ok(datom) if self.range.contains(&datom) => Some(Ok(datom)),
             Ok(datom) => {
                 // Datom is out of range, seek to next one
-                let basis_tx = self.range.tx_value();
-                if let Some(key) = seek_key(&datom.value, bytes, basis_tx) {
-                    if let Err(err) = self.bytes.seek(key) {
+                if let Some(key) = seek_key(&datom.value, bytes, self.range.tx_value()) {
+                    if let Err(err) = self.bytes_iterator.seek(key) {
                         return Some(Err(Either::Left(err)));
                     }
                 }
@@ -54,11 +56,9 @@ impl<T: SeekableIterator> Iterator for DatomsIterator<T> {
 /// For bytes of a given datom [e a v _ _], seek to the next immediate datom in the index which
 /// differs in the [e a v] combination.
 fn seek_key(value: &Value, datom_bytes: &[u8], basis_tx: u64) -> Option<Bytes> {
-    next_prefix(&datom_bytes[..key_size(value)]).map(|mut key| {
-        // Also include the tx ID to quickly skip datoms that don't belong to DB snapshot.
-        (!basis_tx).write(&mut key);
-        key
-    })
+    let mut key = next_prefix(&datom_bytes[..key_size(value)])?;
+    (!basis_tx).write(&mut key);
+    Some(key)
 }
 
 /// Returns lowest value following largest value with given prefix.

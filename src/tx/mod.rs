@@ -6,6 +6,7 @@ use std::rc::Rc;
 use crate::datom::Datom;
 use crate::datom::Op;
 use crate::datom::Value;
+use crate::schema::attribute::ValueType;
 use crate::storage::attribute_resolver::ResolveError;
 use thiserror::Error;
 
@@ -122,7 +123,11 @@ pub enum TransactionError<S> {
     #[error("storage error")]
     StorageError(#[from] S),
     #[error("invalid attribute type")]
-    InvalidAttributeType { attribute: u64, value: Value },
+    InvalidAttributeType {
+        attribute_id: u64,
+        attribute_type: ValueType,
+        value: Value,
+    },
     #[error("duplicate temp ID `{0}`")]
     DuplicateTempId(Rc<str>),
     #[error("temp ID `{0}` not found")]

@@ -114,6 +114,10 @@ impl<'a, Mode> ReadStorage<'a> for DiskStorage<'a, Mode> {
         let iter = DiskStorageIter::new(&range, &self.db);
         DatomsIterator::new(iter, range)
     }
+
+    fn latest_tx(&self) -> Result<u64, Self::Error> {
+        todo!()
+    }
 }
 
 pub struct DiskStorageIter<'a> {

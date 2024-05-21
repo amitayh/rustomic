@@ -159,7 +159,8 @@ fn verify_type<E>(attribute: &Attribute, value: &Value) -> Result<(), E> {
     if attribute.definition.value_type != ValueType::from(value) {
         // Value type is incompatible with attribute, reject transaction.
         return Err(TransactionError::InvalidAttributeType {
-            attribute: attribute.id,
+            attribute_id: attribute.id,
+            attribute_type: attribute.definition.value_type,
             value: value.clone(),
         });
     }

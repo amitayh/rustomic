@@ -454,25 +454,21 @@ impl<'a> Readable<u8> for Reader<'a> {
 impl<'a> Readable<u16> for Reader<'a> {
     fn read(&mut self) -> ReadResult<u16> {
         let buffer = self.read_next(2)?;
-        Ok(u16::from_be_bytes([buffer[0], buffer[1]]))
+        Ok(u16::from_be_bytes(buffer.try_into().unwrap()))
     }
 }
 
 impl<'a> Readable<u64> for Reader<'a> {
     fn read(&mut self) -> ReadResult<u64> {
         let buffer = self.read_next(8)?;
-        Ok(u64::from_be_bytes([
-            buffer[0], buffer[1], buffer[2], buffer[3], buffer[4], buffer[5], buffer[6], buffer[7],
-        ]))
+        Ok(u64::from_be_bytes(buffer.try_into().unwrap()))
     }
 }
 
 impl<'a> Readable<i64> for Reader<'a> {
     fn read(&mut self) -> ReadResult<i64> {
         let buffer = self.read_next(8)?;
-        Ok(i64::from_be_bytes([
-            buffer[0], buffer[1], buffer[2], buffer[3], buffer[4], buffer[5], buffer[6], buffer[7],
-        ]))
+        Ok(i64::from_be_bytes(buffer.try_into().unwrap()))
     }
 }
 

@@ -31,10 +31,9 @@ impl Transactor {
         now: Instant,
         transaction: Transaction,
     ) -> Result<TransctionResult, S::Error> {
-        let mut id_allocator = IdAllocator(storage.latest_entity_id()?);
-        let temp_ids = self.generate_temp_ids(&transaction, &mut id_allocator)?;
-        let datoms =
-            self.transaction_datoms(storage, now, transaction, &temp_ids, &mut id_allocator)?;
+        let mut next_id = NextId(storage.latest_entity_id()?);
+        let temp_ids = self.generate_temp_ids(&transaction, &mut next_id)?;
+        let datoms = self.transaction_datoms(storage, now, transaction, &temp_ids, &mut next_id)?;
 
         Ok(TransctionResult {
             tx_id: datoms[0].tx,
@@ -46,12 +45,12 @@ impl Transactor {
     fn generate_temp_ids<E>(
         &mut self,
         transaction: &Transaction,
-        id_allocator: &mut IdAllocator,
+        next_id: &mut NextId,
     ) -> Result<TempIds, E> {
         let mut temp_ids = HashMap::new();
         for operation in &transaction.operations {
             if let OperatedEntity::TempId(temp_id) = &operation.entity {
-                let entity_id = id_allocator.next();
+                let entity_id = next_id.get();
                 if temp_ids.insert(Rc::clone(temp_id), entity_id).is_some() {
                     return Err(TransactionError::DuplicateTempId(Rc::clone(temp_id)));
                 }
@@ -66,29 +65,24 @@ impl Transactor {
         now: Instant,
         transaction: Transaction,
         temp_ids: &TempIds,
-        id_allocator: &mut IdAllocator,
+        next_id: &mut NextId,
     ) -> Result<Vec<Datom>, S::Error> {
         let mut datoms = Vec::with_capacity(transaction.total_attribute_operations());
         let mut unique_values = HashSet::new(); // TODO capacity?
-        let tx = self.create_tx_datom(now, id_allocator);
+        let tx = next_id.get();
         for operation in transaction.operations {
             self.operation_datoms(
                 storage,
-                tx.entity,
+                tx,
                 operation,
                 temp_ids,
                 &mut datoms,
                 &mut unique_values,
-                id_allocator,
+                next_id,
             )?;
         }
-        datoms.push(tx);
+        datoms.push(Datom::add(tx, DB_TX_TIME_ID, now.0, tx));
         Ok(datoms)
-    }
-
-    fn create_tx_datom(&mut self, now: Instant, id_allocator: &mut IdAllocator) -> Datom {
-        let tx = id_allocator.next();
-        Datom::add(tx, DB_TX_TIME_ID, now.0, tx)
     }
 
     fn operation_datoms<'a, S: ReadStorage<'a>>(
@@ -99,9 +93,9 @@ impl Transactor {
         temp_ids: &TempIds,
         datoms: &mut Vec<Datom>,
         unique_values: &mut HashSet<(u64, Value)>,
-        id_allocator: &mut IdAllocator,
+        next_id: &mut NextId,
     ) -> Result<(), S::Error> {
-        let entity = self.resolve_entity(operation.entity, temp_ids, id_allocator)?;
+        let entity = self.resolve_entity(operation.entity, temp_ids, next_id)?;
         let mut retract_attributes = HashSet::with_capacity(operation.attributes.len());
         for attribute_value in operation.attributes {
             let attribute =
@@ -141,20 +135,20 @@ impl Transactor {
         &mut self,
         entity: OperatedEntity,
         temp_ids: &TempIds,
-        id_allocator: &mut IdAllocator,
+        next_id: &mut NextId,
     ) -> Result<EntityId, E> {
         match entity {
-            OperatedEntity::New => Ok(id_allocator.next()),
+            OperatedEntity::New => Ok(next_id.get()),
             OperatedEntity::Id(id) => Ok(id),
             OperatedEntity::TempId(temp_id) => temp_ids.get(&temp_id),
         }
     }
 }
 
-struct IdAllocator(EntityId);
+struct NextId(EntityId);
 
-impl IdAllocator {
-    fn next(&mut self) -> EntityId {
+impl NextId {
+    fn get(&mut self) -> EntityId {
         self.0 += 1;
         self.0
     }

@@ -1,5 +1,6 @@
 use std::marker::PhantomData;
 use std::path::Path;
+use std::u64;
 
 use either::Either;
 use rocksdb::*;
@@ -43,6 +44,9 @@ impl Partition for Index {
 }
 
 struct System;
+
+const KEY_LATEST_ENTITY_ID: &str = "latest_entity_id";
+//const KEY_VERSION: &str = "version";
 
 impl Partition for System {
     fn name(&self) -> &'static str {
@@ -103,7 +107,8 @@ impl<'a> WriteStorage for DiskStorage<'a, ReadWrite> {
             batch.put_cf(avet, datom::serialize::avet(datom), "");
             latest_entity_id = latest_entity_id.max(datom.entity);
         }
-        batch.put_cf(system, "entity_id", latest_entity_id.to_be_bytes());
+        batch.put_cf(system, KEY_LATEST_ENTITY_ID, latest_entity_id.to_be_bytes());
+        //batch.put_cf(system, "entity_id", latest_entity_id.to_be_bytes());
         self.db.write(batch)?;
         Ok(())
     }
@@ -120,19 +125,18 @@ impl<'a, Mode> ReadStorage<'a> for DiskStorage<'a, Mode> {
     }
 
     fn latest_entity_id(&self) -> Result<u64, Self::Error> {
-        self.lala().map_err(Either::Left)
+        self.try_latest_entity_id().map_err(Either::Left)
     }
 }
 
 impl<'a, Mode> DiskStorage<'a, Mode> {
-    fn lala(&self) -> Result<u64, DiskStorageError> {
+    fn try_latest_entity_id(&self) -> Result<u64, DiskStorageError> {
         let system = cf_handle(&self.db, System)?;
-        let bytes = self.db.get_cf(system, "entity_id")?;
-        let id = bytes.map_or(1, |bytes| {
-            u64::from_be_bytes([
-                bytes[0], bytes[1], bytes[2], bytes[3], bytes[4], bytes[5], bytes[6], bytes[7],
-            ])
-        });
+        let bytes = self.db.get_cf(system, KEY_LATEST_ENTITY_ID)?;
+        let id = bytes
+            .and_then(|bytes| bytes.try_into().ok())
+            .map(u64::from_be_bytes)
+            .unwrap_or(0);
         Ok(id)
     }
 }

@@ -14,6 +14,7 @@ mod tests {
         fn create() -> Self;
         fn save(&mut self, datoms: &[Datom]);
         fn find(&self, restricts: Restricts) -> HashSet<Datom>;
+        fn latest_entity_id(&self) -> u64;
     }
 
     mod memory {
@@ -36,6 +37,12 @@ mod tests {
                     .find(restricts)
                     .filter_map(|result| result.ok())
                     .collect()
+            }
+
+            fn latest_entity_id(&self) -> u64 {
+                self.0
+                    .latest_entity_id()
+                    .expect("Unable to fetch latest entity id")
             }
         }
 
@@ -88,6 +95,16 @@ mod tests {
         fn fetch_only_latest_value_for_attribute() {
             fetch_only_latest_value_for_attribute_impl::<InMemory>();
         }
+
+        #[test]
+        fn fetch_latest_entity_id_without_datoms() {
+            fetch_latest_entity_id_without_datoms_impl::<InMemory>();
+        }
+
+        #[test]
+        fn fetch_latest_entity_id_with_datoms() {
+            fetch_latest_entity_id_with_datoms_impl::<InMemory>();
+        }
     }
 
     mod disk {
@@ -120,6 +137,13 @@ mod tests {
                     .find(restricts)
                     .map(|result| result.expect("Error while reading datom"))
                     .collect()
+            }
+
+            fn latest_entity_id(&self) -> u64 {
+                DiskStorage::read_only(&self.path)
+                    .expect("Unable to open DB")
+                    .latest_entity_id()
+                    .expect("Unable to fetch latest entity id")
             }
         }
 
@@ -171,6 +195,16 @@ mod tests {
         #[test]
         fn fetch_only_latest_value_for_attribute() {
             fetch_only_latest_value_for_attribute_impl::<Disk>();
+        }
+
+        #[test]
+        fn fetch_latest_entity_id_without_datoms() {
+            fetch_latest_entity_id_without_datoms_impl::<Disk>();
+        }
+
+        #[test]
+        fn fetch_latest_entity_id_with_datoms() {
+            fetch_latest_entity_id_with_datoms_impl::<Disk>();
         }
     }
 
@@ -367,5 +401,24 @@ mod tests {
         );
 
         assert_that!(read_result, elements_are![eq_deref_of(&datoms[2])]);
+    }
+
+    fn fetch_latest_entity_id_without_datoms_impl<S: TestStorage>() {
+        let storage = S::create();
+
+        assert_eq!(storage.latest_entity_id(), 0);
+    }
+
+    fn fetch_latest_entity_id_with_datoms_impl<S: TestStorage>() {
+        let mut storage = S::create();
+        let attribute = 100;
+        let datoms = [
+            Datom::add(100, attribute, 1u64, 1000),
+            Datom::add(102, attribute, 1u64, 1000),
+            Datom::add(101, attribute, 1u64, 1000),
+        ];
+        storage.save(&datoms);
+
+        assert_eq!(storage.latest_entity_id(), 102);
     }
 }

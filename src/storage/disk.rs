@@ -94,12 +94,16 @@ impl<'a> WriteStorage for DiskStorage<'a, ReadWrite> {
         let eavt = cf_handle(&self.db, Index::Eavt)?;
         let aevt = cf_handle(&self.db, Index::Aevt)?;
         let avet = cf_handle(&self.db, Index::Avet)?;
+        let system = cf_handle(&self.db, System)?;
         let mut batch = rocksdb::WriteBatch::default();
+        let mut latest_entity_id = 0;
         for datom in datoms {
             batch.put_cf(eavt, datom::serialize::eavt(datom), "");
             batch.put_cf(aevt, datom::serialize::aevt(datom), "");
             batch.put_cf(avet, datom::serialize::avet(datom), "");
+            latest_entity_id = latest_entity_id.max(datom.entity);
         }
+        batch.put_cf(system, "entity_id", latest_entity_id.to_be_bytes());
         self.db.write(batch)?;
         Ok(())
     }
@@ -115,8 +119,21 @@ impl<'a, Mode> ReadStorage<'a> for DiskStorage<'a, Mode> {
         DatomsIterator::new(iter, range)
     }
 
-    fn latest_tx(&self) -> Result<u64, Self::Error> {
-        todo!()
+    fn latest_entity_id(&self) -> Result<u64, Self::Error> {
+        self.lala().map_err(Either::Left)
+    }
+}
+
+impl<'a, Mode> DiskStorage<'a, Mode> {
+    fn lala(&self) -> Result<u64, DiskStorageError> {
+        let system = cf_handle(&self.db, System)?;
+        let bytes = self.db.get_cf(system, "entity_id")?;
+        let id = bytes.map_or(1, |bytes| {
+            u64::from_be_bytes([
+                bytes[0], bytes[1], bytes[2], bytes[3], bytes[4], bytes[5], bytes[6], bytes[7],
+            ])
+        });
+        Ok(id)
     }
 }
 

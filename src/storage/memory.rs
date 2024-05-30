@@ -16,6 +16,7 @@ pub struct InMemoryStorage<'a> {
     aevt: BTreeSet<Bytes>,
     avet: BTreeSet<Bytes>,
     marker: PhantomData<&'a Self>,
+    latest_entity_id: u64,
 }
 
 impl<'a> InMemoryStorage<'a> {
@@ -29,6 +30,7 @@ impl<'a> WriteStorage for InMemoryStorage<'a> {
 
     fn save(&mut self, datoms: &[Datom]) -> Result<(), Self::Error> {
         for datom in datoms {
+            self.latest_entity_id = self.latest_entity_id.max(datom.entity);
             self.eavt.insert(datom::serialize::eavt(datom));
             self.aevt.insert(datom::serialize::aevt(datom));
             self.avet.insert(datom::serialize::avet(datom));
@@ -47,8 +49,8 @@ impl<'a> ReadStorage<'a> for InMemoryStorage<'a> {
         DatomsIterator::new(iter, range)
     }
 
-    fn latest_tx(&self) -> Result<u64, Self::Error> {
-        todo!()
+    fn latest_entity_id(&self) -> Result<u64, Self::Error> {
+        Ok(self.latest_entity_id)
     }
 }
 

@@ -15,14 +15,12 @@ type EntityId = u64;
 
 #[derive(Default)]
 pub struct Transactor {
-    next_entity_id: u64,
     attribute_resolver: AttributeResolver,
 }
 
 impl Transactor {
     pub fn new() -> Self {
         Self {
-            next_entity_id: 100, // TODO: How to initialize with latest ID from storage?
             attribute_resolver: AttributeResolver::new(),
         }
     }
@@ -33,8 +31,10 @@ impl Transactor {
         now: Instant,
         transaction: Transaction,
     ) -> Result<TransctionResult, S::Error> {
-        let temp_ids = self.generate_temp_ids(&transaction)?;
-        let datoms = self.transaction_datoms(storage, now, transaction, &temp_ids)?;
+        let mut id_allocator = IdAllocator(storage.latest_entity_id()?);
+        let temp_ids = self.generate_temp_ids(&transaction, &mut id_allocator)?;
+        let datoms =
+            self.transaction_datoms(storage, now, transaction, &temp_ids, &mut id_allocator)?;
 
         Ok(TransctionResult {
             tx_id: datoms[0].tx,
@@ -43,11 +43,15 @@ impl Transactor {
         })
     }
 
-    fn generate_temp_ids<E>(&mut self, transaction: &Transaction) -> Result<TempIds, E> {
+    fn generate_temp_ids<E>(
+        &mut self,
+        transaction: &Transaction,
+        id_allocator: &mut IdAllocator,
+    ) -> Result<TempIds, E> {
         let mut temp_ids = HashMap::new();
         for operation in &transaction.operations {
             if let OperatedEntity::TempId(temp_id) = &operation.entity {
-                let entity_id = self.next_entity_id();
+                let entity_id = id_allocator.next();
                 if temp_ids.insert(Rc::clone(temp_id), entity_id).is_some() {
                     return Err(TransactionError::DuplicateTempId(Rc::clone(temp_id)));
                 }
@@ -62,10 +66,11 @@ impl Transactor {
         now: Instant,
         transaction: Transaction,
         temp_ids: &TempIds,
+        id_allocator: &mut IdAllocator,
     ) -> Result<Vec<Datom>, S::Error> {
         let mut datoms = Vec::with_capacity(transaction.total_attribute_operations());
         let mut unique_values = HashSet::new(); // TODO capacity?
-        let tx = self.create_tx_datom(now);
+        let tx = self.create_tx_datom(now, id_allocator);
         for operation in transaction.operations {
             self.operation_datoms(
                 storage,
@@ -74,19 +79,15 @@ impl Transactor {
                 temp_ids,
                 &mut datoms,
                 &mut unique_values,
+                id_allocator,
             )?;
         }
         datoms.push(tx);
         Ok(datoms)
     }
 
-    fn next_entity_id(&mut self) -> EntityId {
-        self.next_entity_id += 1;
-        self.next_entity_id
-    }
-
-    fn create_tx_datom(&mut self, now: Instant) -> Datom {
-        let tx = self.next_entity_id();
+    fn create_tx_datom(&mut self, now: Instant, id_allocator: &mut IdAllocator) -> Datom {
+        let tx = id_allocator.next();
         Datom::add(tx, DB_TX_TIME_ID, now.0, tx)
     }
 
@@ -98,8 +99,9 @@ impl Transactor {
         temp_ids: &TempIds,
         datoms: &mut Vec<Datom>,
         unique_values: &mut HashSet<(u64, Value)>,
+        id_allocator: &mut IdAllocator,
     ) -> Result<(), S::Error> {
-        let entity = self.resolve_entity(operation.entity, temp_ids)?;
+        let entity = self.resolve_entity(operation.entity, temp_ids, id_allocator)?;
         let mut retract_attributes = HashSet::with_capacity(operation.attributes.len());
         for attribute_value in operation.attributes {
             let attribute =
@@ -139,12 +141,22 @@ impl Transactor {
         &mut self,
         entity: OperatedEntity,
         temp_ids: &TempIds,
+        id_allocator: &mut IdAllocator,
     ) -> Result<EntityId, E> {
         match entity {
-            OperatedEntity::New => Ok(self.next_entity_id()),
+            OperatedEntity::New => Ok(id_allocator.next()),
             OperatedEntity::Id(id) => Ok(id),
             OperatedEntity::TempId(temp_id) => temp_ids.get(&temp_id),
         }
+    }
+}
+
+struct IdAllocator(EntityId);
+
+impl IdAllocator {
+    fn next(&mut self) -> EntityId {
+        self.0 += 1;
+        self.0
     }
 }
 

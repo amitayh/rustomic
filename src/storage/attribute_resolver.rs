@@ -109,6 +109,10 @@ mod tests {
             self.count.set(self.count.get() + 1);
             self.inner.find(restricts)
         }
+
+        fn latest_entity_id(&self) -> Result<u64, Self::Error> {
+            self.inner.latest_entity_id()
+        }
     }
 
     impl<'a> WriteStorage for CountingStorage<'a> {

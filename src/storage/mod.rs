@@ -18,7 +18,7 @@ pub trait ReadStorage<'a> {
     /// Ordering of datoms is not guaranteed.
     fn find(&'a self, restricts: Restricts) -> Self::Iter;
 
-    fn latest_tx(&self) -> Result<u64, Self::Error>;
+    fn latest_entity_id(&self) -> Result<u64, Self::Error>;
 }
 
 pub trait WriteStorage {

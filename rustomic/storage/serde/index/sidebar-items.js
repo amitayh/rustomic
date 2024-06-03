@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"constant":["TAG_AEVT","TAG_AVET","TAG_EAVT"],"fn":["key_range","seek_key"]};
+window.SIDEBAR_ITEMS = {"struct":["RestrictedIndexRange"]};

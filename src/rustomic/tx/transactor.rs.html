@@ -1,5 +1,6 @@
-<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `src/tx/transactor.rs`."><title>transactor.rs - source</title><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/SourceSerif4-Regular-46f98efaafac5295.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/FiraSans-Regular-018c141bf0843ffd.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/FiraSans-Medium-8f9a781e4970d388.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/SourceCodePro-Regular-562dcc5011b6de7d.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/SourceCodePro-Semibold-d899c5a5c4aeb14a.ttf.woff2"><link rel="stylesheet" href="../../../static.files/normalize-76eba96aa4d2e634.css"><link rel="stylesheet" href="../../../static.files/rustdoc-ac92e1bbe349e143.css"><meta name="rustdoc-vars" data-root-path="../../../" data-static-root-path="../../../static.files/" data-current-crate="rustomic" data-themes="" data-resource-suffix="" data-rustdoc-version="1.76.0 (07dca489a 2024-02-04)" data-channel="1.76.0" data-search-js="search-2b6ce74ff89ae146.js" data-settings-js="settings-4313503d2e1961c2.js" ><script src="../../../static.files/storage-f2adc0d6ca4d09fb.js"></script><script defer src="../../../static.files/src-script-39ed315d46fb705f.js"></script><script defer src="../../../src-files.js"></script><script defer src="../../../static.files/main-305769736d49e732.js"></script><noscript><link rel="stylesheet" href="../../../static.files/noscript-feafe1bb7466e4bd.css"></noscript><link rel="alternate icon" type="image/png" href="../../../static.files/favicon-16x16-8b506e7a72182f1c.png"><link rel="alternate icon" type="image/png" href="../../../static.files/favicon-32x32-422f7d1d52889060.png"><link rel="icon" type="image/svg+xml" href="../../../static.files/favicon-2c020d218678b618.svg"></head><body class="rustdoc src"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"></nav><div class="sidebar-resizer"></div>
-    <main><nav class="sub"><form class="search-form"><span></span><input class="search-input" name="search" aria-label="Run search in the documentation" autocomplete="off" spellcheck="false" placeholder="Click or press ‘S’ to search, ‘?’ for more options…" type="search"><div id="help-button" tabindex="-1"><a href="../../../help.html" title="help">?</a></div><div id="settings-menu" tabindex="-1"><a href="../../../settings.html" title="settings"><img width="22" height="22" alt="Change settings" src="../../../static.files/wheel-7b819b6101059cd0.svg"></a></div></form></nav><section id="main-content" class="content"><div class="example-wrap"><div data-nosnippet><pre class="src-line-numbers"><a href="#1" id="1">1</a>
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `src/tx/transactor.rs`."><title>transactor.rs - source</title><script> if (window.location.protocol !== "file:") document.write(`<link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/SourceSerif4-Regular-46f98efaafac5295.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/FiraSans-Regular-018c141bf0843ffd.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/FiraSans-Medium-8f9a781e4970d388.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/SourceCodePro-Regular-562dcc5011b6de7d.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/SourceCodePro-Semibold-d899c5a5c4aeb14a.ttf.woff2">`)</script><link rel="stylesheet" href="../../../static.files/normalize-76eba96aa4d2e634.css"><link rel="stylesheet" href="../../../static.files/rustdoc-e935ef01ae1c1829.css"><meta name="rustdoc-vars" data-root-path="../../../" data-static-root-path="../../../static.files/" data-current-crate="rustomic" data-themes="" data-resource-suffix="" data-rustdoc-version="1.78.0 (9b00956e5 2024-04-29)" data-channel="1.78.0" data-search-js="search-42d8da7a6b9792c2.js" data-settings-js="settings-4313503d2e1961c2.js" ><script src="../../../static.files/storage-4c98445ec4002617.js"></script><script defer src="../../../static.files/src-script-e66d777a5a92e9b2.js"></script><script defer src="../../../src-files.js"></script><script defer src="../../../static.files/main-12cf3b4f4f9dc36d.js"></script><noscript><link rel="stylesheet" href="../../../static.files/noscript-04d5337699b92874.css"></noscript><link rel="alternate icon" type="image/png" href="../../../static.files/favicon-16x16-8b506e7a72182f1c.png"><link rel="alternate icon" type="image/png" href="../../../static.files/favicon-32x32-422f7d1d52889060.png"><link rel="icon" type="image/svg+xml" href="../../../static.files/favicon-2c020d218678b618.svg"></head><body class="rustdoc src"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"><div class="src-sidebar-title">
+            <h2>Files</h2></div></nav><div class="sidebar-resizer"></div>
+    <main><nav class="sub"><form class="search-form"><span></span><div id="sidebar-button" tabindex="-1"><a href="../../../rustomic/all.html" title="show sidebar"></a></div><input class="search-input" name="search" aria-label="Run search in the documentation" autocomplete="off" spellcheck="false" placeholder="Click or press ‘S’ to search, ‘?’ for more options…" type="search"><div id="help-button" tabindex="-1"><a href="../../../help.html" title="help">?</a></div><div id="settings-menu" tabindex="-1"><a href="../../../settings.html" title="settings"><img width="22" height="22" alt="Change settings" src="../../../static.files/wheel-7b819b6101059cd0.svg"></a></div></form></nav><section id="main-content" class="content"><div class="example-wrap"><div data-nosnippet><pre class="src-line-numbers"><a href="#1" id="1">1</a>
 <a href="#2" id="2">2</a>
 <a href="#3" id="3">3</a>
 <a href="#4" id="4">4</a>
@@ -228,6 +229,13 @@
 <a href="#227" id="227">227</a>
 <a href="#228" id="228">228</a>
 <a href="#229" id="229">229</a>
+<a href="#230" id="230">230</a>
+<a href="#231" id="231">231</a>
+<a href="#232" id="232">232</a>
+<a href="#233" id="233">233</a>
+<a href="#234" id="234">234</a>
+<a href="#235" id="235">235</a>
+<a href="#236" id="236">236</a>
 </pre></div><pre class="rust"><code><span class="kw">use </span>std::collections::HashMap;
 <span class="kw">use </span>std::collections::HashSet;
 
@@ -245,15 +253,13 @@
 
 <span class="attr">#[derive(Default)]
 </span><span class="kw">pub struct </span>Transactor {
-    next_entity_id: u64,
     attribute_resolver: AttributeResolver,
 }
 
 <span class="kw">impl </span>Transactor {
     <span class="kw">pub fn </span>new() -&gt; <span class="self">Self </span>{
         <span class="self">Self </span>{
-            next_entity_id: <span class="number">100</span>, <span class="comment">// TODO: How to initialize with latest ID from storage?
-            </span>attribute_resolver: AttributeResolver::new(),
+            attribute_resolver: AttributeResolver::new(),
         }
     }
 
@@ -263,8 +269,9 @@
         now: Instant,
         transaction: Transaction,
     ) -&gt; <span class="prelude-ty">Result</span>&lt;TransctionResult, S::Error&gt; {
-        <span class="kw">let </span>temp_ids = <span class="self">self</span>.generate_temp_ids(<span class="kw-2">&amp;</span>transaction)<span class="question-mark">?</span>;
-        <span class="kw">let </span>datoms = <span class="self">self</span>.transaction_datoms(storage, now, transaction, <span class="kw-2">&amp;</span>temp_ids)<span class="question-mark">?</span>;
+        <span class="kw">let </span><span class="kw-2">mut </span>next_id = NextId(storage.latest_entity_id()<span class="question-mark">?</span>);
+        <span class="kw">let </span>temp_ids = <span class="self">self</span>.generate_temp_ids(<span class="kw-2">&amp;</span>transaction, <span class="kw-2">&amp;mut </span>next_id)<span class="question-mark">?</span>;
+        <span class="kw">let </span>datoms = <span class="self">self</span>.transaction_datoms(storage, now, transaction, <span class="kw-2">&amp;</span>temp_ids, <span class="kw-2">&amp;mut </span>next_id)<span class="question-mark">?</span>;
 
         <span class="prelude-val">Ok</span>(TransctionResult {
             tx_id: datoms[<span class="number">0</span>].tx,
@@ -273,11 +280,15 @@
         })
     }
 
-    <span class="kw">fn </span>generate_temp_ids&lt;E&gt;(<span class="kw-2">&amp;mut </span><span class="self">self</span>, transaction: <span class="kw-2">&amp;</span>Transaction) -&gt; <span class="prelude-ty">Result</span>&lt;TempIds, E&gt; {
+    <span class="kw">fn </span>generate_temp_ids&lt;E&gt;(
+        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
+        transaction: <span class="kw-2">&amp;</span>Transaction,
+        next_id: <span class="kw-2">&amp;mut </span>NextId,
+    ) -&gt; <span class="prelude-ty">Result</span>&lt;TempIds, E&gt; {
         <span class="kw">let </span><span class="kw-2">mut </span>temp_ids = HashMap::new();
         <span class="kw">for </span>operation <span class="kw">in </span><span class="kw-2">&amp;</span>transaction.operations {
             <span class="kw">if let </span>OperatedEntity::TempId(temp_id) = <span class="kw-2">&amp;</span>operation.entity {
-                <span class="kw">let </span>entity_id = <span class="self">self</span>.next_entity_id();
+                <span class="kw">let </span>entity_id = next_id.get();
                 <span class="kw">if </span>temp_ids.insert(Rc::clone(temp_id), entity_id).is_some() {
                     <span class="kw">return </span><span class="prelude-val">Err</span>(TransactionError::DuplicateTempId(Rc::clone(temp_id)));
                 }
@@ -292,32 +303,24 @@
         now: Instant,
         transaction: Transaction,
         temp_ids: <span class="kw-2">&amp;</span>TempIds,
+        next_id: <span class="kw-2">&amp;mut </span>NextId,
     ) -&gt; <span class="prelude-ty">Result</span>&lt;Vec&lt;Datom&gt;, S::Error&gt; {
         <span class="kw">let </span><span class="kw-2">mut </span>datoms = Vec::with_capacity(transaction.total_attribute_operations());
         <span class="kw">let </span><span class="kw-2">mut </span>unique_values = HashSet::new(); <span class="comment">// TODO capacity?
-        </span><span class="kw">let </span>tx = <span class="self">self</span>.create_tx_datom(now);
+        </span><span class="kw">let </span>tx = next_id.get();
         <span class="kw">for </span>operation <span class="kw">in </span>transaction.operations {
             <span class="self">self</span>.operation_datoms(
                 storage,
-                tx.entity,
+                tx,
                 operation,
                 temp_ids,
                 <span class="kw-2">&amp;mut </span>datoms,
                 <span class="kw-2">&amp;mut </span>unique_values,
+                next_id,
             )<span class="question-mark">?</span>;
         }
-        datoms.push(tx);
+        datoms.push(Datom::add(tx, DB_TX_TIME_ID, now.<span class="number">0</span>, tx));
         <span class="prelude-val">Ok</span>(datoms)
-    }
-
-    <span class="kw">fn </span>next_entity_id(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; EntityId {
-        <span class="self">self</span>.next_entity_id += <span class="number">1</span>;
-        <span class="self">self</span>.next_entity_id
-    }
-
-    <span class="kw">fn </span>create_tx_datom(<span class="kw-2">&amp;mut </span><span class="self">self</span>, now: Instant) -&gt; Datom {
-        <span class="kw">let </span>tx = <span class="self">self</span>.next_entity_id();
-        Datom::add(tx, DB_TX_TIME_ID, now.<span class="number">0</span>, tx)
     }
 
     <span class="kw">fn </span>operation_datoms&lt;<span class="lifetime">'a</span>, S: ReadStorage&lt;<span class="lifetime">'a</span>&gt;&gt;(
@@ -328,8 +331,9 @@
         temp_ids: <span class="kw-2">&amp;</span>TempIds,
         datoms: <span class="kw-2">&amp;mut </span>Vec&lt;Datom&gt;,
         unique_values: <span class="kw-2">&amp;mut </span>HashSet&lt;(u64, Value)&gt;,
+        next_id: <span class="kw-2">&amp;mut </span>NextId,
     ) -&gt; <span class="prelude-ty">Result</span>&lt;(), S::Error&gt; {
-        <span class="kw">let </span>entity = <span class="self">self</span>.resolve_entity(operation.entity, temp_ids)<span class="question-mark">?</span>;
+        <span class="kw">let </span>entity = <span class="self">self</span>.resolve_entity(operation.entity, temp_ids, next_id)<span class="question-mark">?</span>;
         <span class="kw">let </span><span class="kw-2">mut </span>retract_attributes = HashSet::with_capacity(operation.attributes.len());
         <span class="kw">for </span>attribute_value <span class="kw">in </span>operation.attributes {
             <span class="kw">let </span>attribute =
@@ -345,8 +349,8 @@
             <span class="kw">let </span>value = resolve_value(attribute_value.value, temp_ids)<span class="question-mark">?</span>;
             verify_type(attribute, <span class="kw-2">&amp;</span>value)<span class="question-mark">?</span>;
             <span class="kw">if </span>attribute.definition.unique {
-                verify_uniqueness1(attribute, <span class="kw-2">&amp;</span>value, unique_values)<span class="question-mark">?</span>;
-                verify_uniqueness2(attribute, <span class="kw-2">&amp;</span>value, storage, tx)<span class="question-mark">?</span>;
+                verify_uniqueness_tx(attribute, <span class="kw-2">&amp;</span>value, unique_values)<span class="question-mark">?</span>;
+                verify_uniqueness_db(attribute, <span class="kw-2">&amp;</span>value, storage, tx)<span class="question-mark">?</span>;
             }
 
             datoms.push(Datom {
@@ -369,13 +373,23 @@
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         entity: OperatedEntity,
         temp_ids: <span class="kw-2">&amp;</span>TempIds,
+        next_id: <span class="kw-2">&amp;mut </span>NextId,
     ) -&gt; <span class="prelude-ty">Result</span>&lt;EntityId, E&gt; {
         <span class="kw">match </span>entity {
-            OperatedEntity::New =&gt; <span class="prelude-val">Ok</span>(<span class="self">self</span>.next_entity_id()),
+            OperatedEntity::New =&gt; <span class="prelude-val">Ok</span>(next_id.get()),
             OperatedEntity::Id(id) =&gt; <span class="prelude-val">Ok</span>(id),
             OperatedEntity::TempId(temp_id) =&gt; temp_ids.get(<span class="kw-2">&amp;</span>temp_id),
         }
     }
+}
+
+<span class="kw">struct </span>NextId(EntityId);
+
+<span class="kw">impl </span>NextId {
+    <span class="kw">fn </span>get(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; EntityId {
+        <span class="self">self</span>.<span class="number">0 </span>+= <span class="number">1</span>;
+        <span class="self">self</span>.<span class="number">0
+    </span>}
 }
 
 <span class="kw">fn </span>resolve_value&lt;E&gt;(attribute_value: AttributeValue, temp_ids: <span class="kw-2">&amp;</span>TempIds) -&gt; <span class="prelude-ty">Result</span>&lt;Value, E&gt; {
@@ -389,14 +403,15 @@
     <span class="kw">if </span>attribute.definition.value_type != ValueType::from(value) {
         <span class="comment">// Value type is incompatible with attribute, reject transaction.
         </span><span class="kw">return </span><span class="prelude-val">Err</span>(TransactionError::InvalidAttributeType {
-            attribute: attribute.id,
+            attribute_id: attribute.id,
+            attribute_type: attribute.definition.value_type,
             value: value.clone(),
         });
     }
     <span class="prelude-val">Ok</span>(())
 }
 
-<span class="kw">fn </span>verify_uniqueness1&lt;E&gt;(
+<span class="kw">fn </span>verify_uniqueness_tx&lt;E&gt;(
     attribute: <span class="kw-2">&amp;</span>Attribute,
     value: <span class="kw-2">&amp;</span>Value,
     unique_values: <span class="kw-2">&amp;mut </span>HashSet&lt;(u64, Value)&gt;,
@@ -411,7 +426,7 @@
     <span class="prelude-val">Ok</span>(())
 }
 
-<span class="kw">fn </span>verify_uniqueness2&lt;<span class="lifetime">'a</span>, S: ReadStorage&lt;<span class="lifetime">'a</span>&gt;&gt;(
+<span class="kw">fn </span>verify_uniqueness_db&lt;<span class="lifetime">'a</span>, S: ReadStorage&lt;<span class="lifetime">'a</span>&gt;&gt;(
     attribute: <span class="kw-2">&amp;</span>Attribute,
     value: <span class="kw-2">&amp;</span>Value,
     storage: <span class="kw-2">&amp;</span><span class="lifetime">'a </span>S,

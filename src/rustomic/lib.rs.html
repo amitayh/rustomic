@@ -1,5 +1,6 @@
-<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `src/lib.rs`."><title>lib.rs - source</title><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/SourceSerif4-Regular-46f98efaafac5295.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/FiraSans-Regular-018c141bf0843ffd.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/FiraSans-Medium-8f9a781e4970d388.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/SourceCodePro-Regular-562dcc5011b6de7d.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/SourceCodePro-Semibold-d899c5a5c4aeb14a.ttf.woff2"><link rel="stylesheet" href="../../static.files/normalize-76eba96aa4d2e634.css"><link rel="stylesheet" href="../../static.files/rustdoc-ac92e1bbe349e143.css"><meta name="rustdoc-vars" data-root-path="../../" data-static-root-path="../../static.files/" data-current-crate="rustomic" data-themes="" data-resource-suffix="" data-rustdoc-version="1.76.0 (07dca489a 2024-02-04)" data-channel="1.76.0" data-search-js="search-2b6ce74ff89ae146.js" data-settings-js="settings-4313503d2e1961c2.js" ><script src="../../static.files/storage-f2adc0d6ca4d09fb.js"></script><script defer src="../../static.files/src-script-39ed315d46fb705f.js"></script><script defer src="../../src-files.js"></script><script defer src="../../static.files/main-305769736d49e732.js"></script><noscript><link rel="stylesheet" href="../../static.files/noscript-feafe1bb7466e4bd.css"></noscript><link rel="alternate icon" type="image/png" href="../../static.files/favicon-16x16-8b506e7a72182f1c.png"><link rel="alternate icon" type="image/png" href="../../static.files/favicon-32x32-422f7d1d52889060.png"><link rel="icon" type="image/svg+xml" href="../../static.files/favicon-2c020d218678b618.svg"></head><body class="rustdoc src"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"></nav><div class="sidebar-resizer"></div>
-    <main><nav class="sub"><form class="search-form"><span></span><input class="search-input" name="search" aria-label="Run search in the documentation" autocomplete="off" spellcheck="false" placeholder="Click or press ‘S’ to search, ‘?’ for more options…" type="search"><div id="help-button" tabindex="-1"><a href="../../help.html" title="help">?</a></div><div id="settings-menu" tabindex="-1"><a href="../../settings.html" title="settings"><img width="22" height="22" alt="Change settings" src="../../static.files/wheel-7b819b6101059cd0.svg"></a></div></form></nav><section id="main-content" class="content"><div class="example-wrap"><div data-nosnippet><pre class="src-line-numbers"><a href="#1" id="1">1</a>
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `src/lib.rs`."><title>lib.rs - source</title><script> if (window.location.protocol !== "file:") document.write(`<link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/SourceSerif4-Regular-46f98efaafac5295.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/FiraSans-Regular-018c141bf0843ffd.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/FiraSans-Medium-8f9a781e4970d388.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/SourceCodePro-Regular-562dcc5011b6de7d.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/SourceCodePro-Semibold-d899c5a5c4aeb14a.ttf.woff2">`)</script><link rel="stylesheet" href="../../static.files/normalize-76eba96aa4d2e634.css"><link rel="stylesheet" href="../../static.files/rustdoc-e935ef01ae1c1829.css"><meta name="rustdoc-vars" data-root-path="../../" data-static-root-path="../../static.files/" data-current-crate="rustomic" data-themes="" data-resource-suffix="" data-rustdoc-version="1.78.0 (9b00956e5 2024-04-29)" data-channel="1.78.0" data-search-js="search-42d8da7a6b9792c2.js" data-settings-js="settings-4313503d2e1961c2.js" ><script src="../../static.files/storage-4c98445ec4002617.js"></script><script defer src="../../static.files/src-script-e66d777a5a92e9b2.js"></script><script defer src="../../src-files.js"></script><script defer src="../../static.files/main-12cf3b4f4f9dc36d.js"></script><noscript><link rel="stylesheet" href="../../static.files/noscript-04d5337699b92874.css"></noscript><link rel="alternate icon" type="image/png" href="../../static.files/favicon-16x16-8b506e7a72182f1c.png"><link rel="alternate icon" type="image/png" href="../../static.files/favicon-32x32-422f7d1d52889060.png"><link rel="icon" type="image/svg+xml" href="../../static.files/favicon-2c020d218678b618.svg"></head><body class="rustdoc src"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"><div class="src-sidebar-title">
+            <h2>Files</h2></div></nav><div class="sidebar-resizer"></div>
+    <main><nav class="sub"><form class="search-form"><span></span><div id="sidebar-button" tabindex="-1"><a href="../../rustomic/all.html" title="show sidebar"></a></div><input class="search-input" name="search" aria-label="Run search in the documentation" autocomplete="off" spellcheck="false" placeholder="Click or press ‘S’ to search, ‘?’ for more options…" type="search"><div id="help-button" tabindex="-1"><a href="../../help.html" title="help">?</a></div><div id="settings-menu" tabindex="-1"><a href="../../settings.html" title="settings"><img width="22" height="22" alt="Change settings" src="../../static.files/wheel-7b819b6101059cd0.svg"></a></div></form></nav><section id="main-content" class="content"><div class="example-wrap"><div data-nosnippet><pre class="src-line-numbers"><a href="#1" id="1">1</a>
 <a href="#2" id="2">2</a>
 <a href="#3" id="3">3</a>
 <a href="#4" id="4">4</a>
@@ -810,6 +811,28 @@
 <a href="#809" id="809">809</a>
 <a href="#810" id="810">810</a>
 <a href="#811" id="811">811</a>
+<a href="#812" id="812">812</a>
+<a href="#813" id="813">813</a>
+<a href="#814" id="814">814</a>
+<a href="#815" id="815">815</a>
+<a href="#816" id="816">816</a>
+<a href="#817" id="817">817</a>
+<a href="#818" id="818">818</a>
+<a href="#819" id="819">819</a>
+<a href="#820" id="820">820</a>
+<a href="#821" id="821">821</a>
+<a href="#822" id="822">822</a>
+<a href="#823" id="823">823</a>
+<a href="#824" id="824">824</a>
+<a href="#825" id="825">825</a>
+<a href="#826" id="826">826</a>
+<a href="#827" id="827">827</a>
+<a href="#828" id="828">828</a>
+<a href="#829" id="829">829</a>
+<a href="#830" id="830">830</a>
+<a href="#831" id="831">831</a>
+<a href="#832" id="832">832</a>
+<a href="#833" id="833">833</a>
 </pre></div><pre class="rust"><code><span class="kw">pub mod </span>clock;
 <span class="kw">pub mod </span>datom;
 <span class="kw">pub mod </span>query;
@@ -849,23 +872,20 @@
 
     <span class="kw">impl</span>&lt;<span class="lifetime">'a</span>&gt; Sut&lt;<span class="lifetime">'a</span>&gt; {
         <span class="kw">fn </span>new() -&gt; <span class="self">Self </span>{
-            <span class="kw">let </span><span class="kw-2">mut </span>sut = <span class="self">Self</span>::new_without_schema();
-            sut.transact(create_schema());
-            sut
-        }
-
-        <span class="kw">fn </span>new_without_schema() -&gt; <span class="self">Self </span>{
             <span class="kw">let </span>transactor = Transactor::new();
             <span class="kw">let </span><span class="kw-2">mut </span>storage = InMemoryStorage::new();
             storage
                 .save(<span class="kw-2">&amp;</span>default_datoms())
                 .expect(<span class="string">"Unable to save default datoms"</span>);
 
-            <span class="self">Self </span>{
+            <span class="kw">let </span><span class="kw-2">mut </span>sut = <span class="self">Self </span>{
                 transactor,
                 storage,
                 last_tx: <span class="number">0</span>,
-            }
+            };
+
+            sut.transact(create_schema());
+            sut
         }
 
         <span class="kw">fn </span>transact(<span class="kw-2">&amp;mut </span><span class="self">self</span>, transaction: Transaction) -&gt; TransctionResult {
@@ -953,23 +973,23 @@
         Transaction::new()
             .with(
                 EntityOperation::on_new()
-                    .set_value(<span class="string">"person/name"</span>, <span class="string">"John"</span>)
-                    .set_value(<span class="string">"person/born"</span>, <span class="number">1940</span>),
+                    .assert(<span class="string">"person/name"</span>, <span class="string">"John"</span>)
+                    .assert(<span class="string">"person/born"</span>, <span class="number">1940</span>),
             )
             .with(
                 EntityOperation::on_new()
-                    .set_value(<span class="string">"person/name"</span>, <span class="string">"Paul"</span>)
-                    .set_value(<span class="string">"person/born"</span>, <span class="number">1942</span>),
+                    .assert(<span class="string">"person/name"</span>, <span class="string">"Paul"</span>)
+                    .assert(<span class="string">"person/born"</span>, <span class="number">1942</span>),
             )
             .with(
                 EntityOperation::on_new()
-                    .set_value(<span class="string">"person/name"</span>, <span class="string">"George"</span>)
-                    .set_value(<span class="string">"person/born"</span>, <span class="number">1943</span>),
+                    .assert(<span class="string">"person/name"</span>, <span class="string">"George"</span>)
+                    .assert(<span class="string">"person/born"</span>, <span class="number">1943</span>),
             )
             .with(
                 EntityOperation::on_new()
-                    .set_value(<span class="string">"person/name"</span>, <span class="string">"Ringo"</span>)
-                    .set_value(<span class="string">"person/born"</span>, <span class="number">1940</span>),
+                    .assert(<span class="string">"person/name"</span>, <span class="string">"Ringo"</span>)
+                    .assert(<span class="string">"person/born"</span>, <span class="number">1940</span>),
             )
     }
 
@@ -980,12 +1000,14 @@
         <span class="comment">// Insert data
         </span>sut.transact(
             Transaction::new()
-                .with(EntityOperation::on_new().set_value(<span class="string">"person/name"</span>, <span class="string">"Alice"</span>))
-                .with(EntityOperation::on_new().set_value(<span class="string">"person/name"</span>, <span class="string">"Bob"</span>)),
+                .with(EntityOperation::on_new().assert(<span class="string">"person/name"</span>, <span class="string">"Alice"</span>))
+                .with(EntityOperation::on_new().assert(<span class="string">"person/name"</span>, <span class="string">"Bob"</span>)),
         );
 
-        <span class="kw">let </span>query_result = sut.query(
-            Query::new().with(
+        <span class="comment">// [:find ?name
+        //  :where [?name :person/name "Eve"]]
+        </span><span class="kw">let </span>query_result = sut.query(
+            Query::new().find(Find::variable(<span class="string">"?name"</span>)).with(
                 Clause::new()
                     .with_entity(Pattern::variable(<span class="string">"?name"</span>))
                     .with_attribute(Pattern::ident(<span class="string">"person/name"</span>))
@@ -1003,10 +1025,12 @@
         <span class="comment">// Insert data
         </span><span class="kw">let </span>tx_result = sut.transact(
             Transaction::new()
-                .with(EntityOperation::on_temp_id(<span class="string">"joe"</span>).set_value(<span class="string">"person/name"</span>, <span class="string">"Joe"</span>)),
+                .with(EntityOperation::on_temp_id(<span class="string">"joe"</span>).assert(<span class="string">"person/name"</span>, <span class="string">"Joe"</span>)),
         );
 
-        <span class="kw">let </span>query_result = sut.query(
+        <span class="comment">// [:find ?joe
+        //  :where [?joe :person/name "Joe"]]
+        </span><span class="kw">let </span>query_result = sut.query(
             Query::new().find(Find::variable(<span class="string">"?joe"</span>)).with(
                 Clause::new()
                     .with_entity(Pattern::variable(<span class="string">"?joe"</span>))
@@ -1029,7 +1053,7 @@
         <span class="kw">let </span><span class="kw-2">mut </span>sut = Sut::new();
 
         <span class="comment">// This transaction should fail: "person/name" is of type `ValueType::Str`.
-        </span><span class="kw">let </span>tx = Transaction::new().with(EntityOperation::on_new().set_value(<span class="string">"person/name"</span>, <span class="number">42</span>));
+        </span><span class="kw">let </span>tx = Transaction::new().with(EntityOperation::on_new().assert(<span class="string">"person/name"</span>, <span class="number">42</span>));
         <span class="kw">let </span>tx_result = sut.try_transact(tx);
 
         <span class="macro">assert!</span>(tx_result.is_none());
@@ -1041,8 +1065,8 @@
 
         <span class="comment">// This transaction should fail: temp ID "duplicate" should only be used once.
         </span><span class="kw">let </span>tx = Transaction::new()
-            .with(EntityOperation::on_temp_id(<span class="string">"duplicate"</span>).set_value(<span class="string">"person/name"</span>, <span class="string">"Alice"</span>))
-            .with(EntityOperation::on_temp_id(<span class="string">"duplicate"</span>).set_value(<span class="string">"person/name"</span>, <span class="string">"Bob"</span>));
+            .with(EntityOperation::on_temp_id(<span class="string">"duplicate"</span>).assert(<span class="string">"person/name"</span>, <span class="string">"Alice"</span>))
+            .with(EntityOperation::on_temp_id(<span class="string">"duplicate"</span>).assert(<span class="string">"person/name"</span>, <span class="string">"Bob"</span>));
         <span class="kw">let </span>tx_result = sut.try_transact(tx);
 
         <span class="macro">assert!</span>(tx_result.is_none());
@@ -1055,19 +1079,21 @@
         <span class="comment">// Insert data
         </span>sut.transact(
             Transaction::new()
-                .with(EntityOperation::on_temp_id(<span class="string">"john"</span>).set_value(<span class="string">"artist/name"</span>, <span class="string">"John Lenon"</span>))
-                .with(
-                    EntityOperation::on_temp_id(<span class="string">"paul"</span>).set_value(<span class="string">"artist/name"</span>, <span class="string">"Paul McCartney"</span>),
-                )
+                .with(EntityOperation::on_temp_id(<span class="string">"john"</span>).assert(<span class="string">"artist/name"</span>, <span class="string">"John Lenon"</span>))
+                .with(EntityOperation::on_temp_id(<span class="string">"paul"</span>).assert(<span class="string">"artist/name"</span>, <span class="string">"Paul McCartney"</span>))
                 .with(
                     EntityOperation::on_temp_id(<span class="string">"abbey-road"</span>)
-                        .set_value(<span class="string">"release/name"</span>, <span class="string">"Abbey Road"</span>)
+                        .assert(<span class="string">"release/name"</span>, <span class="string">"Abbey Road"</span>)
                         .set_reference(<span class="string">"release/artists"</span>, <span class="string">"john"</span>)
                         .set_reference(<span class="string">"release/artists"</span>, <span class="string">"paul"</span>),
                 ),
         );
 
-        <span class="kw">let </span>query_result = sut.query(
+        <span class="comment">// [:find ?release-name
+        //  :where [?artist :artist/name "John Lenon"]
+        //         [?release :release/artist ?artist]
+        //         [?release :release/name ?release-name]]
+        </span><span class="kw">let </span>query_result = sut.query(
             Query::new()
                 .find(Find::variable(<span class="string">"?release-name"</span>))
                 .with(
@@ -1098,49 +1124,38 @@
 
     <span class="attr">#[test]
     </span><span class="kw">fn </span>return_latest_value_with_cardinality_one() {
-        <span class="kw">let </span><span class="kw-2">mut </span>sut = Sut::new_without_schema();
-
-        <span class="comment">// Create the schema
-        </span>sut.transact(
-            Transaction::new()
-                .with(
-                    AttributeDefinition::new(<span class="string">"person/name"</span>, ValueType::Str)
-                        .with_doc(<span class="string">"A person's name"</span>),
-                )
-                .with(
-                    AttributeDefinition::new(<span class="string">"person/likes"</span>, ValueType::Str)
-                        .with_doc(<span class="string">"Things a person likes"</span>),
-                ),
-        );
+        <span class="kw">let </span><span class="kw-2">mut </span>sut = Sut::new();
 
         <span class="comment">// Insert initial data
         </span><span class="kw">let </span>tx_result = sut.transact(
             Transaction::new().with(
                 EntityOperation::on_temp_id(<span class="string">"joe"</span>)
-                    .set_value(<span class="string">"person/name"</span>, <span class="string">"Joe"</span>)
-                    .set_value(<span class="string">"person/likes"</span>, <span class="string">"Pizza"</span>),
+                    .assert(<span class="string">"person/name"</span>, <span class="string">"Joe"</span>)
+                    .assert(<span class="string">"person/email"</span>, <span class="string">"foo@bar.com"</span>),
             ),
         );
         <span class="kw">let </span>joe_id = tx_result.temp_ids[<span class="string">"joe"</span>];
 
-        <span class="comment">// Update what Joe likes
+        <span class="comment">// Update Joe's email
         </span>sut.transact(
             Transaction::new()
-                .with(EntityOperation::on_id(joe_id).set_value(<span class="string">"person/likes"</span>, <span class="string">"Ice cream"</span>)),
+                .with(EntityOperation::on_id(joe_id).assert(<span class="string">"person/email"</span>, <span class="string">"foo@baz.com"</span>)),
         );
 
-        <span class="kw">let </span>query_result = sut.query(
-            Query::new().find(Find::variable(<span class="string">"?likes"</span>)).with(
+        <span class="comment">// [:find ?email
+        //  :where [?joe_id :person/email ?email]]
+        </span><span class="kw">let </span>query_result = sut.query(
+            Query::new().find(Find::variable(<span class="string">"?email"</span>)).with(
                 Clause::new()
                     .with_entity(Pattern::Constant(joe_id))
-                    .with_attribute(Pattern::ident(<span class="string">"person/likes"</span>))
-                    .with_value(Pattern::variable(<span class="string">"?likes"</span>)),
+                    .with_attribute(Pattern::ident(<span class="string">"person/email"</span>))
+                    .with_value(Pattern::variable(<span class="string">"?email"</span>)),
             ),
         );
 
         <span class="macro">assert_that!</span>(
             query_result,
-            <span class="macro">unordered_elements_are!</span>[<span class="macro">elements_are!</span>[eq(Value::str(<span class="string">"Ice cream"</span>))]]
+            <span class="macro">unordered_elements_are!</span>[<span class="macro">elements_are!</span>[eq(Value::str(<span class="string">"foo@baz.com"</span>))]]
         );
     }
 
@@ -1152,8 +1167,8 @@
         </span><span class="kw">let </span>tx_result = sut.transact(
             Transaction::new().with(
                 EntityOperation::on_temp_id(<span class="string">"joe"</span>)
-                    .set_value(<span class="string">"person/name"</span>, <span class="string">"Joe"</span>)
-                    .set_value(<span class="string">"person/likes"</span>, <span class="string">"Pizza"</span>),
+                    .assert(<span class="string">"person/name"</span>, <span class="string">"Joe"</span>)
+                    .assert(<span class="string">"person/likes"</span>, <span class="string">"Pizza"</span>),
             ),
         );
         <span class="kw">let </span>joe_id = tx_result.temp_ids[<span class="string">"joe"</span>];
@@ -1161,10 +1176,12 @@
         <span class="comment">// Update what Joe likes
         </span>sut.transact(
             Transaction::new()
-                .with(EntityOperation::on_id(joe_id).set_value(<span class="string">"person/likes"</span>, <span class="string">"Ice cream"</span>)),
+                .with(EntityOperation::on_id(joe_id).assert(<span class="string">"person/likes"</span>, <span class="string">"Ice cream"</span>)),
         );
 
-        <span class="kw">let </span>query_result = sut.query(
+        <span class="comment">// [:find ?likes
+        //  :where [?joe_id :person/likes ?likes]]
+        </span><span class="kw">let </span>query_result = sut.query(
             Query::new().find(Find::variable(<span class="string">"?likes"</span>)).with(
                 Clause::new()
                     .with_entity(Pattern::Constant(joe_id))
@@ -1190,8 +1207,8 @@
         </span><span class="kw">let </span>first_tx_result = sut.transact(
             Transaction::new().with(
                 EntityOperation::on_temp_id(<span class="string">"joe"</span>)
-                    .set_value(<span class="string">"person/name"</span>, <span class="string">"Joe"</span>)
-                    .set_value(<span class="string">"person/likes"</span>, <span class="string">"Pizza"</span>),
+                    .assert(<span class="string">"person/name"</span>, <span class="string">"Joe"</span>)
+                    .assert(<span class="string">"person/likes"</span>, <span class="string">"Pizza"</span>),
             ),
         );
         <span class="kw">let </span>joe_id = first_tx_result.temp_ids[<span class="string">"joe"</span>];
@@ -1200,12 +1217,14 @@
         </span>sut.transact(
             Transaction::new().with(
                 EntityOperation::on_id(joe_id)
-                    .set_value(<span class="string">"person/name"</span>, <span class="string">"Joe"</span>)
-                    .set_value(<span class="string">"person/likes"</span>, <span class="string">"Ice cream"</span>),
+                    .assert(<span class="string">"person/name"</span>, <span class="string">"Joe"</span>)
+                    .assert(<span class="string">"person/likes"</span>, <span class="string">"Ice cream"</span>),
             ),
         );
 
-        <span class="kw">let </span>query_result = sut.query_at_snapshot(
+        <span class="comment">// [:find ?likes
+        //  :where [?joe_id :person/likes ?likes]]
+        </span><span class="kw">let </span>query_result = sut.query_at_snapshot(
             first_tx_result.tx_id,
             Query::new().find(Find::variable(<span class="string">"?likes"</span>)).with(
                 Clause::new()
@@ -1227,10 +1246,13 @@
 
         <span class="comment">// Insert initial data
         </span><span class="kw">let </span>tx_result = sut.transact(
-            Transaction::new().with(EntityOperation::on_new().set_value(<span class="string">"person/name"</span>, <span class="string">"Joe"</span>)),
+            Transaction::new().with(EntityOperation::on_new().assert(<span class="string">"person/name"</span>, <span class="string">"Joe"</span>)),
         );
 
-        <span class="kw">let </span>query_result = sut.query(
+        <span class="comment">// [:find ?tx ?tx_time
+        //  :where [_ :person/name "Joe" ?tx]
+        //         [?tx ?tx_time_id ?tx_time]]
+        </span><span class="kw">let </span>query_result = sut.query(
             Query::new()
                 .find(Find::variable(<span class="string">"?tx"</span>))
                 .find(Find::variable(<span class="string">"?tx_time"</span>))
@@ -1263,10 +1285,12 @@
 
         <span class="comment">// Insert initial data
         </span><span class="kw">let </span>tx_result = sut.transact(
-            Transaction::new().with(EntityOperation::on_new().set_value(<span class="string">"person/name"</span>, <span class="string">"Joe"</span>)),
+            Transaction::new().with(EntityOperation::on_new().assert(<span class="string">"person/name"</span>, <span class="string">"Joe"</span>)),
         );
 
         <span class="comment">// Find all datoms belonging to transaction
+        // [:find ?e ?a ?v
+        //  :where [?e ?a ?v ?tx_id]]
         </span><span class="kw">let </span>query_result = sut.query(
             Query::new()
                 .find(Find::variable(<span class="string">"?e"</span>))
@@ -1302,10 +1326,12 @@
 
         <span class="comment">// Insert data
         </span>sut.transact(
-            Transaction::new().with(EntityOperation::on_new().set_value(<span class="string">"person/name"</span>, <span class="string">"John"</span>)),
+            Transaction::new().with(EntityOperation::on_new().assert(<span class="string">"person/name"</span>, <span class="string">"John"</span>)),
         );
 
-        <span class="kw">let </span>query_result = sut.query(
+        <span class="comment">// [:find (count)
+        //  : where [?person :person/name]]
+        </span><span class="kw">let </span>query_result = sut.query(
             Query::new().find(Find::count()).with(
                 Clause::new()
                     .with_entity(Pattern::variable(<span class="string">"?person"</span>))
@@ -1326,7 +1352,10 @@
         <span class="comment">// Insert data
         </span>sut.transact(create_beatles());
 
-        <span class="kw">let </span>query = Query::new()
+        <span class="comment">// [:find ?born (count)
+        //  :where [?person :person/born ?born]
+        //         [?person :person/name ?name]]
+        </span><span class="kw">let </span>query = Query::new()
             .find(Find::variable(<span class="string">"?born"</span>))
             .find(Find::count())
             .with(
@@ -1361,7 +1390,10 @@
         <span class="comment">// Insert data
         </span>sut.transact(create_beatles());
 
-        <span class="kw">let </span>query = Query::new()
+        <span class="comment">// [:find (sum ?born) ?born
+        //  :where [?person :person/born ?born]
+        //         [?person :person/name ?name]]
+        </span><span class="kw">let </span>query = Query::new()
             .find(Find::sum(<span class="string">"?born"</span>))
             .find(Find::variable(<span class="string">"?born"</span>))
             .with(
@@ -1398,33 +1430,36 @@
             Transaction::new()
                 .with(
                     EntityOperation::on_new()
-                        .set_value(<span class="string">"person/name"</span>, <span class="string">"John"</span>)
-                        .set_value(<span class="string">"person/likes"</span>, <span class="string">"Pizza"</span>)
-                        .set_value(<span class="string">"person/likes"</span>, <span class="string">"Ice cream"</span>)
-                        .set_value(<span class="string">"person/born"</span>, <span class="number">1967</span>),
+                        .assert(<span class="string">"person/name"</span>, <span class="string">"John"</span>)
+                        .assert(<span class="string">"person/likes"</span>, <span class="string">"Pizza"</span>)
+                        .assert(<span class="string">"person/likes"</span>, <span class="string">"Ice cream"</span>)
+                        .assert(<span class="string">"person/born"</span>, <span class="number">1967</span>),
                 )
                 .with(
                     EntityOperation::on_new()
-                        .set_value(<span class="string">"person/name"</span>, <span class="string">"John"</span>)
-                        .set_value(<span class="string">"person/likes"</span>, <span class="string">"Pizza"</span>)
-                        .set_value(<span class="string">"person/likes"</span>, <span class="string">"Beer"</span>)
-                        .set_value(<span class="string">"person/born"</span>, <span class="number">1967</span>),
+                        .assert(<span class="string">"person/name"</span>, <span class="string">"John"</span>)
+                        .assert(<span class="string">"person/likes"</span>, <span class="string">"Pizza"</span>)
+                        .assert(<span class="string">"person/likes"</span>, <span class="string">"Beer"</span>)
+                        .assert(<span class="string">"person/born"</span>, <span class="number">1967</span>),
                 )
                 .with(
                     EntityOperation::on_new()
-                        .set_value(<span class="string">"person/name"</span>, <span class="string">"Mike"</span>)
-                        .set_value(<span class="string">"person/likes"</span>, <span class="string">"Pizza"</span>)
-                        .set_value(<span class="string">"person/born"</span>, <span class="number">1967</span>),
+                        .assert(<span class="string">"person/name"</span>, <span class="string">"Mike"</span>)
+                        .assert(<span class="string">"person/likes"</span>, <span class="string">"Pizza"</span>)
+                        .assert(<span class="string">"person/born"</span>, <span class="number">1967</span>),
                 )
                 .with(
                     EntityOperation::on_new()
-                        .set_value(<span class="string">"person/name"</span>, <span class="string">"James"</span>)
-                        .set_value(<span class="string">"person/likes"</span>, <span class="string">"Beer"</span>)
-                        .set_value(<span class="string">"person/born"</span>, <span class="number">1963</span>),
+                        .assert(<span class="string">"person/name"</span>, <span class="string">"James"</span>)
+                        .assert(<span class="string">"person/likes"</span>, <span class="string">"Beer"</span>)
+                        .assert(<span class="string">"person/born"</span>, <span class="number">1963</span>),
                 ),
         );
 
-        <span class="kw">let </span>query = Query::new()
+        <span class="comment">// [:find ?name (count-distinct ?likes)
+        //  :where [?person :person/name ?name]
+        //         [?person :person/likes ?likes]]
+        </span><span class="kw">let </span>query = Query::new()
             .find(Find::variable(<span class="string">"?name"</span>))
             .find(Find::count_distinct(<span class="string">"?likes"</span>))
             .with(
@@ -1459,7 +1494,9 @@
         <span class="comment">// Insert data
         </span>sut.transact(create_beatles());
 
-        <span class="kw">let </span>query_result = sut
+        <span class="comment">// [:find ?name
+        //  :where [?person :person/born ?born]]
+        </span><span class="kw">let </span>query_result = sut
             .try_query(
                 Query::new().find(Find::variable(<span class="string">"?name"</span>)).with(
                     Clause::new()
@@ -1483,7 +1520,9 @@
         <span class="comment">// Insert data
         </span>sut.transact(create_beatles());
 
-        <span class="kw">let </span>query_result = sut.try_query(
+        <span class="comment">// [:find ?name (count)
+        //  :where [?person :person/born ?born]]
+        </span><span class="kw">let </span>query_result = sut.try_query(
             Query::new()
                 .find(Find::variable(<span class="string">"?name"</span>))
                 .find(Find::count())
@@ -1508,7 +1547,11 @@
         <span class="comment">// Insert data
         </span>sut.transact(create_beatles());
 
-        <span class="kw">let </span>query_result = sut.query(
+        <span class="comment">// [:find ?name
+        //  :where [?person :person/born ?born]
+        //         [?person :person/name ?name]
+        //         [(&gt; ?born 1940)]]
+        </span><span class="kw">let </span>query_result = sut.query(
             Query::new()
                 .find(Find::variable(<span class="string">"?name"</span>))
                 .with(
@@ -1546,13 +1589,15 @@
         </span><span class="kw">let </span>tx_result = sut.transact(
             Transaction::new().with(
                 EntityOperation::on_temp_id(<span class="string">"joe"</span>)
-                    .set_value(<span class="string">"person/name"</span>, <span class="string">"Joe"</span>)
-                    .set_value(<span class="string">"person/likes"</span>, <span class="string">"Pizza"</span>),
+                    .assert(<span class="string">"person/name"</span>, <span class="string">"Joe"</span>)
+                    .assert(<span class="string">"person/likes"</span>, <span class="string">"Pizza"</span>),
             ),
         );
 
         <span class="kw">let </span>joe_id = tx_result.temp_ids[<span class="string">"joe"</span>];
-        <span class="kw">let </span>query = Query::new().find(Find::variable(<span class="string">"?likes"</span>)).with(
+        <span class="comment">// [:find ?likes
+        //  :where [?joe_id :person/likes ?likes]]
+        </span><span class="kw">let </span>query = Query::new().find(Find::variable(<span class="string">"?likes"</span>)).with(
             Clause::new()
                 .with_entity(Pattern::Constant(joe_id))
                 .with_attribute(Pattern::ident(<span class="string">"person/likes"</span>))
@@ -1567,7 +1612,7 @@
         <span class="comment">// Retract
         </span>sut.transact(
             Transaction::new()
-                .with(EntityOperation::on_id(joe_id).retract_value(<span class="string">"person/likes"</span>, <span class="string">"Pizza"</span>)),
+                .with(EntityOperation::on_id(joe_id).retract(<span class="string">"person/likes"</span>, <span class="string">"Pizza"</span>)),
         );
 
         <span class="macro">assert_that!</span>(sut.query(query), empty());
@@ -1583,16 +1628,16 @@
             sut.transact(
                 Transaction::new().with(
                     EntityOperation::on_new()
-                        .set_value(<span class="string">"person/name"</span>, <span class="string">"Alice"</span>)
-                        .set_value(<span class="string">"person/email"</span>, <span class="string">"foo@bar.com"</span>),
+                        .assert(<span class="string">"person/name"</span>, <span class="string">"Alice"</span>)
+                        .assert(<span class="string">"person/email"</span>, <span class="string">"foo@bar.com"</span>),
                 ),
             );
 
             <span class="kw">let </span>tx_result = sut.try_transact(
                 Transaction::new().with(
                     EntityOperation::on_new()
-                        .set_value(<span class="string">"person/name"</span>, <span class="string">"Bob"</span>)
-                        .set_value(<span class="string">"person/email"</span>, <span class="string">"foo@bar.com"</span>),
+                        .assert(<span class="string">"person/name"</span>, <span class="string">"Bob"</span>)
+                        .assert(<span class="string">"person/email"</span>, <span class="string">"foo@bar.com"</span>),
                 ),
             );
 
@@ -1607,13 +1652,13 @@
                 Transaction::new()
                     .with(
                         EntityOperation::on_new()
-                            .set_value(<span class="string">"person/name"</span>, <span class="string">"Alice"</span>)
-                            .set_value(<span class="string">"person/email"</span>, <span class="string">"foo@bar.com"</span>),
+                            .assert(<span class="string">"person/name"</span>, <span class="string">"Alice"</span>)
+                            .assert(<span class="string">"person/email"</span>, <span class="string">"foo@bar.com"</span>),
                     )
                     .with(
                         EntityOperation::on_new()
-                            .set_value(<span class="string">"person/name"</span>, <span class="string">"Bob"</span>)
-                            .set_value(<span class="string">"person/email"</span>, <span class="string">"foo@bar.com"</span>),
+                            .assert(<span class="string">"person/name"</span>, <span class="string">"Bob"</span>)
+                            .assert(<span class="string">"person/email"</span>, <span class="string">"foo@bar.com"</span>),
                     ),
             );
 

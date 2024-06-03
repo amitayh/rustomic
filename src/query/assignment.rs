@@ -39,9 +39,9 @@ impl PartialAssignment {
     /// assignment.assign("bar", Value::U64(2));
     /// assignment.assign("baz", Value::U64(3));
     ///
-    /// assert_eq!(Value::U64(1), assignment.assigned["foo"]);
-    /// assert_eq!(Value::U64(2), assignment.assigned["bar"]);
-    /// assert_eq!(Value::U64(3), assignment.assigned["baz"]);
+    /// assert_eq!(Some(&Value::U64(1)), assignment.get("foo"));
+    /// assert_eq!(Some(&Value::U64(2)), assignment.get("bar"));
+    /// assert_eq!(Some(&Value::U64(3)), assignment.get("baz"));
     /// ```
     pub fn from_clauses(clauses: &[Clause]) -> Self {
         Self::new(
@@ -117,10 +117,10 @@ impl PartialAssignment {
     /// let datom = Datom::add(entity, attribute, value, tx);
     /// let updated = assignment.update_with(&clause, datom);
     ///
-    /// assert_eq!(Value::Ref(entity), updated.assigned["?entity"]);
-    /// assert_eq!(Value::Ref(attribute), updated.assigned["?attribute"]);
-    /// assert_eq!(Value::U64(value), updated.assigned["?value"]);
-    /// assert_eq!(Value::Ref(tx), updated.assigned["?tx"]);
+    /// assert_eq!(Some(&Value::Ref(entity)), updated.get("?entity"));
+    /// assert_eq!(Some(&Value::Ref(attribute)), updated.get("?attribute"));
+    /// assert_eq!(Some(&Value::U64(value)), updated.get("?value"));
+    /// assert_eq!(Some(&Value::Ref(tx)), updated.get("?tx"));
     /// ```
     pub fn update_with(&self, clause: &Clause, datom: Datom) -> Self {
         let mut assignment = self.clone();

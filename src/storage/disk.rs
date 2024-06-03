@@ -108,7 +108,6 @@ impl<'a> WriteStorage for DiskStorage<'a, ReadWrite> {
             latest_entity_id = latest_entity_id.max(datom.entity);
         }
         batch.put_cf(system, KEY_LATEST_ENTITY_ID, latest_entity_id.to_be_bytes());
-        //batch.put_cf(system, "entity_id", latest_entity_id.to_be_bytes());
         self.db.write(batch)?;
         Ok(())
     }

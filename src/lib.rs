@@ -169,8 +169,10 @@ mod tests {
                 .with(EntityOperation::on_new().assert("person/name", "Bob")),
         );
 
+        // [:find ?name
+        //  :where [?name :person/name "Eve"]]
         let query_result = sut.query(
-            Query::new().with(
+            Query::new().find(Find::variable("?name")).with(
                 Clause::new()
                     .with_entity(Pattern::variable("?name"))
                     .with_attribute(Pattern::ident("person/name"))
@@ -191,6 +193,8 @@ mod tests {
                 .with(EntityOperation::on_temp_id("joe").assert("person/name", "Joe")),
         );
 
+        // [:find ?joe
+        //  :where [?joe :person/name "Joe"]]
         let query_result = sut.query(
             Query::new().find(Find::variable("?joe")).with(
                 Clause::new()
@@ -250,6 +254,10 @@ mod tests {
                 ),
         );
 
+        // [:find ?release-name
+        //  :where [?artist :artist/name "John Lenon"]
+        //         [?release :release/artist ?artist]
+        //         [?release :release/name ?release-name]]
         let query_result = sut.query(
             Query::new()
                 .find(Find::variable("?release-name"))
@@ -299,6 +307,8 @@ mod tests {
                 .with(EntityOperation::on_id(joe_id).assert("person/email", "foo@baz.com")),
         );
 
+        // [:find ?email
+        //  :where [?joe_id :person/email ?email]]
         let query_result = sut.query(
             Query::new().find(Find::variable("?email")).with(
                 Clause::new()
@@ -334,6 +344,8 @@ mod tests {
                 .with(EntityOperation::on_id(joe_id).assert("person/likes", "Ice cream")),
         );
 
+        // [:find ?likes
+        //  :where [?joe_id :person/likes ?likes]]
         let query_result = sut.query(
             Query::new().find(Find::variable("?likes")).with(
                 Clause::new()
@@ -375,6 +387,8 @@ mod tests {
             ),
         );
 
+        // [:find ?likes
+        //  :where [?joe_id :person/likes ?likes]]
         let query_result = sut.query_at_snapshot(
             first_tx_result.tx_id,
             Query::new().find(Find::variable("?likes")).with(
@@ -400,6 +414,9 @@ mod tests {
             Transaction::new().with(EntityOperation::on_new().assert("person/name", "Joe")),
         );
 
+        // [:find ?tx ?tx_time
+        //  :where [_ :person/name "Joe" ?tx]
+        //         [?tx ?tx_time_id ?tx_time]]
         let query_result = sut.query(
             Query::new()
                 .find(Find::variable("?tx"))
@@ -437,6 +454,8 @@ mod tests {
         );
 
         // Find all datoms belonging to transaction
+        // [:find ?e ?a ?v
+        //  :where [?e ?a ?v ?tx_id]]
         let query_result = sut.query(
             Query::new()
                 .find(Find::variable("?e"))
@@ -475,6 +494,8 @@ mod tests {
             Transaction::new().with(EntityOperation::on_new().assert("person/name", "John")),
         );
 
+        // [:find (count)
+        //  : where [?person :person/name]]
         let query_result = sut.query(
             Query::new().find(Find::count()).with(
                 Clause::new()
@@ -496,6 +517,9 @@ mod tests {
         // Insert data
         sut.transact(create_beatles());
 
+        // [:find ?born (count)
+        //  :where [?person :person/born ?born]
+        //         [?person :person/name ?name]]
         let query = Query::new()
             .find(Find::variable("?born"))
             .find(Find::count())
@@ -531,6 +555,9 @@ mod tests {
         // Insert data
         sut.transact(create_beatles());
 
+        // [:find (sum ?born) ?born
+        //  :where [?person :person/born ?born]
+        //         [?person :person/name ?name]]
         let query = Query::new()
             .find(Find::sum("?born"))
             .find(Find::variable("?born"))
@@ -594,6 +621,9 @@ mod tests {
                 ),
         );
 
+        // [:find ?name (count-distinct ?likes)
+        //  :where [?person :person/name ?name]
+        //         [?person :person/likes ?likes]]
         let query = Query::new()
             .find(Find::variable("?name"))
             .find(Find::count_distinct("?likes"))
@@ -629,6 +659,8 @@ mod tests {
         // Insert data
         sut.transact(create_beatles());
 
+        // [:find ?name
+        //  :where [?person :person/born ?born]]
         let query_result = sut
             .try_query(
                 Query::new().find(Find::variable("?name")).with(
@@ -653,6 +685,8 @@ mod tests {
         // Insert data
         sut.transact(create_beatles());
 
+        // [:find ?name (count)
+        //  :where [?person :person/born ?born]]
         let query_result = sut.try_query(
             Query::new()
                 .find(Find::variable("?name"))
@@ -678,6 +712,10 @@ mod tests {
         // Insert data
         sut.transact(create_beatles());
 
+        // [:find ?name
+        //  :where [?person :person/born ?born]
+        //         [?person :person/name ?name]
+        //         [(> ?born 1940)]]
         let query_result = sut.query(
             Query::new()
                 .find(Find::variable("?name"))
@@ -722,6 +760,8 @@ mod tests {
         );
 
         let joe_id = tx_result.temp_ids["joe"];
+        // [:find ?likes
+        //  :where [?joe_id :person/likes ?likes]]
         let query = Query::new().find(Find::variable("?likes")).with(
             Clause::new()
                 .with_entity(Pattern::Constant(joe_id))

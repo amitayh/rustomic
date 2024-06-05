@@ -57,7 +57,7 @@ impl<T: SeekableIterator> Iterator for DatomsIterator<T> {
 /// differs in the [e a v] combination.
 fn seek_key(value: &Value, datom_bytes: &[u8], basis_tx: u64) -> Option<Bytes> {
     let mut key = next_prefix(&datom_bytes[..key_size(value)])?;
-    (!basis_tx).write(&mut key);
+    (!basis_tx).write_to(&mut key);
     Some(key)
 }
 
@@ -86,5 +86,5 @@ fn next_prefix(prefix: &[u8]) -> Option<Bytes> {
 fn key_size(value: &Value) -> usize {
     std::mem::size_of::<u64>() // Entity
         + std::mem::size_of::<u64>() // Attribute
-        + value.size()
+        + value.size_hint()
 }

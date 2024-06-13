@@ -1,0 +1,23 @@
+[package]
+name = "server"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[[bin]] # Bin to run the rustomic gRPC server
+name = "rustomic-server"
+path = "src/server.rs"
+
+#[[bin]] # Bin to run the rustomic gRPC client
+#name = "rustomic-client"
+#path = "src/client.rs"
+
+[dependencies]
+tonic = "0.11"
+prost = "0.12"
+tokio = { version = "1.0", features = ["macros", "rt-multi-thread"] }
+rustomic = { path = "../" }
+
+[build-dependencies]
+tonic-build = "0.11"

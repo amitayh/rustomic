@@ -135,6 +135,10 @@ mod tests {
     }
 
     fn create_beatles() -> Transaction {
+        // [{:person/name "John" :person/born 1940}
+        //  {:person/name "Paul" :person/born 1942}
+        //  {:person/name "George" :person/born 1943}
+        //  {:person/name "Ringo" :person/born 1940}]
         Transaction::new()
             .with(
                 EntityOperation::on_new()
@@ -163,6 +167,8 @@ mod tests {
         let mut sut = Sut::new();
 
         // Insert data
+        // [{:person/name "Alice}
+        //  {:person/name "Bob"}]
         sut.transact(
             Transaction::new()
                 .with(EntityOperation::on_new().assert("person/name", "Alice"))
@@ -188,6 +194,8 @@ mod tests {
         let mut sut = Sut::new();
 
         // Insert data
+        // [{:db/id "joe"
+        //   :person/name "Joe"}]
         let tx_result = sut.transact(
             Transaction::new()
                 .with(EntityOperation::on_temp_id("joe").assert("person/name", "Joe")),
@@ -242,6 +250,14 @@ mod tests {
         let mut sut = Sut::new();
 
         // Insert data
+        // [{:db/id "john"
+        //   :artist/name "John Lenon"}
+        //  {:db/id "paul"
+        //   :artist/name "Paul McCartney"}
+        //  {:db/id "abbey-road"
+        //   :release/name "Abbey Road"
+        //   :release/artists "john"
+        //   :release/artists "paul"}]
         sut.transact(
             Transaction::new()
                 .with(EntityOperation::on_temp_id("john").assert("artist/name", "John Lenon"))
@@ -292,6 +308,9 @@ mod tests {
         let mut sut = Sut::new();
 
         // Insert initial data
+        // [{:db/id "joe"
+        //   :person/name "Joe"
+        //   :person/email "foo@bar.com"}]
         let tx_result = sut.transact(
             Transaction::new().with(
                 EntityOperation::on_temp_id("joe")
@@ -302,6 +321,8 @@ mod tests {
         let joe_id = tx_result.temp_ids["joe"];
 
         // Update Joe's email
+        // [{:db/id joe_id
+        //   :person/email "foo@baz.com"}]
         sut.transact(
             Transaction::new()
                 .with(EntityOperation::on_id(joe_id).assert("person/email", "foo@baz.com")),
@@ -329,6 +350,9 @@ mod tests {
         let mut sut = Sut::new();
 
         // Insert initial data
+        // [{:db/id "joe"
+        //   :person/name "Joe"
+        //   :person/likes "Pizza"}]
         let tx_result = sut.transact(
             Transaction::new().with(
                 EntityOperation::on_temp_id("joe")
@@ -339,6 +363,8 @@ mod tests {
         let joe_id = tx_result.temp_ids["joe"];
 
         // Update what Joe likes
+        // [{:db/id joe_id
+        //   :person/likes "Ice cream"}]
         sut.transact(
             Transaction::new()
                 .with(EntityOperation::on_id(joe_id).assert("person/likes", "Ice cream")),
@@ -369,6 +395,9 @@ mod tests {
         let mut sut = Sut::new();
 
         // Insert initial data
+        // [{:db/id "joe"
+        //   :person/name "Joe"
+        //   :person/likes "Pizza"}]
         let first_tx_result = sut.transact(
             Transaction::new().with(
                 EntityOperation::on_temp_id("joe")
@@ -379,6 +408,8 @@ mod tests {
         let joe_id = first_tx_result.temp_ids["joe"];
 
         // Update what Joe likes
+        // [{:db/id joe_id
+        //   :person/likes "Ice cream"}]
         sut.transact(
             Transaction::new().with(
                 EntityOperation::on_id(joe_id)
@@ -490,6 +521,7 @@ mod tests {
         let mut sut = Sut::new();
 
         // Insert data
+        // [{:person/new "John"}]
         sut.transact(
             Transaction::new().with(EntityOperation::on_new().assert("person/name", "John")),
         );
@@ -591,6 +623,18 @@ mod tests {
         let mut sut = Sut::new();
 
         // Insert data
+        // [{:person/name "John"
+        //   :person/likes ["Pizza" "Ice cream"]
+        //   :person/born 1967}
+        //  {:person/name "John"
+        //   :person/likes ["Pizza" "Beer"]
+        //   :person/born 1967}
+        //  {:person/name "Mike"
+        //   :person/likes "Pizza"
+        //   :person/born 1967}
+        //  {:person/name "James"
+        //   :person/likes "Beer"
+        //   :person/born 1963}]
         sut.transact(
             Transaction::new()
                 .with(
@@ -787,7 +831,7 @@ mod tests {
         use super::*;
 
         #[test]
-        fn accross_transactions() {
+        fn across_transactions() {
             let mut sut = Sut::new();
 
             sut.transact(

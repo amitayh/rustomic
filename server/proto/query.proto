@@ -1,0 +1,14 @@
+syntax = "proto3";
+
+package rustomic.server;
+
+service QueryService {
+    rpc Query (QueryRequest) returns (QueryResponse);
+}
+
+message QueryRequest {
+    string query = 1;
+}
+
+message QueryResponse {
+}

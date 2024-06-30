@@ -4,14 +4,16 @@ use std::rc::Rc;
 use nom::branch::*;
 use nom::bytes::complete::*;
 use nom::character::complete::*;
-use nom::character::*;
 use nom::combinator::*;
 use nom::multi::*;
+use nom::number::complete::*;
 use nom::sequence::*;
 use nom::IResult;
 use nom::Parser;
 
-use rustomic::query::{Find, Query};
+use rustomic::query::Query;
+
+use self::edn::Edn;
 
 // ------------------------------------------------------------------------------------------------
 
@@ -19,20 +21,20 @@ mod edn {
     use super::*;
 
     #[derive(PartialEq, Debug, Clone, PartialOrd, Eq, Ord)]
-    struct Name {
-        namespace: Option<Rc<str>>,
-        name: Rc<str>,
+    pub struct Name {
+        pub namespace: Option<Rc<str>>,
+        pub name: Rc<str>,
     }
 
     impl Name {
-        fn from(name: &str) -> Self {
+        pub fn from(name: &str) -> Self {
             Self {
                 namespace: None,
                 name: Rc::from(name),
             }
         }
 
-        fn namespaced(namespace: &str, name: &str) -> Self {
+        pub fn namespaced(namespace: &str, name: &str) -> Self {
             Self {
                 namespace: Some(Rc::from(namespace)),
                 name: Rc::from(name),
@@ -41,19 +43,103 @@ mod edn {
     }
 
     #[derive(PartialEq, Debug, Clone, PartialOrd, Eq, Ord)]
-    enum Edn {
+    pub enum Edn {
+        /// `nil` represents nil, null or nothing. It should be read as an object with similar
+        /// meaning on the target platform.
         Nil,
-        True,
-        False,
+
+        /// `true` and `false` should be mapped to booleans.
+        ///
+        /// If a platform has canonic values for true and false, it is a further semantic of
+        /// booleans that all instances of `true` yield that (identical) value, and similarly for
+        /// `false`.
+        Boolean(bool),
+
+        /// Strings are enclosed in `"double quotes"`. May span multiple lines. Standard C/Java
+        /// escape characters `\t, \r, \n, \\ and \" are supported.
         String(Rc<str>),
-        // Char(char),
+
+        /// Symbols are used to represent identifiers, and should map to something other than
+        /// strings, if possible.
+        ///
+        /// Symbols begin with a non-numeric character and can contain alphanumeric characters and
+        /// `. * + ! - _ ? $ % & = < >`. If `-`, `+` or `.` are the first character, the second
+        /// character (if any) must be non-numeric. Additionally, `: #` are allowed as constituent
+        /// characters in symbols other than as the first character.
+        ///
+        /// `/` has special meaning in symbols. It can be used once only in the middle of a symbol
+        /// to separate the _prefix_ (often a namespace) from the _name_, e.g. `my-namespace/foo`.
+        /// `/` by itself is a legal symbol, but otherwise neither the _prefix_ nor the _name_ part
+        /// can be empty when the symbol contains `/`.
+        ///
+        /// If a symbol has a _prefix_ and `/`, the following _name_ component should follow the
+        /// first-character restrictions for symbols as a whole. This is to avoid ambiguity in
+        /// reading contexts where prefixes might be presumed as implicitly included namespaces and
+        /// elided thereafter.
         Symbol(Name),
+
+        /// Keywords are identifiers that typically designate themselves. They are semantically
+        /// akin to enumeration values. Keywords follow the rules of symbols, except they can (and
+        /// must) begin with `:`, e.g. `:fred` or `:my/fred`. If the target platform does not have
+        /// a keyword type distinct from a symbol type, the same type can be used without conflict,
+        /// since the mandatory leading `:` of keywords is disallowed for symbols. Per the symbol
+        /// rules above, :/ and :/anything are not legal keywords. A keyword cannot begin with ::
+        ///
+        /// If the target platform supports some notion of interning, it is a further semantic of
+        /// keywords that all instances of the same keyword yield the identical object.
         Keyword(Name),
+
+        /// Integers consist of the digits `0` - `9`, optionally prefixed by `-` to indicate a
+        /// negative number, or (redundantly) by `+`. No integer other than 0 may begin with 0.
+        /// 64-bit (signed integer) precision is expected. An integer can have the suffix `N` to
+        /// indicate that arbitrary precision is desired. -0 is a valid integer not distinct from
+        /// 0.
+        ///
+        /// ```
+        ///    integer
+        ///      int
+        ///      int N
+        ///    digit
+        ///      0-9
+        ///    int
+        ///      digit
+        ///      1-9 digits
+        ///      + digit
+        ///      + 1-9 digits
+        ///      - digit
+        ///      - 1-9 digits
+        /// ```
         Integer(i64),
-        // Float(f32),
+
+        /// A list is a sequence of values. Lists are represented by zero or more elements enclosed
+        /// in parentheses `()`. Note that lists can be heterogeneous.
+        ///
+        /// ```(a b 42)```
         List(Vec<Edn>),
+
+        /// A vector is a sequence of values that supports random access. Vectors are represented
+        /// by zero or more elements enclosed in square brackets `[]`. Note that vectors can be
+        /// heterogeneous.
+        ///
+        /// ```[a b 42]```
         Vector(Vec<Edn>),
+
+        /// A map is a collection of associations between keys and values. Maps are represented by
+        /// zero or more key and value pairs enclosed in curly braces `{}`. Each key should appear
+        /// at most once. No semantics should be associated with the order in which the pairs
+        /// appear.
+        ///
+        /// ```{:a 1, "foo" :bar, [1 2 3] four}```
+        ///
+        /// Note that keys and values can be elements of any type. The use of commas above is
+        /// optional, as they are parsed as whitespace.
         Map(BTreeMap<Edn, Edn>),
+
+        /// A set is a collection of unique values. Sets are represented by zero or more elements
+        /// enclosed in curly braces preceded by `#` `#{}`. No semantics should be associated with
+        /// the order in which the elements appear. Note that sets can be heterogeneous.
+        ///
+        /// ```#{a b [1 2 3]}```
         Set(BTreeSet<Edn>),
     }
 
@@ -63,16 +149,10 @@ mod edn {
         fn try_from(input: &str) -> Result<Self, Self::Error> {
             let (input, edn) = parse_edn(input).map_err(|err| err.to_string())?;
             if !input.is_empty() {
-                return Err(String::from("Leftovers"));
+                return Err("Leftovers".to_string());
             }
             Ok(edn)
         }
-    }
-
-    fn parse_string(input: &str) -> IResult<&str, Edn> {
-        delimited(char('"'), is_not("\""), char('"'))
-            .map(|str| Edn::String(Rc::from(str)))
-            .parse(input)
     }
 
     fn parse_name_part(input: &str) -> IResult<&str, &str> {
@@ -89,69 +169,42 @@ mod edn {
         Ok((input, name))
     }
 
-    fn parse_symbol(input: &str) -> IResult<&str, Edn> {
-        parse_name.map(Edn::Symbol).parse(input)
-    }
-
-    fn parse_keyword(input: &str) -> IResult<&str, Edn> {
-        preceded(char(':'), parse_name)
-            .map(Edn::Keyword)
-            .parse(input)
-    }
-
-    fn parse_integer(input: &str) -> IResult<&str, Edn> {
-        nom::number::complete::double
-            .map(|number| Edn::Integer(number.round() as i64))
-            .parse(input)
-    }
-
-    fn parse_sequence(open: char, close: char) -> impl Fn(&str) -> IResult<&str, Vec<Edn>> {
-        move |input| {
-            delimited(
-                char(open),
-                separated_list0(multispace1, parse_edn),
-                char(close),
-            )
-            .parse(input)
-        }
-    }
-
-    fn parse_map(input: &str) -> IResult<&str, Edn> {
-        delimited(
-            char('{'),
-            separated_list0(
-                multispace1,
-                separated_pair(parse_edn, multispace1, parse_edn),
-            ),
-            char('}'),
-        )
-        .map(|entries| Edn::Map(entries.into_iter().collect()))
-        .parse(input)
-    }
-
-    fn parse_set(input: &str) -> IResult<&str, Edn> {
-        delimited(
-            tag("#{"),
-            separated_list0(multispace1, parse_edn),
-            char('}'),
-        )
-        .map(|elements| Edn::Set(elements.into_iter().collect()))
-        .parse(input)
-    }
-
     fn parse_edn(input: &str) -> IResult<&str, Edn> {
         alt((
             tag("nil").map(|_| Edn::Nil),
-            tag("true").map(|_| Edn::True),
-            tag("false").map(|_| Edn::False),
-            parse_string,
-            parse_sequence('[', ']').map(Edn::Vector),
-            parse_sequence('(', ')').map(Edn::List),
-            parse_map,
-            parse_set,
-            parse_integer,
-            parse_keyword,
-            parse_symbol,
+            tag("true").map(|_| Edn::Boolean(true)),
+            tag("false").map(|_| Edn::Boolean(false)),
+            delimited(char('"'), is_not("\""), char('"')).map(|str| Edn::String(Rc::from(str))),
+            delimited(
+                char('['),
+                separated_list0(multispace1, parse_edn),
+                char(']'),
+            )
+            .map(Edn::Vector),
+            delimited(
+                char('('),
+                separated_list0(multispace1, parse_edn),
+                char(')'),
+            )
+            .map(Edn::List),
+            delimited(
+                char('{'),
+                separated_list0(
+                    multispace1,
+                    separated_pair(parse_edn, multispace1, parse_edn),
+                ),
+                char('}'),
+            )
+            .map(|entries| Edn::Map(entries.into_iter().collect())),
+            delimited(
+                tag("#{"),
+                separated_list0(multispace1, parse_edn),
+                char('}'),
+            )
+            .map(|elements| Edn::Set(elements.into_iter().collect())),
+            double.map(|number| Edn::Integer(number.round() as i64)),
+            preceded(char(':'), parse_name).map(Edn::Keyword),
+            parse_name.map(Edn::Symbol),
         ))(input)
     }
 
@@ -170,8 +223,6 @@ mod edn {
         fn test_no_leftovers() {
             let result = Edn::try_from("[foo] bar");
 
-            dbg!(&result);
-
             assert!(result.is_err())
         }
 
@@ -186,14 +237,14 @@ mod edn {
         fn test_true() {
             let result = Edn::try_from("true");
 
-            assert_eq!(result, Ok(Edn::True));
+            assert_eq!(result, Ok(Edn::Boolean(true)));
         }
 
         #[test]
         fn test_false() {
             let result = Edn::try_from("false");
 
-            assert_eq!(result, Ok(Edn::False));
+            assert_eq!(result, Ok(Edn::Boolean(false)));
         }
 
         #[test]
@@ -302,40 +353,17 @@ mod edn {
 
 // ------------------------------------------------------------------------------------------------
 
-fn whitespace(input: &str) -> IResult<&str, &str> {
-    take_while(|c: char| c.is_whitespace() || c == ',')(input)
-}
-
-fn symbol(input: &str) -> IResult<&str, &str> {
-    take_while(|c: char| is_alphabetic(c.try_into().unwrap()))(input) // TODO
-}
-
-fn variable(input: &str) -> IResult<&str, &str> {
-    preceded(char('?'), symbol)(input)
-}
-
-fn parse_find(input: &str) -> IResult<&str, Vec<Find>> {
-    let (input, _) = tag(":find")(input)?;
-    let (input, _) = whitespace(input)?;
-    let (input, variables) = many0(variable)(input)?;
-    let find = variables
-        .iter()
-        .map(|variable| Find::variable(variable))
-        .collect();
-
-    Ok((input, find))
-}
-
-pub fn parse(input: &str) -> IResult<&str, Query> {
-    let (input, find) = delimited(char('['), parse_find, char(']'))(input)?;
-    Ok((
-        input,
-        Query {
-            find,
-            clauses: Vec::new(),
-            predicates: Vec::new(),
-        },
-    ))
+pub fn parse(input: &str) -> Result<Query, String> {
+    let edn = Edn::try_from(input)?;
+    let Edn::Vector(parts) = edn else {
+        return Err("Invalid format".to_string());
+    };
+    dbg!(&parts);
+    Ok(Query {
+        find: Vec::new(),
+        clauses: Vec::new(),
+        predicates: Vec::new(),
+    })
 }
 
 #[cfg(test)]
@@ -354,10 +382,11 @@ mod tests {
     #[test]
     fn parse_a_single_find_clause() {
         let query = "[:find ?foo]";
+        let query2 = r#"[:find ?release-name
+                         :where [?artist :artist/name "John Lenon"]
+                                [?release :release/artist ?artist]
+                                [?release :release/name ?release-name]]"#;
 
-        assert_eq!(
-            parse(query),
-            Ok(("", Query::new().find(Find::variable("?foo"))))
-        );
+        assert_eq!(parse(query2), Ok(Query::new().find(Find::variable("?foo"))));
     }
 }

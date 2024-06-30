@@ -28,12 +28,13 @@ mod edn {
         character::complete::{alpha0, anychar, multispace1},
         combinator::not,
         multi::{many1, separated_list0},
+        sequence::separated_pair,
         Parser,
     };
 
     use super::*;
 
-    #[derive(PartialEq, Debug, Clone)]
+    #[derive(PartialEq, Debug, Clone, PartialOrd, Eq, Ord)]
     struct Name {
         namespace: Option<Rc<str>>,
         name: Rc<str>,
@@ -55,16 +56,16 @@ mod edn {
         }
     }
 
-    #[derive(PartialEq, Debug, Clone)]
+    #[derive(PartialEq, Debug, Clone, PartialOrd, Eq, Ord)]
     enum Edn {
         Nil,
         True,
         False,
         String(Rc<str>),
-        Char(char),
+        // Char(char),
         Symbol(Name),
         Keyword(Name),
-        Integer(i32),
+        // Integer(i32),
         // Float(f32),
         List(Vec<Edn>),
         Vector(Vec<Edn>),
@@ -134,6 +135,39 @@ mod edn {
         .parse(input)
     }
 
+    fn parse_list(input: &str) -> IResult<&str, Edn> {
+        delimited(
+            char('('),
+            separated_list0(multispace1, parse_edn),
+            char(')'),
+        )
+        .map(Edn::List)
+        .parse(input)
+    }
+
+    fn parse_map(input: &str) -> IResult<&str, Edn> {
+        delimited(
+            char('{'),
+            separated_list0(
+                multispace1,
+                separated_pair(parse_edn, multispace1, parse_edn),
+            ),
+            char('}'),
+        )
+        .map(|entries| Edn::Map(entries.into_iter().collect()))
+        .parse(input)
+    }
+
+    fn parse_set(input: &str) -> IResult<&str, Edn> {
+        delimited(
+            tag("#{"),
+            separated_list0(multispace1, parse_edn),
+            char('}'),
+        )
+        .map(|elements| Edn::Set(elements.into_iter().collect()))
+        .parse(input)
+    }
+
     fn parse_edn(input: &str) -> IResult<&str, Edn> {
         alt((
             parse_nil,
@@ -141,6 +175,9 @@ mod edn {
             parse_false,
             parse_string,
             parse_vector,
+            parse_list,
+            parse_map,
+            parse_set,
             parse_keyword,
             parse_symbol,
         ))(input)
@@ -219,12 +256,51 @@ mod edn {
             );
         }
 
-        //#[test]
-        //fn consider_commas_as_whitespace() {
-        //    let result = Edn::try_from("[foo, bar]");
+        #[test]
+        fn test_nested_vector() {
+            let result = Edn::try_from("[foo [bar]]");
 
-        //    assert_eq!(result, Ok(Edn::Vector(Vec::new())));
-        //}
+            assert_eq!(
+                result,
+                Ok(Edn::Vector(vec![
+                    Edn::Symbol(Name::from("foo")),
+                    Edn::Vector(vec![Edn::Symbol(Name::from("bar"))])
+                ]))
+            );
+        }
+
+        #[test]
+        fn test_list() {
+            let result = Edn::try_from("(foo)");
+
+            assert_eq!(result, Ok(Edn::List(vec![Edn::Symbol(Name::from("foo"))])));
+        }
+
+        #[test]
+        fn test_map() {
+            let result = Edn::try_from("{:foo bar}");
+
+            assert_eq!(
+                result,
+                Ok(Edn::Map(BTreeMap::from([(
+                    Edn::Keyword(Name::from("foo")),
+                    Edn::Symbol(Name::from("bar"))
+                )])))
+            );
+        }
+
+        #[test]
+        fn test_set() {
+            let result = Edn::try_from("#{foo bar}");
+
+            assert_eq!(
+                result,
+                Ok(Edn::Set(BTreeSet::from([
+                    Edn::Symbol(Name::from("foo")),
+                    Edn::Symbol(Name::from("bar"))
+                ])))
+            );
+        }
     }
 }
 

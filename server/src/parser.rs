@@ -1,37 +1,21 @@
-use std::{
-    collections::{HashMap, HashSet},
-    rc::Rc,
-};
+use std::collections::{BTreeMap, BTreeSet};
+use std::rc::Rc;
+
+use nom::branch::*;
+use nom::bytes::complete::*;
+use nom::character::complete::*;
+use nom::character::*;
+use nom::combinator::*;
+use nom::multi::*;
+use nom::sequence::*;
+use nom::IResult;
+use nom::Parser;
 
 use rustomic::query::{Find, Query};
-
-use nom::{
-    bytes::complete::{is_a, tag, take_while},
-    character::{
-        complete::{char, multispace0},
-        is_alphabetic, is_alphanumeric,
-    },
-    combinator::opt,
-    multi::many0,
-    sequence::{delimited, preceded},
-    IResult,
-};
 
 // ------------------------------------------------------------------------------------------------
 
 mod edn {
-    use std::collections::{BTreeMap, BTreeSet};
-
-    use nom::{
-        branch::alt,
-        bytes::complete::{is_not, take_until, take_while, take_while1},
-        character::complete::{alpha0, anychar, multispace1},
-        combinator::not,
-        multi::{many1, separated_list0},
-        sequence::separated_pair,
-        Parser,
-    };
-
     use super::*;
 
     #[derive(PartialEq, Debug, Clone, PartialOrd, Eq, Ord)]
@@ -65,7 +49,7 @@ mod edn {
         // Char(char),
         Symbol(Name),
         Keyword(Name),
-        // Integer(i32),
+        Integer(i64),
         // Float(f32),
         List(Vec<Edn>),
         Vector(Vec<Edn>),
@@ -77,22 +61,12 @@ mod edn {
         type Error = String; // nom::Err<nom::error::Error<str>>;
 
         fn try_from(input: &str) -> Result<Self, Self::Error> {
-            parse_edn(input)
-                .map(|(_, result)| result)
-                .map_err(|err| err.to_string())
+            let (input, edn) = parse_edn(input).map_err(|err| err.to_string())?;
+            if !input.is_empty() {
+                return Err(String::from("Leftovers"));
+            }
+            Ok(edn)
         }
-    }
-
-    fn parse_nil(input: &str) -> IResult<&str, Edn> {
-        tag("nil").map(|_| Edn::Nil).parse(input)
-    }
-
-    fn parse_true(input: &str) -> IResult<&str, Edn> {
-        tag("true").map(|_| Edn::True).parse(input)
-    }
-
-    fn parse_false(input: &str) -> IResult<&str, Edn> {
-        tag("false").map(|_| Edn::False).parse(input)
     }
 
     fn parse_string(input: &str) -> IResult<&str, Edn> {
@@ -122,6 +96,12 @@ mod edn {
     fn parse_keyword(input: &str) -> IResult<&str, Edn> {
         preceded(char(':'), parse_name)
             .map(Edn::Keyword)
+            .parse(input)
+    }
+
+    fn parse_integer(input: &str) -> IResult<&str, Edn> {
+        nom::number::complete::double
+            .map(|number| Edn::Integer(number.round() as i64))
             .parse(input)
     }
 
@@ -170,14 +150,15 @@ mod edn {
 
     fn parse_edn(input: &str) -> IResult<&str, Edn> {
         alt((
-            parse_nil,
-            parse_true,
-            parse_false,
+            tag("nil").map(|_| Edn::Nil),
+            tag("true").map(|_| Edn::True),
+            tag("false").map(|_| Edn::False),
             parse_string,
             parse_vector,
             parse_list,
             parse_map,
             parse_set,
+            parse_integer,
             parse_keyword,
             parse_symbol,
         ))(input)
@@ -186,6 +167,22 @@ mod edn {
     #[cfg(test)]
     mod tests {
         use super::*;
+
+        #[test]
+        fn test_invalid_edn() {
+            let result = Edn::try_from("[foo");
+
+            assert!(result.is_err())
+        }
+
+        #[test]
+        fn test_no_leftovers() {
+            let result = Edn::try_from("[foo] bar");
+
+            dbg!(&result);
+
+            assert!(result.is_err())
+        }
 
         #[test]
         fn test_nil() {
@@ -234,6 +231,13 @@ mod edn {
             let result = Edn::try_from(":hello/world");
 
             assert_eq!(result, Ok(Edn::Keyword(Name::namespaced("hello", "world"))));
+        }
+
+        #[test]
+        fn test_integer() {
+            let result = Edn::try_from("1234");
+
+            assert_eq!(result, Ok(Edn::Integer(1234)));
         }
 
         #[test]
@@ -291,13 +295,14 @@ mod edn {
 
         #[test]
         fn test_set() {
-            let result = Edn::try_from("#{foo bar}");
+            let result = Edn::try_from("#{1 2 3}");
 
             assert_eq!(
                 result,
                 Ok(Edn::Set(BTreeSet::from([
-                    Edn::Symbol(Name::from("foo")),
-                    Edn::Symbol(Name::from("bar"))
+                    Edn::Integer(1),
+                    Edn::Integer(2),
+                    Edn::Integer(3)
                 ])))
             );
         }
@@ -312,10 +317,6 @@ fn whitespace(input: &str) -> IResult<&str, &str> {
 
 fn symbol(input: &str) -> IResult<&str, &str> {
     take_while(|c: char| is_alphabetic(c.try_into().unwrap()))(input) // TODO
-}
-
-fn keyword(input: &str) -> IResult<&str, &str> {
-    preceded(char(':'), symbol)(input)
 }
 
 fn variable(input: &str) -> IResult<&str, &str> {

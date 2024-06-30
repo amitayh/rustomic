@@ -96,32 +96,36 @@ mod edn {
         /// 0.
         ///
         /// ```
-        ///    integer
-        ///      int
-        ///      int N
-        ///    digit
-        ///      0-9
-        ///    int
-        ///      digit
-        ///      1-9 digits
-        ///      + digit
-        ///      + 1-9 digits
-        ///      - digit
-        ///      - 1-9 digits
+        ///   integer
+        ///     int
+        ///     int N
+        ///   digit
+        ///     0-9
+        ///   int
+        ///     digit
+        ///     1-9 digits
+        ///     + digit
+        ///     + 1-9 digits
+        ///     - digit
+        ///     - 1-9 digits
         /// ```
         Integer(i64),
 
         /// A list is a sequence of values. Lists are represented by zero or more elements enclosed
         /// in parentheses `()`. Note that lists can be heterogeneous.
         ///
-        /// ```(a b 42)```
+        /// ```
+        /// (a b 42)
+        /// ```
         List(Vec<Edn>),
 
         /// A vector is a sequence of values that supports random access. Vectors are represented
         /// by zero or more elements enclosed in square brackets `[]`. Note that vectors can be
         /// heterogeneous.
         ///
-        /// ```[a b 42]```
+        /// ```
+        /// [a b 42]
+        /// ```
         Vector(Vec<Edn>),
 
         /// A map is a collection of associations between keys and values. Maps are represented by
@@ -129,7 +133,9 @@ mod edn {
         /// at most once. No semantics should be associated with the order in which the pairs
         /// appear.
         ///
-        /// ```{:a 1, "foo" :bar, [1 2 3] four}```
+        /// ```
+        /// {:a 1, "foo" :bar, [1 2 3] four}
+        /// ```
         ///
         /// Note that keys and values can be elements of any type. The use of commas above is
         /// optional, as they are parsed as whitespace.
@@ -139,7 +145,9 @@ mod edn {
         /// enclosed in curly braces preceded by `#` `#{}`. No semantics should be associated with
         /// the order in which the elements appear. Note that sets can be heterogeneous.
         ///
-        /// ```#{a b [1 2 3]}```
+        /// ```
+        /// #{a b [1 2 3]}
+        /// ```
         Set(BTreeSet<Edn>),
     }
 

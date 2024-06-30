@@ -147,7 +147,7 @@ mod edn {
         type Error = String; // nom::Err<nom::error::Error<str>>;
 
         fn try_from(input: &str) -> Result<Self, Self::Error> {
-            let (input, edn) = parse_edn(input).map_err(|err| err.to_string())?;
+            let (input, edn) = edn(input).map_err(|err| err.to_string())?;
             if !input.is_empty() {
                 return Err("Leftovers".to_string());
             }
@@ -155,13 +155,13 @@ mod edn {
         }
     }
 
-    fn parse_name_part(input: &str) -> IResult<&str, &str> {
+    fn name_part(input: &str) -> IResult<&str, &str> {
         take_while1(|c: char| c.is_ascii_alphanumeric() || ".*+!-_?$%&=<>".contains(c))(input)
     }
 
-    fn parse_name(input: &str) -> IResult<&str, Name> {
-        let (input, first) = parse_name_part(input)?;
-        let (input, second) = opt(preceded(char('/'), parse_name_part))(input)?;
+    fn name(input: &str) -> IResult<&str, Name> {
+        let (input, first) = name_part(input)?;
+        let (input, second) = opt(preceded(char('/'), name_part))(input)?;
         let name = match second {
             Some(second) => Name::namespaced(first, second),
             None => Name::from(first),
@@ -169,42 +169,31 @@ mod edn {
         Ok((input, name))
     }
 
-    fn parse_edn(input: &str) -> IResult<&str, Edn> {
+    fn ws(input: &str) -> IResult<&str, &str> {
+        take_while1(|c: char| c.is_whitespace() || c == ',')(input)
+    }
+
+    fn edns(input: &str) -> IResult<&str, Vec<Edn>> {
+        separated_list0(ws, edn)(input)
+    }
+
+    fn entries(input: &str) -> IResult<&str, Vec<(Edn, Edn)>> {
+        separated_list0(ws, separated_pair(edn, ws, edn))(input)
+    }
+
+    fn edn(input: &str) -> IResult<&str, Edn> {
         alt((
             tag("nil").map(|_| Edn::Nil),
             tag("true").map(|_| Edn::Boolean(true)),
             tag("false").map(|_| Edn::Boolean(false)),
-            delimited(char('"'), is_not("\""), char('"')).map(|str| Edn::String(Rc::from(str))),
-            delimited(
-                char('['),
-                separated_list0(multispace1, parse_edn),
-                char(']'),
-            )
-            .map(Edn::Vector),
-            delimited(
-                char('('),
-                separated_list0(multispace1, parse_edn),
-                char(')'),
-            )
-            .map(Edn::List),
-            delimited(
-                char('{'),
-                separated_list0(
-                    multispace1,
-                    separated_pair(parse_edn, multispace1, parse_edn),
-                ),
-                char('}'),
-            )
-            .map(|entries| Edn::Map(entries.into_iter().collect())),
-            delimited(
-                tag("#{"),
-                separated_list0(multispace1, parse_edn),
-                char('}'),
-            )
-            .map(|elements| Edn::Set(elements.into_iter().collect())),
             double.map(|number| Edn::Integer(number.round() as i64)),
-            preceded(char(':'), parse_name).map(Edn::Keyword),
-            parse_name.map(Edn::Symbol),
+            delimited(char('"'), is_not("\""), char('"')).map(|str| Edn::String(Rc::from(str))),
+            delimited(char('['), edns, char(']')).map(Edn::Vector),
+            delimited(char('('), edns, char(')')).map(Edn::List),
+            delimited(tag("#{"), edns, char('}')).map(|xs| Edn::Set(xs.into_iter().collect())),
+            delimited(char('{'), entries, char('}')).map(|xs| Edn::Map(xs.into_iter().collect())),
+            preceded(char(':'), name).map(Edn::Keyword),
+            name.map(Edn::Symbol),
         ))(input)
     }
 
@@ -255,6 +244,14 @@ mod edn {
         }
 
         #[test]
+        #[ignore]
+        fn test_string_escape() {
+            let result = Edn::try_from(r#""hello \"world\"""#);
+
+            assert_eq!(result, Ok(Edn::String(Rc::from(r#"hello "world""#))));
+        }
+
+        #[test]
         fn test_symbol_without_namespace() {
             let result = Edn::try_from("hello-world");
 
@@ -292,6 +289,19 @@ mod edn {
         #[test]
         fn test_non_empty_vector() {
             let result = Edn::try_from("[foo bar]");
+
+            assert_eq!(
+                result,
+                Ok(Edn::Vector(vec![
+                    Edn::Symbol(Name::from("foo")),
+                    Edn::Symbol(Name::from("bar"))
+                ]))
+            );
+        }
+
+        #[test]
+        fn consider_commas_as_whitespace() {
+            let result = Edn::try_from("[foo, bar]");
 
             assert_eq!(
                 result,

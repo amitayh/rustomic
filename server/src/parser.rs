@@ -105,24 +105,15 @@ mod edn {
             .parse(input)
     }
 
-    fn parse_vector(input: &str) -> IResult<&str, Edn> {
-        delimited(
-            char('['),
-            separated_list0(multispace1, parse_edn),
-            char(']'),
-        )
-        .map(Edn::Vector)
-        .parse(input)
-    }
-
-    fn parse_list(input: &str) -> IResult<&str, Edn> {
-        delimited(
-            char('('),
-            separated_list0(multispace1, parse_edn),
-            char(')'),
-        )
-        .map(Edn::List)
-        .parse(input)
+    fn parse_sequence(open: char, close: char) -> impl Fn(&str) -> IResult<&str, Vec<Edn>> {
+        move |input| {
+            delimited(
+                char(open),
+                separated_list0(multispace1, parse_edn),
+                char(close),
+            )
+            .parse(input)
+        }
     }
 
     fn parse_map(input: &str) -> IResult<&str, Edn> {
@@ -154,8 +145,8 @@ mod edn {
             tag("true").map(|_| Edn::True),
             tag("false").map(|_| Edn::False),
             parse_string,
-            parse_vector,
-            parse_list,
+            parse_sequence('[', ']').map(Edn::Vector),
+            parse_sequence('(', ')').map(Edn::List),
             parse_map,
             parse_set,
             parse_integer,

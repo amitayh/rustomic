@@ -178,7 +178,7 @@ mod tests {
         // [:find ?name
         //  :where [?name :person/name "Eve"]]
         let query_result = sut.query(
-            Query::new().find(Find::variable("?name")).with(
+            Query::new().find(Find::variable("?name")).r#where(
                 Clause::new()
                     .with_entity(Pattern::variable("?name"))
                     .with_attribute(Pattern::ident("person/name"))
@@ -204,7 +204,7 @@ mod tests {
         // [:find ?joe
         //  :where [?joe :person/name "Joe"]]
         let query_result = sut.query(
-            Query::new().find(Find::variable("?joe")).with(
+            Query::new().find(Find::variable("?joe")).r#where(
                 Clause::new()
                     .with_entity(Pattern::variable("?joe"))
                     .with_attribute(Pattern::ident("person/name"))
@@ -277,19 +277,19 @@ mod tests {
         let query_result = sut.query(
             Query::new()
                 .find(Find::variable("?release-name"))
-                .with(
+                .r#where(
                     Clause::new()
                         .with_entity(Pattern::variable("?artist"))
                         .with_attribute(Pattern::ident("artist/name"))
                         .with_value(Pattern::value("John Lenon")),
                 )
-                .with(
+                .r#where(
                     Clause::new()
                         .with_entity(Pattern::variable("?release"))
                         .with_attribute(Pattern::ident("release/artists"))
                         .with_value(Pattern::variable("?artist")),
                 )
-                .with(
+                .r#where(
                     Clause::new()
                         .with_entity(Pattern::variable("?release"))
                         .with_attribute(Pattern::ident("release/name"))
@@ -331,7 +331,7 @@ mod tests {
         // [:find ?email
         //  :where [?joe_id :person/email ?email]]
         let query_result = sut.query(
-            Query::new().find(Find::variable("?email")).with(
+            Query::new().find(Find::variable("?email")).r#where(
                 Clause::new()
                     .with_entity(Pattern::Constant(joe_id))
                     .with_attribute(Pattern::ident("person/email"))
@@ -372,8 +372,14 @@ mod tests {
 
         // [:find ?likes
         //  :where [?joe_id :person/likes ?likes]]
+        //
+        // [:find ?user-name ?time
+        //  :where [?vote :vote/poll 12345 ?tx]
+        //         [?vote :vote/user ?user]
+        //         [?user :user/name ?user-name]
+        //         [?tx :db/tx/time ?time]]
         let query_result = sut.query(
-            Query::new().find(Find::variable("?likes")).with(
+            Query::new().find(Find::variable("?likes")).r#where(
                 Clause::new()
                     .with_entity(Pattern::Constant(joe_id))
                     .with_attribute(Pattern::ident("person/likes"))
@@ -422,7 +428,7 @@ mod tests {
         //  :where [?joe_id :person/likes ?likes]]
         let query_result = sut.query_at_snapshot(
             first_tx_result.tx_id,
-            Query::new().find(Find::variable("?likes")).with(
+            Query::new().find(Find::variable("?likes")).r#where(
                 Clause::new()
                     .with_entity(Pattern::Constant(joe_id))
                     .with_attribute(Pattern::ident("person/likes"))
@@ -452,13 +458,13 @@ mod tests {
             Query::new()
                 .find(Find::variable("?tx"))
                 .find(Find::variable("?tx_time"))
-                .with(
+                .r#where(
                     Clause::new()
                         .with_attribute(Pattern::ident("person/name"))
                         .with_value(Pattern::value("Joe"))
                         .with_tx(Pattern::variable("?tx")),
                 )
-                .with(
+                .r#where(
                     Clause::new()
                         .with_entity(Pattern::variable("?tx"))
                         .with_attribute(Pattern::id(DB_TX_TIME_ID))
@@ -492,7 +498,7 @@ mod tests {
                 .find(Find::variable("?e"))
                 .find(Find::variable("?a"))
                 .find(Find::variable("?v"))
-                .with(
+                .r#where(
                     Clause::new()
                         .with_entity(Pattern::variable("?e"))
                         .with_attribute(Pattern::variable("?a"))
@@ -529,7 +535,7 @@ mod tests {
         // [:find (count)
         //  : where [?person :person/name]]
         let query_result = sut.query(
-            Query::new().find(Find::count()).with(
+            Query::new().find(Find::count()).r#where(
                 Clause::new()
                     .with_entity(Pattern::variable("?person"))
                     .with_attribute(Pattern::ident("person/name")),
@@ -555,13 +561,13 @@ mod tests {
         let query = Query::new()
             .find(Find::variable("?born"))
             .find(Find::count())
-            .with(
+            .r#where(
                 Clause::new()
                     .with_entity(Pattern::variable("?person"))
                     .with_attribute(Pattern::ident("person/born"))
                     .with_value(Pattern::variable("?born")),
             )
-            .with(
+            .r#where(
                 Clause::new()
                     .with_entity(Pattern::variable("?person"))
                     .with_attribute(Pattern::ident("person/name"))
@@ -593,13 +599,13 @@ mod tests {
         let query = Query::new()
             .find(Find::sum("?born"))
             .find(Find::variable("?born"))
-            .with(
+            .r#where(
                 Clause::new()
                     .with_entity(Pattern::variable("?person"))
                     .with_attribute(Pattern::ident("person/born"))
                     .with_value(Pattern::variable("?born")),
             )
-            .with(
+            .r#where(
                 Clause::new()
                     .with_entity(Pattern::variable("?person"))
                     .with_attribute(Pattern::ident("person/name"))
@@ -671,13 +677,13 @@ mod tests {
         let query = Query::new()
             .find(Find::variable("?name"))
             .find(Find::count_distinct("?likes"))
-            .with(
+            .r#where(
                 Clause::new()
                     .with_entity(Pattern::variable("?person"))
                     .with_attribute(Pattern::ident("person/name"))
                     .with_value(Pattern::variable("?name")),
             )
-            .with(
+            .r#where(
                 Clause::new()
                     .with_entity(Pattern::variable("?person"))
                     .with_attribute(Pattern::ident("person/likes"))
@@ -707,7 +713,7 @@ mod tests {
         //  :where [?person :person/born ?born]]
         let query_result = sut
             .try_query(
-                Query::new().find(Find::variable("?name")).with(
+                Query::new().find(Find::variable("?name")).r#where(
                     Clause::new()
                         .with_entity(Pattern::variable("?person"))
                         .with_attribute(Pattern::ident("person/born"))
@@ -735,7 +741,7 @@ mod tests {
             Query::new()
                 .find(Find::variable("?name"))
                 .find(Find::count())
-                .with(
+                .r#where(
                     Clause::new()
                         .with_entity(Pattern::variable("?person"))
                         .with_attribute(Pattern::ident("person/born"))
@@ -763,13 +769,13 @@ mod tests {
         let query_result = sut.query(
             Query::new()
                 .find(Find::variable("?name"))
-                .with(
+                .r#where(
                     Clause::new()
                         .with_entity(Pattern::variable("?person"))
                         .with_attribute(Pattern::ident("person/born"))
                         .with_value(Pattern::variable("?born")),
                 )
-                .with(
+                .r#where(
                     Clause::new()
                         .with_entity(Pattern::variable("?person"))
                         .with_attribute(Pattern::ident("person/name"))
@@ -806,7 +812,7 @@ mod tests {
         let joe_id = tx_result.temp_ids["joe"];
         // [:find ?likes
         //  :where [?joe_id :person/likes ?likes]]
-        let query = Query::new().find(Find::variable("?likes")).with(
+        let query = Query::new().find(Find::variable("?likes")).r#where(
             Clause::new()
                 .with_entity(Pattern::Constant(joe_id))
                 .with_attribute(Pattern::ident("person/likes"))

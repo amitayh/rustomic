@@ -306,6 +306,10 @@ dependencies = [
 ]
 
 [[package]]
+name = "client"
+version = "0.1.0"
+
+[[package]]
 name = "deranged"
 version = "0.3.11"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1292,6 +1296,7 @@ dependencies = [
 name = "server"
 version = "0.1.0"
 dependencies = [
+ "nom",
  "prost",
  "rustomic",
  "tokio",

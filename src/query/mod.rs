@@ -10,17 +10,38 @@ use crate::query::aggregation::*;
 use crate::query::clause::*;
 use crate::storage::attribute_resolver::ResolveError;
 use std::collections::HashMap;
+use std::fmt::Debug;
 use std::rc::Rc;
 use std::u64;
 use thiserror::Error;
 
 pub type Assignment = HashMap<Rc<str>, Value>;
-pub type Predicate = Rc<dyn Fn(&Assignment) -> bool>;
 pub type Result<T, E> = std::result::Result<T, QueryError<E>>;
 pub type AssignmentResult<E> = Result<Assignment, E>;
 pub type QueryResult<E> = Result<Vec<Value>, E>;
 
-#[derive(Default, Clone)]
+#[derive(Clone)]
+pub struct Predicate(Rc<dyn Fn(&Assignment) -> bool>);
+
+impl Predicate {
+    fn test(&self, assignment: &Assignment) -> bool {
+        self.0(assignment)
+    }
+}
+
+impl Debug for Predicate {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str("<predicate>")
+    }
+}
+
+impl PartialEq for Predicate {
+    fn eq(&self, _: &Self) -> bool {
+        false // TODO
+    }
+}
+
+#[derive(Default, Clone, Debug, PartialEq)]
 pub struct Query {
     pub find: Vec<Find>,
     pub clauses: Vec<Clause>,
@@ -37,13 +58,13 @@ impl Query {
         self
     }
 
-    pub fn with(mut self, clause: Clause) -> Self {
+    pub fn r#where(mut self, clause: Clause) -> Self {
         self.clauses.push(clause);
         self
     }
 
     pub fn pred(mut self, predicate: impl Fn(&Assignment) -> bool + 'static) -> Self {
-        self.predicates.push(Rc::new(predicate));
+        self.predicates.push(Predicate(Rc::new(predicate)));
         self
     }
 
@@ -59,7 +80,7 @@ impl Query {
     }
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug, PartialEq)]
 pub enum Find {
     Variable(Rc<str>),
     Aggregate(AggregationFunction),

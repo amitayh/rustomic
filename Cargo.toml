@@ -1,4 +1,4 @@
-workspace = { members = ["server"] }
+workspace = { members = [ "client","server"] }
 [package]
 name = "rustomic"
 version = "0.1.0"

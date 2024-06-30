@@ -32,7 +32,9 @@ impl Database {
         } = query;
         let resolved = Resolver::new(storage, clauses, self.basis_tx);
         let filtered = resolved.filter(move |result| match result {
-            Ok(assignment) => predicates.iter().all(|predicate| predicate(assignment)),
+            Ok(assignment) => predicates
+                .iter()
+                .all(|predicate| predicate.test(assignment)),
             Err(_) => true,
         });
         if is_aggregated(&find) {

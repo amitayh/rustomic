@@ -1,0 +1,53 @@
+syntax = "proto3";
+
+message Query {
+  repeated Find find = 1;
+  repeated Clause clauses = 2;
+  repeated Predicates predicates = 3;
+}
+
+message Find {
+  oneof find {
+    string variable = 1;
+    AggregationFunction aggregate = 2;
+  }
+}
+
+message AggregationFunction {
+  oneof function {
+    Empty count = 1;
+    string min = 2;
+    string max = 3;
+    string average = 4;
+    string sum = 5;
+    string count_distinct = 6;
+  }
+}
+
+message Clause {
+  oneof entity {
+    string variable = 1;
+    uint64 constant = 2;
+  }
+  oneof attribute {
+    string variable = 3;
+    string ident = 4;
+    uint64 id = 5;
+  }
+  oneof value {
+    string variable = 6;
+    Value constant = 7;
+  }
+}
+
+message Value {
+  oneof value {
+    Empty nil = 1;
+    int64 i64 = 2;
+    uint64 u64 = 3;
+    double decimal = 4;
+    string str = 5;
+    uint64 ref = 6;
+  }
+}
+

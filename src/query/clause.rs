@@ -3,7 +3,7 @@ use std::rc::Rc;
 use crate::datom::*;
 use crate::query::pattern::*;
 
-#[derive(Clone, Debug, Default)]
+#[derive(Clone, Debug, Default, PartialEq)]
 pub struct Clause {
     pub entity: Pattern<u64>,
     pub attribute: Pattern<AttributeIdentifier>,

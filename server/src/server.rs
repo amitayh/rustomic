@@ -20,6 +20,8 @@ use server::query_service_server::QueryService;
 use server::QueryRequest;
 use server::QueryResponse;
 
+pub mod parser;
+
 const DB_PATH: &str = "/tmp/foo";
 
 pub mod server {
@@ -46,7 +48,7 @@ impl QueryService for QueryServiceImpl<'static> {
                 &self.storage,
                 Query::new()
                     .find(Find::variable("?e"))
-                    .with(Clause::new().with_entity(Pattern::variable("?e"))),
+                    .r#where(Clause::new().with_entity(Pattern::variable("?e"))),
             )
             .map_err(|err| Status::unknown(err.to_string()))?
             .collect();
@@ -74,8 +76,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 fn init_db() -> Result<(), Box<dyn std::error::Error>> {
     let mut storage = DiskStorage::read_write(DB_PATH)?;
     if storage.latest_entity_id()? > 0 {
+        // Looks like the DB already has some datoms saved, no need to re-create the schema.
         return Ok(());
     }
+
     storage.save(&default_datoms())?;
 
     let mut transactor = Transactor::new();

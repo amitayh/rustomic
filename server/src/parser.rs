@@ -4,6 +4,7 @@ use std::rc::Rc;
 use nom::branch::*;
 use nom::bytes::complete::*;
 use nom::character::complete::*;
+use nom::character::streaming::multispace1;
 use nom::combinator::*;
 use nom::multi::*;
 use nom::number::complete::*;
@@ -11,36 +12,46 @@ use nom::sequence::*;
 use nom::IResult;
 use nom::Parser;
 
-use rustomic::query::Query;
+use edn::*;
+use nom_supreme::ParserExt;
+use ordered_float::OrderedFloat;
+use rustomic::query::clause::*;
+use rustomic::query::pattern::*;
+use rustomic::query::{Find, Query};
 
-use self::edn::Edn;
+#[derive(PartialEq, Debug, Clone, PartialOrd, Eq, Ord)]
+pub struct Name {
+    pub namespace: Option<Rc<str>>,
+    pub name: Rc<str>,
+}
 
-// ------------------------------------------------------------------------------------------------
+impl Name {
+    pub fn from(name: &str) -> Self {
+        Self {
+            namespace: None,
+            name: Rc::from(name),
+        }
+    }
+
+    pub fn namespaced(namespace: &str, name: &str) -> Self {
+        Self {
+            namespace: Some(Rc::from(namespace)),
+            name: Rc::from(name),
+        }
+    }
+}
+
+impl Into<String> for Name {
+    fn into(self) -> String {
+        match self.namespace {
+            Some(namespace) => format!("{}/{}", namespace, self.name),
+            None => format!("{}", self.name),
+        }
+    }
+}
 
 mod edn {
     use super::*;
-
-    #[derive(PartialEq, Debug, Clone, PartialOrd, Eq, Ord)]
-    pub struct Name {
-        pub namespace: Option<Rc<str>>,
-        pub name: Rc<str>,
-    }
-
-    impl Name {
-        pub fn from(name: &str) -> Self {
-            Self {
-                namespace: None,
-                name: Rc::from(name),
-            }
-        }
-
-        pub fn namespaced(namespace: &str, name: &str) -> Self {
-            Self {
-                namespace: Some(Rc::from(namespace)),
-                name: Rc::from(name),
-            }
-        }
-    }
 
     #[derive(PartialEq, Debug, Clone, PartialOrd, Eq, Ord)]
     pub enum Edn {
@@ -111,6 +122,43 @@ mod edn {
         /// ```
         Integer(i64),
 
+        /// 64-bit (double) precision is expected.
+        ///
+        /// ```
+        ///   floating-point-number
+        ///     int M
+        ///     int frac
+        ///     int exp
+        ///     int frac exp
+        ///   digit
+        ///     0-9
+        ///   int
+        ///     digit
+        ///     1-9 digits
+        ///     + digit
+        ///     + 1-9 digits
+        ///     - digit
+        ///     - 1-9 digits
+        ///   frac
+        ///     . digits
+        ///   exp
+        ///     ex digits
+        ///   digits
+        ///     digit
+        ///     digit digits
+        ///   ex
+        ///     e
+        ///     e+
+        ///     e-
+        ///     E
+        ///     E+
+        ///     E-
+        /// ```
+        ///
+        /// In addition, a floating-point number may have the suffix `M` to indicate that exact
+        /// precision is desired.
+        Float(OrderedFloat<f64>),
+
         /// A list is a sequence of values. Lists are represented by zero or more elements enclosed
         /// in parentheses `()`. Note that lists can be heterogeneous.
         ///
@@ -151,30 +199,26 @@ mod edn {
         Set(BTreeSet<Edn>),
     }
 
+    impl From<f64> for Edn {
+        fn from(number: f64) -> Self {
+            if number.fract() == 0.0 {
+                Edn::Integer(number as i64)
+            } else {
+                Edn::Float(OrderedFloat(number))
+            }
+        }
+    }
+
     impl TryFrom<&str> for Edn {
         type Error = String; // nom::Err<nom::error::Error<str>>;
 
         fn try_from(input: &str) -> Result<Self, Self::Error> {
-            let (input, edn) = edn(input).map_err(|err| err.to_string())?;
-            if !input.is_empty() {
-                return Err("Leftovers".to_string());
+            match edn(input) {
+                Ok(("", edn)) => Ok(edn),
+                Ok((leftovers, _)) => Err(format!("Leftovers: {}", leftovers)),
+                Err(err) => Err(err.to_string()),
             }
-            Ok(edn)
         }
-    }
-
-    fn name_part(input: &str) -> IResult<&str, &str> {
-        take_while1(|c: char| c.is_ascii_alphanumeric() || ".*+!-_?$%&=<>".contains(c))(input)
-    }
-
-    fn name(input: &str) -> IResult<&str, Name> {
-        let (input, first) = name_part(input)?;
-        let (input, second) = opt(preceded(char('/'), name_part))(input)?;
-        let name = match second {
-            Some(second) => Name::namespaced(first, second),
-            None => Name::from(first),
-        };
-        Ok((input, name))
     }
 
     fn ws(input: &str) -> IResult<&str, &str> {
@@ -194,7 +238,7 @@ mod edn {
             tag("nil").map(|_| Edn::Nil),
             tag("true").map(|_| Edn::Boolean(true)),
             tag("false").map(|_| Edn::Boolean(false)),
-            double.map(|number| Edn::Integer(number.round() as i64)),
+            double.map(<Edn as From<f64>>::from),
             delimited(char('"'), is_not("\""), char('"')).map(|str| Edn::String(Rc::from(str))),
             delimited(char('['), edns, char(']')).map(Edn::Vector),
             delimited(char('('), edns, char(')')).map(Edn::List),
@@ -288,6 +332,13 @@ mod edn {
         }
 
         #[test]
+        fn test_float() {
+            let result = Edn::try_from("12.34");
+
+            assert_eq!(result, Ok(Edn::Float(OrderedFloat(12.34))));
+        }
+
+        #[test]
         fn test_empty_vector() {
             let result = Edn::try_from("[]");
 
@@ -369,19 +420,102 @@ mod edn {
     }
 }
 
-// ------------------------------------------------------------------------------------------------
+fn find(input: &str) -> IResult<&str, Vec<Find>> {
+    let (input, _) = tag(":find")(input)?;
+    let (input, _) = multispace1(input)?;
+    let (input, names) = separated_list1(multispace1, name)(input)?;
+    let find = names
+        .into_iter()
+        .map(|name| Find::Variable(name.name))
+        .collect();
+
+    Ok((input, find))
+}
+
+fn clause(input: &str) -> IResult<&str, Clause> {
+    todo!()
+}
+
+fn parse_where(input: &str) -> IResult<&str, Vec<Clause>> {
+    let (input, _) = tag(":where")(input)?;
+    let (input, _) = multispace1(input)?;
+    let (input, clauses) = separated_list1(multispace1, clause)(input)?;
+    Ok((input, clauses))
+}
 
 pub fn parse(input: &str) -> Result<Query, String> {
-    let edn = Edn::try_from(input)?;
-    let Edn::Vector(parts) = edn else {
-        return Err("Invalid format".to_string());
-    };
-    dbg!(&parts);
+    let (_, (find, clauses)) =
+        delimited(char('['), find.and(parse_where), char(']'))(input).unwrap();
     Ok(Query {
-        find: Vec::new(),
-        clauses: Vec::new(),
+        find,
+        clauses,
         predicates: Vec::new(),
     })
+}
+
+enum State {
+    Begin,
+    Find,
+    Where,
+}
+
+pub fn parse2(input: &str) -> Result<Query, String> {
+    let edn = Edn::try_from(input)?;
+    let Edn::Vector(parts) = edn else {
+        return Err("Invalid".to_string());
+    };
+    let mut query = Query::new();
+    let mut state = State::Begin;
+    for part in parts {
+        match state {
+            State::Begin => {
+                if part == Edn::Keyword(Name::from("find")) {
+                    state = State::Find;
+                } else {
+                    return Err("Invalid".to_string());
+                }
+            }
+            State::Find => {
+                if let Edn::Symbol(name) = part {
+                    query = query.find(Find::Variable(name.name));
+                } else if part == Edn::Keyword(Name::from("where")) {
+                    state = State::Where;
+                } else {
+                    return Err("Invalid".to_string());
+                }
+            }
+            State::Where => {
+                if let Edn::Vector(clauses) = part {
+                    let clauses = parse_clauses(clauses)?;
+                    for clause in clauses {
+                        query = query.r#where(clause);
+                    }
+                } else {
+                    return Err("Invalid".to_string());
+                }
+            }
+        }
+    }
+
+    Ok(query)
+}
+
+fn parse_clauses(clauses: Vec<Edn>) -> Result<Vec<Clause>, String> {
+    todo!()
+}
+
+fn name_part(input: &str) -> IResult<&str, &str> {
+    take_while1(|c: char| c.is_ascii_alphanumeric() || ".*+!-_?$%&=<>".contains(c))(input)
+}
+
+fn name(input: &str) -> IResult<&str, Name> {
+    let (input, first) = name_part(input)?;
+    let (input, second) = opt(preceded(char('/'), name_part))(input)?;
+    let name = match second {
+        Some(second) => Name::namespaced(first, second),
+        None => Name::from(first),
+    };
+    Ok((input, name))
 }
 
 #[cfg(test)]
@@ -392,7 +526,7 @@ mod tests {
 
     #[test]
     fn test_empty_query() {
-        let result = parse("");
+        let result = parse2("");
 
         assert!(result.is_err());
     }
@@ -400,11 +534,51 @@ mod tests {
     #[test]
     fn parse_a_single_find_clause() {
         let query = "[:find ?foo]";
-        let query2 = r#"[:find ?release-name
-                         :where [?artist :artist/name "John Lenon"]
-                                [?release :release/artist ?artist]
-                                [?release :release/name ?release-name]]"#;
 
-        assert_eq!(parse(query2), Ok(Query::new().find(Find::variable("?foo"))));
+        assert_eq!(parse2(query), Ok(Query::new().find(Find::variable("?foo"))));
+    }
+
+    #[test]
+    fn parse_multiple_find_clauses() {
+        let query = "[:find ?foo ?bar]";
+
+        assert_eq!(
+            parse2(query),
+            Ok(Query::new()
+                .find(Find::variable("?foo"))
+                .find(Find::variable("?bar")))
+        );
+    }
+
+    #[test]
+    fn parse_where_clauses() {
+        let query = r#"[:find ?release-name
+                        :where [?artist :artist/name "John Lenon"]
+                               [?release :release/artist ?artist]
+                               [?release :release/name ?release-name]]"#;
+
+        assert_eq!(
+            parse2(query),
+            Ok(Query::new()
+                .find(Find::variable("?release-name"))
+                .r#where(
+                    Clause::new()
+                        .with_entity(Pattern::variable("?artist"))
+                        .with_attribute(Pattern::ident("artist/name"))
+                        .with_value(Pattern::value("John Lenon")),
+                )
+                .r#where(
+                    Clause::new()
+                        .with_entity(Pattern::variable("?release"))
+                        .with_attribute(Pattern::ident("release/artists"))
+                        .with_value(Pattern::variable("?artist")),
+                )
+                .r#where(
+                    Clause::new()
+                        .with_entity(Pattern::variable("?release"))
+                        .with_attribute(Pattern::ident("release/name"))
+                        .with_value(Pattern::variable("?release-name")),
+                ))
+        );
     }
 }

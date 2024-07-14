@@ -100,7 +100,7 @@ fn init_db() -> Result<(), Box<dyn std::error::Error>> {
         .with(AttributeDefinition::new("release/name", ValueType::Str))
         .with(AttributeDefinition::new("release/artists", ValueType::Ref).many());
 
-    let tx_result = transactor.transact(&mut storage, now, tx)?;
+    let tx_result = transactor.transact(&storage, now, tx)?;
     storage.save(&tx_result.tx_data)?;
 
     Ok(())

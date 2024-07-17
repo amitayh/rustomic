@@ -13,11 +13,12 @@ use nom::IResult;
 use nom::Parser;
 
 use edn::*;
-use nom_supreme::ParserExt;
 use ordered_float::OrderedFloat;
+use rustomic::datom::Value;
 use rustomic::query::clause::*;
 use rustomic::query::pattern::*;
 use rustomic::query::{Find, Query};
+use rustomic::schema::attribute;
 
 #[derive(PartialEq, Debug, Clone, PartialOrd, Eq, Ord)]
 pub struct Name {
@@ -41,9 +42,9 @@ impl Name {
     }
 }
 
-impl Into<String> for Name {
+impl Into<String> for &Name {
     fn into(self) -> String {
-        match self.namespace {
+        match &self.namespace {
             Some(namespace) => format!("{}/{}", namespace, self.name),
             None => format!("{}", self.name),
         }
@@ -485,11 +486,9 @@ pub fn parse2(input: &str) -> Result<Query, String> {
                 }
             }
             State::Where => {
-                if let Edn::Vector(clauses) = part {
-                    let clauses = parse_clauses(clauses)?;
-                    for clause in clauses {
-                        query = query.r#where(clause);
-                    }
+                if let Edn::Vector(parts) = part {
+                    let clause = parse_clause(parts)?;
+                    query = query.r#where(clause);
                 } else {
                     return Err("Invalid".to_string());
                 }
@@ -500,8 +499,61 @@ pub fn parse2(input: &str) -> Result<Query, String> {
     Ok(query)
 }
 
-fn parse_clauses(clauses: Vec<Edn>) -> Result<Vec<Clause>, String> {
-    todo!()
+#[derive(Debug)]
+pub struct Unsupported(Edn);
+
+impl TryFrom<Edn> for Value {
+    type Error = Unsupported;
+
+    fn try_from(value: Edn) -> Result<Self, Self::Error> {
+        match value {
+            Edn::Nil => Ok(Self::Nil),
+            Edn::Integer(value) => Ok(Self::I64(value)),
+            Edn::String(value) => Ok(Self::Str(value)),
+            _ => Err(Unsupported(value)),
+        }
+    }
+}
+
+fn parse_clause(patterns: Vec<Edn>) -> Result<Clause, String> {
+    let entity = match patterns.get(0) {
+        Some(Edn::Symbol(name)) => {
+            let name: String = name.into();
+            Pattern::Variable(Rc::from(name))
+        }
+        Some(Edn::Integer(id)) => Pattern::Constant(*id as u64),
+        // TODO: handle failures
+        _ => Pattern::Blank,
+    };
+    let attribute = match patterns.get(1) {
+        Some(Edn::Symbol(name)) => {
+            let name: String = name.into();
+            Pattern::Variable(Rc::from(name))
+        }
+        Some(Edn::Keyword(name)) => {
+            let name: String = name.into();
+            Pattern::Constant(AttributeIdentifier::Ident(Rc::from(name)))
+        }
+        Some(Edn::Integer(id)) => Pattern::Constant(AttributeIdentifier::Id(*id as u64)),
+        // TODO: handle failures
+        _ => Pattern::Blank,
+    };
+    let value = match patterns.get(2) {
+        Some(Edn::Symbol(name)) => {
+            let name: String = name.into();
+            Pattern::Variable(Rc::from(name))
+        }
+        // TODO: remove clone
+        Some(edn) => Pattern::Constant(edn.clone().try_into().unwrap()),
+        // TODO: handle failures
+        _ => Pattern::Blank,
+    };
+    Ok(Clause {
+        entity,
+        attribute,
+        value,
+        tx: Pattern::Blank,
+    })
 }
 
 fn name_part(input: &str) -> IResult<&str, &str> {
@@ -554,7 +606,7 @@ mod tests {
     fn parse_where_clauses() {
         let query = r#"[:find ?release-name
                         :where [?artist :artist/name "John Lenon"]
-                               [?release :release/artist ?artist]
+                               [?release :release/artists ?artist]
                                [?release :release/name ?release-name]]"#;
 
         assert_eq!(

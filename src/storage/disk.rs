@@ -160,7 +160,7 @@ impl<'a> DiskStorageIter<'a> {
     }
 }
 
-impl SeekableIterator for DiskStorageIter<'_> {
+impl BytesIterator for DiskStorageIter<'_> {
     type Error = DiskStorageError;
 
     fn next(&mut self) -> Option<Result<&[u8], Self::Error>> {

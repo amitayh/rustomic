@@ -14,26 +14,30 @@ type TempId = Rc<str>;
 type EntityId = u64;
 
 #[derive(Default)]
-pub struct Transactor {
-    attribute_resolver: AttributeResolver,
-}
+pub struct Transactor;
 
 impl Transactor {
     pub fn new() -> Self {
-        Self {
-            attribute_resolver: AttributeResolver::new(),
-        }
+        Self
     }
 
     pub fn transact<'a, S: ReadStorage<'a>>(
         &mut self,
         storage: &'a S,
+        attribute_resolver: &mut AttributeResolver,
         now: Instant,
         transaction: Transaction,
     ) -> Result<TransctionResult, S::Error> {
         let mut next_id = NextId(storage.latest_entity_id()?);
         let temp_ids = self.generate_temp_ids(&transaction, &mut next_id)?;
-        let datoms = self.transaction_datoms(storage, now, transaction, &temp_ids, &mut next_id)?;
+        let datoms = self.transaction_datoms(
+            storage,
+            attribute_resolver,
+            now,
+            transaction,
+            &temp_ids,
+            &mut next_id,
+        )?;
 
         Ok(TransctionResult {
             tx_id: datoms[0].tx,
@@ -62,6 +66,7 @@ impl Transactor {
     fn transaction_datoms<'a, S: ReadStorage<'a>>(
         &mut self,
         storage: &'a S,
+        attribute_resolver: &mut AttributeResolver,
         now: Instant,
         transaction: Transaction,
         temp_ids: &TempIds,
@@ -73,6 +78,7 @@ impl Transactor {
         for operation in transaction.operations {
             self.operation_datoms(
                 storage,
+                attribute_resolver,
                 tx,
                 operation,
                 temp_ids,
@@ -88,6 +94,7 @@ impl Transactor {
     fn operation_datoms<'a, S: ReadStorage<'a>>(
         &mut self,
         storage: &'a S,
+        attribute_resolver: &mut AttributeResolver,
         tx: u64,
         operation: EntityOperation,
         temp_ids: &TempIds,
@@ -98,9 +105,7 @@ impl Transactor {
         let entity = self.resolve_entity(operation.entity, temp_ids, next_id)?;
         let mut retract_attributes = HashSet::with_capacity(operation.attributes.len());
         for attribute_value in operation.attributes {
-            let attribute =
-                self.attribute_resolver
-                    .resolve(storage, attribute_value.attribute, tx)?;
+            let attribute = attribute_resolver.resolve(storage, &attribute_value.attribute, tx)?;
 
             if attribute.definition.cardinality == Cardinality::One {
                 // Values of attributes with cardinality `Cardinality::One` should be retracted

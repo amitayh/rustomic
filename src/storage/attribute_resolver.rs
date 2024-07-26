@@ -23,14 +23,17 @@ impl AttributeResolver {
     pub fn resolve<'a, S: ReadStorage<'a>>(
         &mut self,
         storage: &'a S,
-        ident: Rc<str>,
+        ident: &Rc<str>,
         tx: u64,
     ) -> Result<&Attribute, ResolveError<S::Error>> {
-        let result = self.cache.entry(Rc::clone(&ident)).or_default();
+        let result = self.cache.entry(Rc::clone(ident)).or_default();
         if result.is_none() {
-            *result = resolve_ident(storage, Rc::clone(&ident), tx)?;
+            // TODO: how to invalidate cache?
+            *result = resolve_by_ident(storage, Rc::clone(ident), tx)?;
         }
-        result.as_ref().ok_or(ResolveError::IdentNotFound(ident))
+        result
+            .as_ref()
+            .ok_or_else(|| ResolveError::IdentNotFound(Rc::clone(ident)))
     }
 }
 
@@ -42,7 +45,7 @@ pub enum ResolveError<S> {
     IdentNotFound(Rc<str>),
 }
 
-fn resolve_ident<'a, S: ReadStorage<'a>>(
+fn resolve_by_ident<'a, S: ReadStorage<'a>>(
     storage: &'a S,
     ident: Rc<str>,
     tx: u64,
@@ -52,12 +55,12 @@ fn resolve_ident<'a, S: ReadStorage<'a>>(
         .with_attribute(DB_ATTR_IDENT_ID)
         .with_value(Value::Str(ident));
     if let Some(datom) = storage.find(restricts).next() {
-        return resolve_id(storage, datom?.entity, tx);
+        return resolve_by_id(storage, datom?.entity, tx);
     }
     Ok(None)
 }
 
-fn resolve_id<'a, S: ReadStorage<'a>>(
+fn resolve_by_id<'a, S: ReadStorage<'a>>(
     storage: &'a S,
     attribute_id: u64,
     tx: u64,
@@ -133,7 +136,7 @@ mod tests {
         let storage = create_storage();
         let mut resolver = AttributeResolver::new();
         let ident = Rc::from("foo/bar");
-        let result = resolver.resolve(&storage, Rc::clone(&ident), u64::MAX);
+        let result = resolver.resolve(&storage, &ident, u64::MAX);
         assert!(result.is_err_and(|err| err == ResolveError::IdentNotFound(ident)));
     }
 
@@ -142,14 +145,14 @@ mod tests {
         let mut storage = create_storage();
         let mut transactor = Transactor::new();
 
+        let mut resolver = AttributeResolver::new();
         let attribute = AttributeDefinition::new("foo/bar", ValueType::U64);
         let transaction = Transaction::new().with(attribute);
-        let tx_result = transactor.transact(&storage, Instant(0), transaction);
+        let tx_result = transactor.transact(&storage, &mut resolver, Instant(0), transaction);
         assert!(tx_result.is_ok());
         assert!(storage.save(&tx_result.unwrap().tx_data).is_ok());
 
-        let mut resolver = AttributeResolver::new();
-        let result = resolver.resolve(&storage, Rc::from("foo/bar"), u64::MAX);
+        let result = resolver.resolve(&storage, &Rc::from("foo/bar"), u64::MAX);
         assert!(result.is_ok());
 
         let result = result.unwrap();
@@ -165,15 +168,15 @@ mod tests {
         // No calls to `CountingStorage::find` yet.
         assert_eq!(0, storage.current_count());
 
+        let mut resolver = AttributeResolver::new();
         let attribute = AttributeDefinition::new("foo/bar", ValueType::U64);
         let transaction = Transaction::new().with(attribute);
-        let tx_result = transactor.transact(&storage, Instant(0), transaction);
+        let tx_result = transactor.transact(&storage, &mut resolver, Instant(0), transaction);
         assert!(tx_result.is_ok());
         assert!(storage.save(&tx_result.unwrap().tx_data).is_ok());
 
-        let mut resolver = AttributeResolver::new();
         let result1 = resolver
-            .resolve(&storage, Rc::from("foo/bar"), u64::MAX)
+            .resolve(&storage, &Rc::from("foo/bar"), u64::MAX)
             .cloned();
         assert!(result1.is_ok());
 
@@ -182,7 +185,7 @@ mod tests {
         assert!(queries > 0);
 
         let result2 = resolver
-            .resolve(&storage, Rc::from("foo/bar"), u64::MAX)
+            .resolve(&storage, &Rc::from("foo/bar"), u64::MAX)
             .cloned();
         assert!(result2.is_ok());
         assert_eq!(result1, result2);

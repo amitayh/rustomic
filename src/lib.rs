@@ -13,6 +13,7 @@ mod tests {
     use crate::clock::Instant;
     use crate::schema::default::default_datoms;
     use crate::schema::DB_TX_TIME_ID;
+    use crate::storage::attribute_resolver::AttributeResolver;
     use crate::storage::memory::InMemoryStorage;
     use crate::storage::ReadStorage;
     use crate::storage::WriteStorage;
@@ -29,6 +30,7 @@ mod tests {
 
     struct Sut<'a> {
         transactor: Transactor,
+        attribute_resolver: AttributeResolver,
         storage: InMemoryStorage<'a>,
         last_tx: u64,
     }
@@ -38,6 +40,7 @@ mod tests {
     impl<'a> Sut<'a> {
         fn new() -> Self {
             let transactor = Transactor::new();
+            let attribute_resolver = AttributeResolver::new();
             let mut storage = InMemoryStorage::new();
             storage
                 .save(&default_datoms())
@@ -45,6 +48,7 @@ mod tests {
 
             let mut sut = Self {
                 transactor,
+                attribute_resolver,
                 storage,
                 last_tx: 0,
             };
@@ -62,26 +66,33 @@ mod tests {
 
         fn try_transact(&mut self, transaction: Transaction) -> Option<TransctionResult> {
             self.transactor
-                .transact(&self.storage, now(), transaction)
+                .transact(
+                    &self.storage,
+                    &mut self.attribute_resolver,
+                    now(),
+                    transaction,
+                )
                 .ok()
         }
 
-        fn query(&self, query: Query) -> Vec<Vec<Value>> {
+        fn query(&mut self, query: Query) -> Vec<Vec<Value>> {
             self.query_at_snapshot(self.last_tx, query)
         }
 
-        fn query_at_snapshot(&self, snapshot_tx: u64, query: Query) -> Vec<Vec<Value>> {
+        fn query_at_snapshot(&mut self, snapshot_tx: u64, query: Query) -> Vec<Vec<Value>> {
             let mut db = Database::new(snapshot_tx);
-            let results = db.query(&self.storage, query).expect("Unable to query");
+            let results = db
+                .query(&self.storage, &mut self.attribute_resolver, query)
+                .expect("Unable to query");
             results.filter_map(|result| result.ok()).collect()
         }
 
         fn try_query(
-            &self,
+            &mut self,
             query: Query,
         ) -> crate::query::Result<Vec<QueryResult<StorageError<'_>>>, StorageError<'_>> {
             let mut db = Database::new(self.last_tx);
-            let result = db.query(&self.storage, query)?;
+            let result = db.query(&self.storage, &mut self.attribute_resolver, query)?;
             Ok(result.collect())
         }
     }

@@ -5,7 +5,7 @@ use crate::storage::serde::index::RestrictedIndexRange;
 
 use crate::storage::serde::*;
 
-pub trait SeekableIterator {
+pub trait BytesIterator {
     type Error: std::error::Error;
 
     fn next(&mut self) -> Option<Result<&[u8], Self::Error>>;
@@ -27,7 +27,7 @@ impl<T> DatomsIterator<T> {
     }
 }
 
-impl<T: SeekableIterator> Iterator for DatomsIterator<T> {
+impl<T: BytesIterator> Iterator for DatomsIterator<T> {
     type Item = Result<Datom, Either<T::Error, ReadError>>;
 
     fn next(&mut self) -> Option<Self::Item> {

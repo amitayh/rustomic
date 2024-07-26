@@ -18,7 +18,6 @@ use rustomic::datom::Value;
 use rustomic::query::clause::*;
 use rustomic::query::pattern::*;
 use rustomic::query::{Find, Query};
-use rustomic::schema::attribute;
 
 #[derive(PartialEq, Debug, Clone, PartialOrd, Eq, Ord)]
 pub struct Name {

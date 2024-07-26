@@ -74,7 +74,7 @@ impl<'a> InMemoryStorageIter<'a> {
     }
 }
 
-impl SeekableIterator for InMemoryStorageIter<'_> {
+impl BytesIterator for InMemoryStorageIter<'_> {
     type Error = Infallible;
 
     fn next(&mut self) -> Option<Result<&[u8], Self::Error>> {

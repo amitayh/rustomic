@@ -8,23 +8,20 @@ use either::*;
 
 pub struct Database {
     basis_tx: u64,
-    attribute_resolver: AttributeResolver,
 }
 
 impl Database {
     pub fn new(basis_tx: u64) -> Self {
-        Self {
-            basis_tx,
-            attribute_resolver: AttributeResolver::new(),
-        }
+        Self { basis_tx }
     }
 
     pub fn query<'a, S: ReadStorage<'a>>(
         &mut self,
         storage: &'a S,
+        attribute_resolver: &mut AttributeResolver,
         mut query: Query,
     ) -> Result<impl Iterator<Item = QueryResult<S::Error>>, S::Error> {
-        self.resolve_idents(storage, &mut query)?;
+        self.resolve_idents(storage, attribute_resolver, &mut query)?;
         let Query {
             find,
             clauses,
@@ -52,13 +49,12 @@ impl Database {
     fn resolve_idents<'a, S: ReadStorage<'a>>(
         &mut self,
         storage: &'a S,
+        attribute_resolver: &mut AttributeResolver,
         query: &mut Query,
     ) -> Result<(), S::Error> {
         for clause in &mut query.clauses {
             if let Pattern::Constant(AttributeIdentifier::Ident(ident)) = &clause.attribute {
-                let attribute =
-                    self.attribute_resolver
-                        .resolve(storage, Rc::clone(ident), self.basis_tx)?;
+                let attribute = attribute_resolver.resolve(storage, ident, self.basis_tx)?;
 
                 clause.attribute = Pattern::id(attribute.id);
             }

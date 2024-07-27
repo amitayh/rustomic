@@ -1,5 +1,6 @@
 use std::collections::HashMap;
 use std::collections::HashSet;
+use std::u64;
 
 use crate::clock::Instant;
 use crate::datom::*;
@@ -10,99 +11,70 @@ use crate::storage::restricts::*;
 use crate::storage::*;
 use crate::tx::*;
 
-type TempId = Rc<str>;
-type EntityId = u64;
+pub fn transact<'a, S: ReadStorage<'a>>(
+    storage: &'a S,
+    attribute_resolver: &mut AttributeResolver,
+    now: Instant,
+    transaction: Transaction,
+) -> Result<TransctionResult, S::Error> {
+    let next_id = storage.latest_entity_id()?;
+    let builder = ResultBuilder::new(&transaction, next_id)?;
+    builder.build(storage, attribute_resolver, now, transaction)
+}
 
-#[derive(Default)]
-pub struct Transactor;
+struct ResultBuilder {
+    next_id: u64,
+    datoms: Vec<Datom>,
+    temp_ids: HashMap<Rc<str>, u64>,
+    unique_values: HashSet<(u64, Value)>,
+}
 
-impl Transactor {
-    pub fn new() -> Self {
-        Self
+impl ResultBuilder {
+    pub fn new<E>(transaction: &Transaction, mut next_id: u64) -> Result<Self, E> {
+        let mut temp_ids = HashMap::new();
+        for operation in &transaction.operations {
+            if let OperatedEntity::TempId(temp_id) = &operation.entity {
+                next_id += 1;
+                if temp_ids.insert(Rc::clone(temp_id), next_id).is_some() {
+                    return Err(TransactionError::DuplicateTempId(Rc::clone(temp_id)));
+                }
+            };
+        }
+        Ok(Self {
+            next_id,
+            temp_ids,
+            datoms: Vec::with_capacity(transaction.total_attribute_operations()),
+            unique_values: HashSet::new(),
+        })
     }
 
-    pub fn transact<'a, S: ReadStorage<'a>>(
-        &mut self,
+    pub fn build<'a, S: ReadStorage<'a>>(
+        mut self,
         storage: &'a S,
         attribute_resolver: &mut AttributeResolver,
         now: Instant,
         transaction: Transaction,
     ) -> Result<TransctionResult, S::Error> {
-        let mut next_id = NextId(storage.latest_entity_id()?);
-        let temp_ids = self.generate_temp_ids(&transaction, &mut next_id)?;
-        let datoms = self.transaction_datoms(
-            storage,
-            attribute_resolver,
-            now,
-            transaction,
-            &temp_ids,
-            &mut next_id,
-        )?;
-
+        let tx_id = self.next_id();
+        for operation in transaction.operations {
+            self.fill_datoms(storage, attribute_resolver, tx_id, operation)?;
+        }
+        self.push(Datom::add(tx_id, DB_TX_TIME_ID, now.0, tx_id));
         Ok(TransctionResult {
-            tx_id: datoms[0].tx,
-            tx_data: datoms,
-            temp_ids: temp_ids.0,
+            tx_id,
+            tx_data: self.datoms,
+            temp_ids: self.temp_ids,
         })
     }
 
-    fn generate_temp_ids<E>(
-        &mut self,
-        transaction: &Transaction,
-        next_id: &mut NextId,
-    ) -> Result<TempIds, E> {
-        let mut temp_ids = HashMap::new();
-        for operation in &transaction.operations {
-            if let OperatedEntity::TempId(temp_id) = &operation.entity {
-                let entity_id = next_id.get();
-                if temp_ids.insert(Rc::clone(temp_id), entity_id).is_some() {
-                    return Err(TransactionError::DuplicateTempId(Rc::clone(temp_id)));
-                }
-            };
-        }
-        Ok(TempIds(temp_ids))
-    }
-
-    fn transaction_datoms<'a, S: ReadStorage<'a>>(
-        &mut self,
-        storage: &'a S,
-        attribute_resolver: &mut AttributeResolver,
-        now: Instant,
-        transaction: Transaction,
-        temp_ids: &TempIds,
-        next_id: &mut NextId,
-    ) -> Result<Vec<Datom>, S::Error> {
-        let mut datoms = Vec::with_capacity(transaction.total_attribute_operations());
-        let mut unique_values = HashSet::new(); // TODO capacity?
-        let tx = next_id.get();
-        for operation in transaction.operations {
-            self.operation_datoms(
-                storage,
-                attribute_resolver,
-                tx,
-                operation,
-                temp_ids,
-                &mut datoms,
-                &mut unique_values,
-                next_id,
-            )?;
-        }
-        datoms.push(Datom::add(tx, DB_TX_TIME_ID, now.0, tx));
-        Ok(datoms)
-    }
-
-    fn operation_datoms<'a, S: ReadStorage<'a>>(
+    fn fill_datoms<'a, S: ReadStorage<'a>>(
         &mut self,
         storage: &'a S,
         attribute_resolver: &mut AttributeResolver,
         tx: u64,
         operation: EntityOperation,
-        temp_ids: &TempIds,
-        datoms: &mut Vec<Datom>,
-        unique_values: &mut HashSet<(u64, Value)>,
-        next_id: &mut NextId,
     ) -> Result<(), S::Error> {
-        let entity = self.resolve_entity(operation.entity, temp_ids, next_id)?;
+        let entity = self.resolve_entity(operation.entity)?;
         let mut retract_attributes = HashSet::with_capacity(operation.attributes.len());
         for attribute_value in operation.attributes {
             let attribute = attribute_resolver.resolve(storage, &attribute_value.attribute, tx)?;
@@ -113,14 +85,14 @@ impl Transactor {
                 retract_attributes.insert(attribute.id);
             }
 
-            let value = resolve_value(attribute_value.value, temp_ids)?;
+            let value = self.resolve_value(attribute_value.value)?;
             verify_type(attribute, &value)?;
             if attribute.definition.unique {
-                verify_uniqueness_tx(attribute, &value, unique_values)?;
+                self.verify_uniqueness_tx(attribute, &value)?;
                 verify_uniqueness_db(attribute, &value, storage, tx)?;
             }
 
-            datoms.push(Datom {
+            self.push(Datom {
                 entity,
                 attribute: attribute.id,
                 value,
@@ -130,39 +102,69 @@ impl Transactor {
         }
 
         for attribute_id in retract_attributes {
-            retract_old_values(storage, entity, attribute_id, tx, datoms)?;
+            self.retract_old_values(storage, entity, attribute_id, tx)?;
         }
 
         Ok(())
     }
 
-    fn resolve_entity<E>(
+    fn retract_old_values<'a, S: ReadStorage<'a>>(
         &mut self,
-        entity: OperatedEntity,
-        temp_ids: &TempIds,
-        next_id: &mut NextId,
-    ) -> Result<EntityId, E> {
+        storage: &'a S,
+        entity: u64,
+        attribute: u64,
+        tx: u64,
+    ) -> Result<(), S::Error> {
+        // Retract previous values
+        let restricts = Restricts::new(tx)
+            .with_entity(entity)
+            .with_attribute(attribute);
+        for datom in storage.find(restricts) {
+            self.push(Datom::retract(entity, attribute, datom?.value, tx));
+        }
+        Ok(())
+    }
+
+    fn push(&mut self, datom: Datom) {
+        self.datoms.push(datom);
+    }
+
+    fn next_id(&mut self) -> u64 {
+        self.next_id += 1;
+        self.next_id
+    }
+
+    fn temp_id<E>(&self, temp_id: &Rc<str>) -> Result<u64, E> {
+        self.temp_ids
+            .get(temp_id)
+            .copied()
+            .ok_or_else(|| TransactionError::TempIdNotFound(Rc::clone(temp_id)))
+    }
+
+    fn resolve_entity<E>(&mut self, entity: OperatedEntity) -> Result<u64, E> {
         match entity {
-            OperatedEntity::New => Ok(next_id.get()),
+            OperatedEntity::New => Ok(self.next_id()),
             OperatedEntity::Id(id) => Ok(id),
-            OperatedEntity::TempId(temp_id) => temp_ids.get(&temp_id),
+            OperatedEntity::TempId(temp_id) => self.temp_id(&temp_id),
         }
     }
-}
 
-struct NextId(EntityId);
-
-impl NextId {
-    fn get(&mut self) -> EntityId {
-        self.0 += 1;
-        self.0
+    fn resolve_value<E>(&self, attribute_value: AttributeValue) -> Result<Value, E> {
+        match attribute_value {
+            AttributeValue::Value(value) => Ok(value),
+            AttributeValue::TempId(temp_id) => self.temp_id(&temp_id).map(Value::Ref),
+        }
     }
-}
 
-fn resolve_value<E>(attribute_value: AttributeValue, temp_ids: &TempIds) -> Result<Value, E> {
-    match attribute_value {
-        AttributeValue::Value(value) => Ok(value),
-        AttributeValue::TempId(temp_id) => temp_ids.get(&temp_id).map(Value::Ref),
+    fn verify_uniqueness_tx<E>(&mut self, attribute: &Attribute, value: &Value) -> Result<(), E> {
+        // Find duplicate values within transaction.
+        if !self.unique_values.insert((attribute.id, value.clone())) {
+            return Err(TransactionError::DuplicateUniqueValue {
+                attribute: attribute.id,
+                value: value.clone(),
+            });
+        }
+        Ok(())
     }
 }
 
@@ -172,21 +174,6 @@ fn verify_type<E>(attribute: &Attribute, value: &Value) -> Result<(), E> {
         return Err(TransactionError::InvalidAttributeType {
             attribute_id: attribute.id,
             attribute_type: attribute.definition.value_type,
-            value: value.clone(),
-        });
-    }
-    Ok(())
-}
-
-fn verify_uniqueness_tx<E>(
-    attribute: &Attribute,
-    value: &Value,
-    unique_values: &mut HashSet<(u64, Value)>,
-) -> Result<(), E> {
-    // Find duplicate values within transaction.
-    if !unique_values.insert((attribute.id, value.clone())) {
-        return Err(TransactionError::DuplicateUniqueValue {
-            attribute: attribute.id,
             value: value.clone(),
         });
     }
@@ -210,32 +197,4 @@ fn verify_uniqueness_db<'a, S: ReadStorage<'a>>(
         });
     }
     Ok(())
-}
-
-fn retract_old_values<'a, S: ReadStorage<'a>>(
-    storage: &'a S,
-    entity: u64,
-    attribute: u64,
-    tx: u64,
-    datoms: &mut Vec<Datom>,
-) -> Result<(), S::Error> {
-    // Retract previous values
-    let restricts = Restricts::new(tx)
-        .with_entity(entity)
-        .with_attribute(attribute);
-    for datom in storage.find(restricts) {
-        datoms.push(Datom::retract(entity, attribute, datom?.value, tx));
-    }
-    Ok(())
-}
-
-struct TempIds(HashMap<TempId, EntityId>);
-
-impl TempIds {
-    fn get<E>(&self, temp_id: &Rc<str>) -> Result<EntityId, E> {
-        self.0
-            .get(temp_id)
-            .copied()
-            .ok_or_else(|| TransactionError::TempIdNotFound(Rc::clone(temp_id)))
-    }
 }

@@ -25,11 +25,10 @@ mod tests {
     use super::query::*;
     use super::schema::attribute::*;
 
-    use super::tx::transactor::*;
+    use super::tx::transactor;
     use super::tx::*;
 
     struct Sut<'a> {
-        transactor: Transactor,
         attribute_resolver: AttributeResolver,
         storage: InMemoryStorage<'a>,
         last_tx: u64,
@@ -39,7 +38,6 @@ mod tests {
 
     impl<'a> Sut<'a> {
         fn new() -> Self {
-            let transactor = Transactor::new();
             let attribute_resolver = AttributeResolver::new();
             let mut storage = InMemoryStorage::new();
             storage
@@ -47,7 +45,6 @@ mod tests {
                 .expect("Unable to save default datoms");
 
             let mut sut = Self {
-                transactor,
                 attribute_resolver,
                 storage,
                 last_tx: 0,
@@ -65,14 +62,13 @@ mod tests {
         }
 
         fn try_transact(&mut self, transaction: Transaction) -> Option<TransctionResult> {
-            self.transactor
-                .transact(
-                    &self.storage,
-                    &mut self.attribute_resolver,
-                    now(),
-                    transaction,
-                )
-                .ok()
+            transactor::transact(
+                &self.storage,
+                &mut self.attribute_resolver,
+                now(),
+                transaction,
+            )
+            .ok()
         }
 
         fn query(&mut self, query: Query) -> Vec<Vec<Value>> {

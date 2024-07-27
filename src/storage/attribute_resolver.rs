@@ -83,7 +83,7 @@ mod tests {
     use crate::storage::attribute_resolver::*;
     use crate::storage::memory::*;
     use crate::storage::*;
-    use crate::tx::transactor::Transactor;
+    use crate::tx::transactor;
     use crate::tx::Transaction;
 
     struct CountingStorage<'a> {
@@ -143,12 +143,11 @@ mod tests {
     #[test]
     fn resolves_existing_attribute() {
         let mut storage = create_storage();
-        let mut transactor = Transactor::new();
 
         let mut resolver = AttributeResolver::new();
         let attribute = AttributeDefinition::new("foo/bar", ValueType::U64);
         let transaction = Transaction::new().with(attribute);
-        let tx_result = transactor.transact(&storage, &mut resolver, Instant(0), transaction);
+        let tx_result = transactor::transact(&storage, &mut resolver, Instant(0), transaction);
         assert!(tx_result.is_ok());
         assert!(storage.save(&tx_result.unwrap().tx_data).is_ok());
 
@@ -163,7 +162,6 @@ mod tests {
     #[test]
     fn cache_hit() {
         let mut storage = create_storage();
-        let mut transactor = Transactor::new();
 
         // No calls to `CountingStorage::find` yet.
         assert_eq!(0, storage.current_count());
@@ -171,7 +169,7 @@ mod tests {
         let mut resolver = AttributeResolver::new();
         let attribute = AttributeDefinition::new("foo/bar", ValueType::U64);
         let transaction = Transaction::new().with(attribute);
-        let tx_result = transactor.transact(&storage, &mut resolver, Instant(0), transaction);
+        let tx_result = transactor::transact(&storage, &mut resolver, Instant(0), transaction);
         assert!(tx_result.is_ok());
         assert!(storage.save(&tx_result.unwrap().tx_data).is_ok());
 

@@ -1,5 +1,6 @@
 use std::collections::HashMap;
 use std::collections::HashSet;
+use std::mem;
 use std::u64;
 
 use crate::clock::Instant;
@@ -28,7 +29,7 @@ struct ResultBuilder {
     datoms: Vec<Datom>,
     temp_ids: HashMap<Rc<str>, u64>,
     unique_values: HashSet<(u64, Value)>,
-    transaction: Option<Transaction>,
+    transaction: Transaction,
 }
 
 impl ResultBuilder {
@@ -49,7 +50,7 @@ impl ResultBuilder {
             temp_ids,
             datoms: Vec::with_capacity(transaction.total_attribute_operations()),
             unique_values: HashSet::new(),
-            transaction: Some(transaction),
+            transaction,
         })
     }
 
@@ -59,8 +60,7 @@ impl ResultBuilder {
         attribute_resolver: &mut AttributeResolver,
         now: Instant,
     ) -> Result<TransctionResult, S::Error> {
-        let transaction = self.transaction.take().unwrap_or_default();
-        for operation in transaction.operations {
+        for operation in mem::take(&mut self.transaction.operations) {
             self.fill_datoms(storage, attribute_resolver, operation)?;
         }
         self.push(Datom::add(self.tx_id, DB_TX_TIME_ID, now.0, self.tx_id));

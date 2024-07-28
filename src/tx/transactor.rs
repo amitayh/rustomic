@@ -17,12 +17,13 @@ pub fn transact<'a, S: ReadStorage<'a>>(
     now: Instant,
     transaction: Transaction,
 ) -> Result<TransctionResult, S::Error> {
-    let next_id = storage.latest_entity_id()?;
-    let builder = ResultBuilder::new(&transaction, next_id)?;
+    let next_id = storage.latest_entity_id()? + 1;
+    let builder = ResultBuilder::from(&transaction, next_id)?;
     builder.build(storage, attribute_resolver, now, transaction)
 }
 
 struct ResultBuilder {
+    tx_id: u64,
     next_id: u64,
     datoms: Vec<Datom>,
     temp_ids: HashMap<Rc<str>, u64>,
@@ -30,7 +31,8 @@ struct ResultBuilder {
 }
 
 impl ResultBuilder {
-    pub fn new<E>(transaction: &Transaction, mut next_id: u64) -> Result<Self, E> {
+    pub fn from<E>(transaction: &Transaction, mut next_id: u64) -> Result<Self, E> {
+        let tx_id = next_id;
         let mut temp_ids = HashMap::new();
         for operation in &transaction.operations {
             if let OperatedEntity::TempId(temp_id) = &operation.entity {
@@ -41,6 +43,7 @@ impl ResultBuilder {
             };
         }
         Ok(Self {
+            tx_id,
             next_id,
             temp_ids,
             datoms: Vec::with_capacity(transaction.total_attribute_operations()),
@@ -55,13 +58,12 @@ impl ResultBuilder {
         now: Instant,
         transaction: Transaction,
     ) -> Result<TransctionResult, S::Error> {
-        let tx_id = self.next_id();
         for operation in transaction.operations {
-            self.fill_datoms(storage, attribute_resolver, tx_id, operation)?;
+            self.fill_datoms(storage, attribute_resolver, operation)?;
         }
-        self.push(Datom::add(tx_id, DB_TX_TIME_ID, now.0, tx_id));
+        self.push(Datom::add(self.tx_id, DB_TX_TIME_ID, now.0, self.tx_id));
         Ok(TransctionResult {
-            tx_id,
+            tx_id: self.tx_id,
             tx_data: self.datoms,
             temp_ids: self.temp_ids,
         })
@@ -71,13 +73,13 @@ impl ResultBuilder {
         &mut self,
         storage: &'a S,
         attribute_resolver: &mut AttributeResolver,
-        tx: u64,
         operation: EntityOperation,
     ) -> Result<(), S::Error> {
         let entity = self.resolve_entity(operation.entity)?;
         let mut retract_attributes = HashSet::with_capacity(operation.attributes.len());
         for attribute_value in operation.attributes {
-            let attribute = attribute_resolver.resolve(storage, &attribute_value.attribute, tx)?;
+            let attribute =
+                attribute_resolver.resolve(storage, &attribute_value.attribute, self.tx_id)?;
 
             if attribute.definition.cardinality == Cardinality::One {
                 // Values of attributes with cardinality `Cardinality::One` should be retracted
@@ -89,20 +91,20 @@ impl ResultBuilder {
             verify_type(attribute, &value)?;
             if attribute.definition.unique {
                 self.verify_uniqueness_tx(attribute, &value)?;
-                verify_uniqueness_db(attribute, &value, storage, tx)?;
+                self.verify_uniqueness_db(attribute, &value, storage)?;
             }
 
             self.push(Datom {
                 entity,
                 attribute: attribute.id,
                 value,
-                tx,
+                tx: self.tx_id,
                 op: attribute_value.op,
             });
         }
 
         for attribute_id in retract_attributes {
-            self.retract_old_values(storage, entity, attribute_id, tx)?;
+            self.retract_old_values(storage, entity, attribute_id)?;
         }
 
         Ok(())
@@ -113,25 +115,19 @@ impl ResultBuilder {
         storage: &'a S,
         entity: u64,
         attribute: u64,
-        tx: u64,
     ) -> Result<(), S::Error> {
         // Retract previous values
-        let restricts = Restricts::new(tx)
+        let restricts = Restricts::new(self.tx_id)
             .with_entity(entity)
             .with_attribute(attribute);
         for datom in storage.find(restricts) {
-            self.push(Datom::retract(entity, attribute, datom?.value, tx));
+            self.push(Datom::retract(entity, attribute, datom?.value, self.tx_id));
         }
         Ok(())
     }
 
     fn push(&mut self, datom: Datom) {
         self.datoms.push(datom);
-    }
-
-    fn next_id(&mut self) -> u64 {
-        self.next_id += 1;
-        self.next_id
     }
 
     fn temp_id<E>(&self, temp_id: &Rc<str>) -> Result<u64, E> {
@@ -143,7 +139,10 @@ impl ResultBuilder {
 
     fn resolve_entity<E>(&mut self, entity: OperatedEntity) -> Result<u64, E> {
         match entity {
-            OperatedEntity::New => Ok(self.next_id()),
+            OperatedEntity::New => {
+                self.next_id += 1;
+                Ok(self.next_id)
+            }
             OperatedEntity::Id(id) => Ok(id),
             OperatedEntity::TempId(temp_id) => self.temp_id(&temp_id),
         }
@@ -166,6 +165,25 @@ impl ResultBuilder {
         }
         Ok(())
     }
+
+    fn verify_uniqueness_db<'a, S: ReadStorage<'a>>(
+        &self,
+        attribute: &Attribute,
+        value: &Value,
+        storage: &'a S,
+    ) -> Result<(), S::Error> {
+        // Find duplicate values previously saved.
+        let restricts = Restricts::new(self.tx_id)
+            .with_attribute(attribute.id)
+            .with_value(value.clone());
+        if storage.find(restricts).count() > 0 {
+            return Err(TransactionError::DuplicateUniqueValue {
+                attribute: attribute.id,
+                value: value.clone(),
+            });
+        }
+        Ok(())
+    }
 }
 
 fn verify_type<E>(attribute: &Attribute, value: &Value) -> Result<(), E> {
@@ -174,25 +192,6 @@ fn verify_type<E>(attribute: &Attribute, value: &Value) -> Result<(), E> {
         return Err(TransactionError::InvalidAttributeType {
             attribute_id: attribute.id,
             attribute_type: attribute.definition.value_type,
-            value: value.clone(),
-        });
-    }
-    Ok(())
-}
-
-fn verify_uniqueness_db<'a, S: ReadStorage<'a>>(
-    attribute: &Attribute,
-    value: &Value,
-    storage: &'a S,
-    basis_tx: u64,
-) -> Result<(), S::Error> {
-    // Find duplicate values previously saved.
-    let restricts = Restricts::new(basis_tx)
-        .with_attribute(attribute.id)
-        .with_value(value.clone());
-    if storage.find(restricts).count() > 0 {
-        return Err(TransactionError::DuplicateUniqueValue {
-            attribute: attribute.id,
             value: value.clone(),
         });
     }

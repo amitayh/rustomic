@@ -18,8 +18,8 @@ pub fn transact<'a, S: ReadStorage<'a>>(
     transaction: Transaction,
 ) -> Result<TransctionResult, S::Error> {
     let next_id = storage.latest_entity_id()? + 1;
-    let builder = ResultBuilder::from(&transaction, next_id)?;
-    builder.build(storage, attribute_resolver, now, transaction)
+    let builder = ResultBuilder::from(transaction, next_id)?;
+    builder.build(storage, attribute_resolver, now)
 }
 
 struct ResultBuilder {
@@ -28,10 +28,11 @@ struct ResultBuilder {
     datoms: Vec<Datom>,
     temp_ids: HashMap<Rc<str>, u64>,
     unique_values: HashSet<(u64, Value)>,
+    transaction: Option<Transaction>,
 }
 
 impl ResultBuilder {
-    pub fn from<E>(transaction: &Transaction, mut next_id: u64) -> Result<Self, E> {
+    pub fn from<E>(transaction: Transaction, mut next_id: u64) -> Result<Self, E> {
         let tx_id = next_id;
         let mut temp_ids = HashMap::new();
         for operation in &transaction.operations {
@@ -48,6 +49,7 @@ impl ResultBuilder {
             temp_ids,
             datoms: Vec::with_capacity(transaction.total_attribute_operations()),
             unique_values: HashSet::new(),
+            transaction: Some(transaction),
         })
     }
 
@@ -56,8 +58,8 @@ impl ResultBuilder {
         storage: &'a S,
         attribute_resolver: &mut AttributeResolver,
         now: Instant,
-        transaction: Transaction,
     ) -> Result<TransctionResult, S::Error> {
+        let transaction = self.transaction.take().unwrap_or_default();
         for operation in transaction.operations {
             self.fill_datoms(storage, attribute_resolver, operation)?;
         }

@@ -18,10 +18,10 @@ impl Database {
     pub fn query<'a, S: ReadStorage<'a>>(
         &mut self,
         storage: &'a S,
-        attribute_resolver: &mut AttributeResolver,
+        resolver: &mut AttributeResolver,
         mut query: Query,
     ) -> Result<impl Iterator<Item = QueryResult<S::Error>>, S::Error> {
-        self.resolve_idents(storage, attribute_resolver, &mut query)?;
+        self.resolve_idents(storage, resolver, &mut query)?;
         let Query {
             find,
             clauses,
@@ -49,13 +49,12 @@ impl Database {
     fn resolve_idents<'a, S: ReadStorage<'a>>(
         &mut self,
         storage: &'a S,
-        attribute_resolver: &mut AttributeResolver,
+        resolver: &mut AttributeResolver,
         query: &mut Query,
     ) -> Result<(), S::Error> {
         for clause in &mut query.clauses {
             if let Pattern::Constant(AttributeIdentifier::Ident(ident)) = &clause.attribute {
-                let attribute = attribute_resolver.resolve(storage, ident, self.basis_tx)?;
-
+                let attribute = resolver.resolve(storage, ident, self.basis_tx)?;
                 clause.attribute = Pattern::id(attribute.id);
             }
         }
@@ -63,14 +62,14 @@ impl Database {
     }
 }
 
-fn is_aggregated(find: &[Find]) -> bool {
-    find.iter().any(|f| matches!(f, Find::Aggregate(_)))
+fn is_aggregated(finds: &[Find]) -> bool {
+    finds.iter().any(|find| matches!(find, Find::Aggregate(_)))
 }
 
-fn project<E>(find: &[Find], mut assignment: Assignment) -> QueryResult<E> {
-    let mut result = Vec::with_capacity(find.len());
-    for f in find {
-        if let Find::Variable(variable) = f {
+fn project<E>(finds: &[Find], mut assignment: Assignment) -> QueryResult<E> {
+    let mut result = Vec::with_capacity(finds.len());
+    for find in finds {
+        if let Find::Variable(variable) = find {
             match assignment.remove(variable) {
                 Some(value) => result.push(value),
                 None => return Err(QueryError::InvalidFindVariable(Rc::clone(variable))),
@@ -81,14 +80,14 @@ fn project<E>(find: &[Find], mut assignment: Assignment) -> QueryResult<E> {
 }
 
 fn aggregate<E>(
-    find: Vec<Find>,
+    finds: Vec<Find>,
     results: impl Iterator<Item = AssignmentResult<E>>,
 ) -> Result<impl Iterator<Item = QueryResult<E>>, E> {
     // TODO concurrent aggregation?
     let mut aggregated = HashMap::new();
 
-    let indices = Indices::new(&find);
-    let (variables, aggregates) = partition(find.into_iter(), |f| match f {
+    let indices = Indices::new(&finds);
+    let (variables, aggregates) = partition(finds.into_iter(), |find| match find {
         Find::Variable(variale) => Left(variale),
         Find::Aggregate(aggregate) => Right(aggregate),
     });
@@ -148,11 +147,12 @@ struct Indices {
 }
 
 impl Indices {
-    fn new(find: &[Find]) -> Self {
-        let (variables, aggregates) = partition(find.iter().enumerate(), |(index, f)| match f {
-            Find::Variable(_) => Left(index),
-            Find::Aggregate(_) => Right(index),
-        });
+    fn new(finds: &[Find]) -> Self {
+        let (variables, aggregates) =
+            partition(finds.iter().enumerate(), |(index, find)| match find {
+                Find::Variable(_) => Left(index),
+                Find::Aggregate(_) => Right(index),
+            });
         Self {
             variables,
             aggregates,
@@ -160,7 +160,7 @@ impl Indices {
     }
 
     fn arrange(&self, key: AggregationKey, value: AggregatedValues) -> Vec<Value> {
-        let mut result = vec![Value::U64(0); key.0.len() + value.0.len()];
+        let mut result = vec![Value::Nil; key.0.len() + value.0.len()];
         for (index, value) in self.variables.iter().zip(key.0.into_iter()) {
             result[*index] = value;
         }

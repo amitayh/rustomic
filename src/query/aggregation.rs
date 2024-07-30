@@ -72,13 +72,13 @@ impl AggregationState {
         match self {
             Self::Count(count) => *count += 1,
             Self::Min { variable, min } => {
-                if let Some(Value::I64(value)) = assignment.get(variable) {
-                    *min = min.map_or_else(|| Some(*value), |prev| Some(prev.min(*value)));
+                if let Some(&Value::I64(value)) = assignment.get(variable) {
+                    *min = min.map_or_else(|| Some(value), |prev| Some(prev.min(value)));
                 }
             }
             Self::Max { variable, max } => {
-                if let Some(Value::I64(value)) = assignment.get(variable) {
-                    *max = max.map_or_else(|| Some(*value), |prev| Some(prev.max(*value)));
+                if let Some(&Value::I64(value)) = assignment.get(variable) {
+                    *max = max.map_or_else(|| Some(value), |prev| Some(prev.max(value)));
                 }
             }
             Self::Average {
@@ -87,7 +87,7 @@ impl AggregationState {
                 count,
             } => {
                 if let Some(Value::I64(value)) = assignment.get(variable) {
-                    *sum += *value;
+                    *sum += value;
                     *count += 1;
                 }
             }

@@ -14,13 +14,13 @@ use crate::tx::*;
 
 pub fn transact<'a, S: ReadStorage<'a>>(
     storage: &'a S,
-    attribute_resolver: &mut AttributeResolver,
+    resolver: &mut AttributeResolver,
     now: Instant,
     transaction: Transaction,
 ) -> Result<TransctionResult, S::Error> {
     let next_id = storage.latest_entity_id()? + 1;
     let builder = ResultBuilder::from(transaction, next_id)?;
-    builder.build(storage, attribute_resolver, now)
+    builder.build(storage, resolver, now)
 }
 
 struct ResultBuilder {
@@ -57,11 +57,11 @@ impl ResultBuilder {
     pub fn build<'a, S: ReadStorage<'a>>(
         mut self,
         storage: &'a S,
-        attribute_resolver: &mut AttributeResolver,
+        resolver: &mut AttributeResolver,
         now: Instant,
     ) -> Result<TransctionResult, S::Error> {
         for operation in mem::take(&mut self.transaction.operations) {
-            self.fill_datoms(storage, attribute_resolver, operation)?;
+            self.fill_datoms(storage, resolver, operation)?;
         }
         self.push(Datom::add(self.tx_id, DB_TX_TIME_ID, now.0, self.tx_id));
         Ok(TransctionResult {
@@ -74,14 +74,13 @@ impl ResultBuilder {
     fn fill_datoms<'a, S: ReadStorage<'a>>(
         &mut self,
         storage: &'a S,
-        attribute_resolver: &mut AttributeResolver,
+        resolver: &mut AttributeResolver,
         operation: EntityOperation,
     ) -> Result<(), S::Error> {
         let entity = self.resolve_entity(operation.entity)?;
         let mut retract_attributes = HashSet::with_capacity(operation.attributes.len());
         for attribute_value in operation.attributes {
-            let attribute =
-                attribute_resolver.resolve(storage, &attribute_value.attribute, self.tx_id)?;
+            let attribute = resolver.resolve(storage, &attribute_value.attribute, self.tx_id)?;
 
             if attribute.definition.cardinality == Cardinality::One {
                 // Values of attributes with cardinality `Cardinality::One` should be retracted

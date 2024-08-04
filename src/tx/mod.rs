@@ -102,13 +102,6 @@ impl Transaction {
         self.operations.push(o.into());
         self
     }
-
-    pub fn total_attribute_operations(&self) -> usize {
-        self.operations
-            .iter()
-            .map(|operation| operation.attributes.len())
-            .sum()
-    }
 }
 
 #[derive(Debug)]

@@ -24,6 +24,7 @@ pub enum AttributeValue {
 }
 
 pub struct AttributeOperation {
+    // TODO: allow to reference an attribute by ID in addition to ident
     pub attribute: Rc<str>,
     pub value: AttributeValue,
     pub op: Op,

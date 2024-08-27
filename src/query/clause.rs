@@ -66,6 +66,7 @@ impl Clause {
         if let Pattern::Variable(ref variable) = self.tx {
             variables.push(Rc::clone(variable));
         }
+        variables.shrink_to_fit();
         variables
     }
 }

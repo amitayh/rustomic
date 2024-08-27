@@ -2,7 +2,6 @@ use std::marker::PhantomData;
 use std::path::Path;
 use std::u64;
 
-use either::Either;
 use rocksdb::*;
 use thiserror::Error;
 
@@ -114,7 +113,7 @@ impl<'a> WriteStorage for DiskStorage<'a, ReadWrite> {
 }
 
 impl<'a, Mode> ReadStorage<'a> for DiskStorage<'a, Mode> {
-    type Error = Either<DiskStorageError, ReadError>;
+    type Error = DiskStorageError;
     type Iter = DatomsIterator<DiskStorageIter<'a>>;
 
     fn find(&'a self, restricts: Restricts) -> Self::Iter {
@@ -124,7 +123,7 @@ impl<'a, Mode> ReadStorage<'a> for DiskStorage<'a, Mode> {
     }
 
     fn latest_entity_id(&self) -> Result<u64, Self::Error> {
-        self.try_latest_entity_id().map_err(Either::Left)
+        self.try_latest_entity_id()
     }
 }
 
@@ -194,4 +193,6 @@ pub enum DiskStorageError {
     DbError(#[from] rocksdb::Error),
     #[error("column family {:?} not found", 0)]
     ColumnFamilyNotFound(&'static str),
+    #[error("read error")]
+    ReadError(#[from] ReadError),
 }

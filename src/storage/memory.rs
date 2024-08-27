@@ -3,8 +3,6 @@ use std::collections::BTreeSet;
 use std::convert::Infallible;
 use std::marker::PhantomData;
 
-use either::Either;
-
 use crate::storage::iter::*;
 use crate::storage::serde::index::RestrictedIndexRange;
 use crate::storage::serde::*;
@@ -40,7 +38,7 @@ impl<'a> WriteStorage for InMemoryStorage<'a> {
 }
 
 impl<'a> ReadStorage<'a> for InMemoryStorage<'a> {
-    type Error = Either<Infallible, ReadError>;
+    type Error = ReadError;
     type Iter = DatomsIterator<InMemoryStorageIter<'a>>;
 
     fn find(&'a self, restricts: Restricts) -> Self::Iter {
@@ -75,7 +73,7 @@ impl<'a> InMemoryStorageIter<'a> {
 }
 
 impl BytesIterator for InMemoryStorageIter<'_> {
-    type Error = Infallible;
+    type Error = ReadError;
 
     fn next(&mut self) -> Option<Result<&[u8], Self::Error>> {
         let bytes = self.range.next()?;

@@ -1,5 +1,3 @@
-use either::Either;
-
 use crate::datom::*;
 use crate::storage::serde::index::RestrictedIndexRange;
 
@@ -27,15 +25,17 @@ impl<T> DatomsIterator<T> {
     }
 }
 
-impl<T: BytesIterator> Iterator for DatomsIterator<T> {
-    type Item = Result<Datom, Either<T::Error, ReadError>>;
+impl<T> Iterator for DatomsIterator<T>
+where
+    T: BytesIterator,
+    <T as BytesIterator>::Error: From<ReadError>,
+{
+    type Item = Result<Datom, T::Error>;
 
     fn next(&mut self) -> Option<Self::Item> {
         let bytes = match self.bytes_iterator.next()? {
             Ok(bytes) => bytes,
-            Err(err) => {
-                return Some(Err(Either::Left(err)));
-            }
+            Err(err) => return Some(Err(err)),
         };
         match datom::deserialize(self.range.index, bytes) {
             Ok(datom) if self.range.contains(&datom) => Some(Ok(datom)),
@@ -43,12 +43,12 @@ impl<T: BytesIterator> Iterator for DatomsIterator<T> {
                 // Datom is out of range, seek to next one
                 if let Some(key) = seek_key(&datom.value, bytes, self.range.tx_value()) {
                     if let Err(err) = self.bytes_iterator.seek(key) {
-                        return Some(Err(Either::Left(err)));
+                        return Some(Err(err));
                     }
                 }
                 self.next()
             }
-            Err(err) => Some(Err(Either::Right(err))),
+            Err(err) => Some(Err(err.into())),
         }
     }
 }

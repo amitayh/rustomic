@@ -171,17 +171,19 @@ impl Indices {
     }
 }
 
-fn partition<T, A, B>(
+fn partition<T, L, R>(
     vec: impl ExactSizeIterator<Item = T>,
-    f: impl Fn(T) -> Either<A, B>,
-) -> (Vec<A>, Vec<B>) {
-    let mut _as = Vec::with_capacity(vec.len());
-    let mut _bs = Vec::with_capacity(vec.len());
+    f: impl Fn(T) -> Either<L, R>,
+) -> (Vec<L>, Vec<R>) {
+    let mut left = Vec::with_capacity(vec.len());
+    let mut right = Vec::with_capacity(vec.len());
     for x in vec {
         match f(x) {
-            Either::Left(a) => _as.push(a),
-            Either::Right(b) => _bs.push(b),
+            Either::Left(l) => left.push(l),
+            Either::Right(r) => right.push(r),
         }
     }
-    (_as, _bs)
+    left.shrink_to_fit();
+    right.shrink_to_fit();
+    (left, right)
 }

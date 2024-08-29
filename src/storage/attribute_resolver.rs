@@ -86,12 +86,12 @@ mod tests {
     use crate::tx::transactor;
     use crate::tx::Transaction;
 
-    struct CountingStorage<'a> {
-        inner: InMemoryStorage<'a>,
+    struct CountingStorage {
+        inner: InMemoryStorage,
         count: Cell<usize>,
     }
 
-    impl<'a> CountingStorage<'a> {
+    impl CountingStorage {
         fn new() -> Self {
             Self {
                 inner: InMemoryStorage::new(),
@@ -104,9 +104,9 @@ mod tests {
         }
     }
 
-    impl<'a> ReadStorage<'a> for CountingStorage<'a> {
-        type Error = <InMemoryStorage<'a> as ReadStorage<'a>>::Error;
-        type Iter = <InMemoryStorage<'a> as ReadStorage<'a>>::Iter;
+    impl<'a> ReadStorage<'a> for CountingStorage {
+        type Error = <InMemoryStorage as ReadStorage<'a>>::Error;
+        type Iter = <InMemoryStorage as ReadStorage<'a>>::Iter;
 
         fn find(&'a self, restricts: Restricts) -> Self::Iter {
             self.count.set(self.count.get() + 1);
@@ -118,14 +118,14 @@ mod tests {
         }
     }
 
-    impl<'a> WriteStorage for CountingStorage<'a> {
-        type Error = <InMemoryStorage<'a> as WriteStorage>::Error;
+    impl<'a> WriteStorage for CountingStorage {
+        type Error = <InMemoryStorage as WriteStorage>::Error;
         fn save(&mut self, datoms: &[Datom]) -> Result<(), Self::Error> {
             self.inner.save(datoms)
         }
     }
 
-    fn create_storage<'a>() -> CountingStorage<'a> {
+    fn create_storage<'a>() -> CountingStorage {
         let mut storage = CountingStorage::new();
         storage.save(&default_datoms()).unwrap();
         storage

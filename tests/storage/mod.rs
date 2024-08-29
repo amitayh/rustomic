@@ -21,9 +21,9 @@ mod tests {
         use super::*;
         use rustomic::storage::memory::*;
 
-        struct InMemory<'a>(InMemoryStorage<'a>);
+        struct InMemory(InMemoryStorage);
 
-        impl<'a> TestStorage for InMemory<'a> {
+        impl<'a> TestStorage for InMemory {
             fn create() -> Self {
                 Self(InMemoryStorage::new())
             }

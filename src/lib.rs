@@ -28,15 +28,15 @@ mod tests {
     use super::tx::transactor;
     use super::tx::*;
 
-    struct Sut<'a> {
+    struct Sut {
         attribute_resolver: AttributeResolver,
-        storage: InMemoryStorage<'a>,
+        storage: InMemoryStorage,
         last_tx: u64,
     }
 
-    type StorageError<'a> = <InMemoryStorage<'a> as ReadStorage<'a>>::Error;
+    type StorageError<'a> = <InMemoryStorage as ReadStorage<'a>>::Error;
 
-    impl<'a> Sut<'a> {
+    impl Sut {
         fn new() -> Self {
             let attribute_resolver = AttributeResolver::new();
             let mut storage = InMemoryStorage::new();

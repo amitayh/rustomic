@@ -14,12 +14,12 @@ use crate::storage::*;
 pub struct ReadOnly;
 pub struct ReadWrite;
 
-pub struct DiskStorage<'a, Mode> {
+pub struct DiskStorage<Mode> {
     db: rocksdb::DB,
-    marker: PhantomData<&'a Mode>,
+    marker: PhantomData<Mode>,
 }
 
-impl<'a, Mode> DiskStorage<'a, Mode> {
+impl<Mode> DiskStorage<Mode> {
     fn new(db: rocksdb::DB) -> Self {
         Self {
             db,
@@ -70,7 +70,7 @@ fn cf_handle(
         .ok_or_else(|| DiskStorageError::ColumnFamilyNotFound(partition.name()))
 }
 
-impl<'a> DiskStorage<'a, ReadOnly> {
+impl DiskStorage<ReadOnly> {
     pub fn read_only(path: impl AsRef<Path>) -> Result<Self, DiskStorageError> {
         let mut options = Options::default();
         options.create_if_missing(true);
@@ -80,7 +80,7 @@ impl<'a> DiskStorage<'a, ReadOnly> {
     }
 }
 
-impl<'a> DiskStorage<'a, ReadWrite> {
+impl DiskStorage<ReadWrite> {
     pub fn read_write(path: impl AsRef<Path>) -> Result<Self, DiskStorageError> {
         let mut options = Options::default();
         options.create_if_missing(true);
@@ -90,7 +90,7 @@ impl<'a> DiskStorage<'a, ReadWrite> {
     }
 }
 
-impl<'a> WriteStorage for DiskStorage<'a, ReadWrite> {
+impl WriteStorage for DiskStorage<ReadWrite> {
     type Error = DiskStorageError;
 
     fn save(&mut self, datoms: &[Datom]) -> Result<(), Self::Error> {
@@ -112,7 +112,7 @@ impl<'a> WriteStorage for DiskStorage<'a, ReadWrite> {
     }
 }
 
-impl<'a, Mode> ReadStorage<'a> for DiskStorage<'a, Mode> {
+impl<'a, Mode> ReadStorage<'a> for DiskStorage<Mode> {
     type Error = DiskStorageError;
     type Iter = DatomsIterator<DiskStorageIter<'a>>;
 
@@ -127,7 +127,7 @@ impl<'a, Mode> ReadStorage<'a> for DiskStorage<'a, Mode> {
     }
 }
 
-impl<'a, Mode> DiskStorage<'a, Mode> {
+impl<Mode> DiskStorage<Mode> {
     fn try_latest_entity_id(&self) -> Result<u64, DiskStorageError> {
         let system = cf_handle(&self.db, System)?;
         let bytes = self.db.get_cf(system, KEY_LATEST_ENTITY_ID)?;

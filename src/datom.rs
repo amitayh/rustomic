@@ -1,8 +1,6 @@
 use rust_decimal::prelude::*;
 use std::rc::Rc;
 
-use quickcheck::{Arbitrary, Gen};
-
 /// A datom is an immutable atomic fact that represents the addition or retraction of a relation
 /// between an entity, an attribute, a value, and a transaction.
 #[derive(Hash, Eq, PartialEq, Debug, Clone)]
@@ -32,23 +30,6 @@ impl Datom {
             value: value.into(),
             tx,
             op: Op::Retract,
-        }
-    }
-}
-
-impl Arbitrary for Datom {
-    fn arbitrary(u: &mut Gen) -> Self {
-        let entity = u64::arbitrary(u);
-        let attribute = u64::arbitrary(u);
-        let value = Value::arbitrary(u);
-        let tx = u64::arbitrary(u);
-        let op = Op::arbitrary(u);
-        Self {
-            entity,
-            attribute,
-            value,
-            tx,
-            op,
         }
     }
 }
@@ -111,40 +92,8 @@ impl From<Rc<str>> for Value {
     }
 }
 
-fn arbitrary_decimal(g: &mut Gen) -> Decimal {
-    let mut arr = [0u8; 16];
-    for x in &mut arr {
-        *x = Arbitrary::arbitrary(g);
-    }
-    Decimal::deserialize(arr)
-}
-
-impl Arbitrary for Value {
-    fn arbitrary(u: &mut Gen) -> Self {
-        match u.choose(&[0, 1, 2, 3, 4, 5]) {
-            Some(0) => Self::Nil,
-            Some(1) => Self::I64(i64::arbitrary(u)),
-            Some(2) => Self::U64(u64::arbitrary(u)),
-            Some(3) => Self::Decimal(arbitrary_decimal(u)),
-            Some(4) => Self::Str(String::arbitrary(u).into()),
-            Some(5) => Self::Ref(u64::arbitrary(u)),
-            _ => unreachable!(),
-        }
-    }
-}
-
 #[derive(Hash, Eq, PartialEq, Debug, Clone, Copy)]
 pub enum Op {
     Assert,
     Retract,
-}
-
-impl Arbitrary for Op {
-    fn arbitrary(u: &mut Gen) -> Self {
-        if bool::arbitrary(u) {
-            Self::Assert
-        } else {
-            Self::Retract
-        }
-    }
 }

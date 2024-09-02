@@ -319,11 +319,8 @@ impl Writable for str {
     }
 
     fn write_to(&self, buffer: &mut Bytes) {
-        // TODO: handle longer strings?
-        if let Ok(length) = u16::try_from(self.len()) {
-            length.write_to(buffer);
-            buffer.extend_from_slice(self.as_bytes());
-        }
+        self.len().write_to(buffer);
+        buffer.extend_from_slice(self.as_bytes());
     }
 }
 
@@ -399,6 +396,7 @@ pub enum ReadError {
     TryFromSliceError,
 }
 
+// TODO: use `std::io::Cursor`?
 struct Buffer<'a>(&'a [u8]);
 
 impl<'a> Buffer<'a> {
@@ -471,8 +469,8 @@ impl Readable for Decimal {
 
 impl Readable for Rc<str> {
     fn read_from(buffer: &mut Buffer) -> ReadResult<Self> {
-        let length = u16::read_from(buffer)?;
-        let buffer = buffer.consume(length.into())?;
+        let length = usize::read_from(buffer)?;
+        let buffer = buffer.consume(length)?;
         let str = std::str::from_utf8(buffer)?;
         Ok(Rc::from(str))
     }
@@ -499,5 +497,94 @@ impl Readable for Op {
             op::TAG_RETRACT => Ok(Op::Retract),
             _ => Err(ReadError::InvalidInput),
         }
+    }
+}
+
+// ------------------------------------------------------------------------------------------------
+
+// https://en.wikipedia.org/wiki/Variable-length_quantity
+// TODO: use this encoding for all numeric types?
+impl Writable for usize {
+    fn write_to(&self, buffer: &mut Bytes) {
+        let mut remainder = *self;
+        if remainder == 0 {
+            buffer.push(0);
+            return;
+        }
+
+        let mut parts = Vec::with_capacity(self.size_hint());
+        while remainder > 0 {
+            parts.push((remainder & 0x7F) as u8);
+            remainder >>= 7;
+        }
+        while let Some(mut part) = parts.pop() {
+            if !parts.is_empty() {
+                part |= 0x80; // Set the "has next" bit
+            }
+            buffer.push(part);
+        }
+    }
+
+    fn size_hint(&self) -> usize {
+        let mut size = 0;
+        let mut remainder = *self;
+        loop {
+            size += 1;
+            remainder >>= 7;
+            if remainder == 0 {
+                break size;
+            }
+        }
+    }
+}
+
+impl Readable for usize {
+    fn read_from(buffer: &mut Buffer) -> ReadResult<Self> {
+        let mut result: usize = 0;
+        loop {
+            let byte = u8::read_from(buffer)?;
+            result |= (byte & 0x7F) as usize;
+            if byte & 0x80 == 0 {
+                break;
+            }
+            result <<= 7;
+        }
+        Ok(result)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn one_byte_number() {
+        test_roundtrip(0, 1); // 0000 0000
+        test_roundtrip(1, 1); // 0000 0001
+        test_roundtrip(127, 1); // 0111 1111
+    }
+
+    #[test]
+    fn two_bytes_number() {
+        test_roundtrip(128, 2); // 1000 0001  0000 0000
+        test_roundtrip(16383, 2); // 1111 1111 0111 1111
+    }
+
+    #[test]
+    fn three_bytes_number() {
+        test_roundtrip(16384, 3); // 1000 0001  1000 0000  0000 0000
+    }
+
+    fn test_roundtrip(input: usize, expected_size: usize) {
+        let mut buffer = Vec::with_capacity(expected_size);
+
+        assert_eq!(input.size_hint(), expected_size);
+        input.write_to(&mut buffer);
+        assert_eq!(buffer.len(), expected_size);
+
+        let mut buffer = Buffer(&buffer);
+        let output = usize::read_from(&mut buffer).unwrap();
+        assert!(buffer.is_empty());
+        assert_eq!(input, output);
     }
 }

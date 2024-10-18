@@ -8,7 +8,7 @@ pub trait BytesIterator {
 
     fn next(&mut self) -> Option<Result<&[u8], Self::Error>>;
 
-    fn seek(&mut self, key: Bytes) -> Result<(), Self::Error>;
+    fn seek(&mut self, key: Vec<u8>) -> Result<(), Self::Error>;
 }
 
 pub struct DatomsIterator<T> {
@@ -55,7 +55,7 @@ where
 
 /// For bytes of a given datom [e a v _ _], seek to the next immediate datom in the index which
 /// differs in the [e a v] combination.
-fn seek_key(value: &Value, datom_bytes: &[u8], basis_tx: u64) -> Option<Bytes> {
+fn seek_key(value: &Value, datom_bytes: &[u8], basis_tx: u64) -> Option<Vec<u8>> {
     let mut key = next_prefix(&datom_bytes[..key_size(value)])?;
     (!basis_tx).write_to(&mut key);
     Some(key)
@@ -69,7 +69,7 @@ fn seek_key(value: &Value, datom_bytes: &[u8], basis_tx: u64) -> Option<Bytes> {
 /// range.
 ///
 /// For example, for prefix `foo` the function returns `fop`.
-fn next_prefix(prefix: &[u8]) -> Option<Bytes> {
+fn next_prefix(prefix: &[u8]) -> Option<Vec<u8>> {
     let ffs = prefix
         .iter()
         .rev()

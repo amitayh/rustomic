@@ -172,7 +172,7 @@ fn generate_temp_ids<E>(
     operations: &[EntityOperation],
     next_id: &mut NextId,
 ) -> Result<HashMap<Rc<str>, u64>, E> {
-    let mut temp_ids = HashMap::new();
+    let mut temp_ids = HashMap::with_capacity(operations.len());
     for operation in operations {
         if let OperatedEntity::TempId(temp_id) = &operation.entity {
             if temp_ids.insert(Rc::clone(temp_id), next_id.get()).is_some() {
@@ -180,6 +180,7 @@ fn generate_temp_ids<E>(
             }
         };
     }
+    temp_ids.shrink_to_fit();
     Ok(temp_ids)
 }
 

@@ -9,9 +9,9 @@ use crate::storage::*;
 
 #[derive(Default)]
 pub struct InMemoryStorage {
-    eavt: BTreeSet<Bytes>,
-    aevt: BTreeSet<Bytes>,
-    avet: BTreeSet<Bytes>,
+    eavt: BTreeSet<Vec<u8>>,
+    aevt: BTreeSet<Vec<u8>>,
+    avet: BTreeSet<Vec<u8>>,
     latest_entity_id: u64,
 }
 
@@ -51,8 +51,8 @@ impl<'a> ReadStorage<'a> for InMemoryStorage {
 }
 
 pub struct InMemoryStorageIter<'a> {
-    index: &'a BTreeSet<Bytes>,
-    range: btree_set::Range<'a, Bytes>,
+    index: &'a BTreeSet<Vec<u8>>,
+    range: btree_set::Range<'a, Vec<u8>>,
 }
 
 impl<'a> InMemoryStorageIter<'a> {
@@ -63,8 +63,8 @@ impl<'a> InMemoryStorageIter<'a> {
             Index::Avet => &storage.avet,
         };
         let range = match &range.start {
-            Some(start) => index.range::<Bytes, _>(start..),
-            None => index.range::<Bytes, _>(..),
+            Some(start) => index.range::<Vec<u8>, _>(start..),
+            None => index.range::<Vec<u8>, _>(..),
         };
         Self { index, range }
     }
@@ -78,7 +78,7 @@ impl BytesIterator for InMemoryStorageIter<'_> {
         Some(Ok(bytes))
     }
 
-    fn seek(&mut self, start: Bytes) -> Result<(), Self::Error> {
+    fn seek(&mut self, start: Vec<u8>) -> Result<(), Self::Error> {
         self.range = self.index.range(start..);
         Ok(())
     }

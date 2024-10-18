@@ -180,7 +180,7 @@ impl BytesIterator for DiskStorageIter<'_> {
         Some(Ok(bytes))
     }
 
-    fn seek(&mut self, key: Bytes) -> Result<(), Self::Error> {
+    fn seek(&mut self, key: Vec<u8>) -> Result<(), Self::Error> {
         self.iterator.seek(key);
         self.should_continue = false;
         Ok(())

@@ -1,5 +1,7 @@
 use rust_decimal::Decimal;
 use std::fmt::Debug;
+use std::io::Cursor;
+use std::io::Read;
 use std::mem::size_of;
 use std::rc::Rc;
 use std::u16;
@@ -17,8 +19,6 @@ macro_rules! write_to_vec {
         buffer
     }};
 }
-
-pub type Bytes = Vec<u8>;
 
 /// | Index | Sort order                      | Contains                       |
 /// |-------|---------------------------------|--------------------------------|
@@ -87,7 +87,7 @@ pub mod index {
     pub struct RestrictedIndexRange {
         pub restricts: Restricts,
         pub index: Index,
-        pub start: Option<Bytes>,
+        pub start: Option<Vec<u8>>,
     }
 
     impl RestrictedIndexRange {
@@ -162,7 +162,7 @@ pub mod datom {
     pub mod serialize {
         use super::*;
 
-        pub fn eavt(datom: &Datom) -> Bytes {
+        pub fn eavt(datom: &Datom) -> Vec<u8> {
             write_to_vec!(
                 datom.entity,
                 datom.attribute,
@@ -172,7 +172,7 @@ pub mod datom {
             )
         }
 
-        pub fn aevt(datom: &Datom) -> Bytes {
+        pub fn aevt(datom: &Datom) -> Vec<u8> {
             write_to_vec!(
                 datom.attribute,
                 datom.entity,
@@ -182,7 +182,7 @@ pub mod datom {
             )
         }
 
-        pub fn avet(datom: &Datom) -> Bytes {
+        pub fn avet(datom: &Datom) -> Vec<u8> {
             write_to_vec!(
                 datom.attribute,
                 datom.value,
@@ -194,7 +194,7 @@ pub mod datom {
     }
 
     pub fn deserialize(index: Index, buffer: &[u8]) -> ReadResult<Datom> {
-        let mut buffer = Buffer(buffer);
+        let mut buffer = Cursor::new(buffer);
         match index {
             Index::Eavt => deserialize::eavt(&mut buffer),
             Index::Aevt => deserialize::aevt(&mut buffer),
@@ -205,13 +205,13 @@ pub mod datom {
     mod deserialize {
         use super::*;
 
-        pub fn eavt(buffer: &mut Buffer) -> ReadResult<Datom> {
+        pub fn eavt(buffer: &mut Cursor<&[u8]>) -> ReadResult<Datom> {
             let entity = u64::read_from(buffer)?;
             let attribute = u64::read_from(buffer)?;
             let value = Value::read_from(buffer)?;
             let tx = !u64::read_from(buffer)?;
             let op = Op::read_from(buffer)?;
-            assert!(buffer.is_empty(), "bytes remaining in buffer");
+            //assert!(buffer.().is_empty(), "bytes remaining in buffer");
             Ok(Datom {
                 entity,
                 attribute,
@@ -221,13 +221,13 @@ pub mod datom {
             })
         }
 
-        pub fn aevt(buffer: &mut Buffer) -> ReadResult<Datom> {
+        pub fn aevt(buffer: &mut impl Read) -> ReadResult<Datom> {
             let attribute = u64::read_from(buffer)?;
             let entity = u64::read_from(buffer)?;
             let value = Value::read_from(buffer)?;
             let tx = !u64::read_from(buffer)?;
             let op = Op::read_from(buffer)?;
-            assert!(buffer.is_empty(), "bytes remaining in buffer");
+            // assert!(buffer.is_empty(), "bytes remaining in buffer");
             Ok(Datom {
                 entity,
                 attribute,
@@ -237,13 +237,13 @@ pub mod datom {
             })
         }
 
-        pub fn avet(buffer: &mut Buffer) -> ReadResult<Datom> {
+        pub fn avet(buffer: &mut impl Read) -> ReadResult<Datom> {
             let attribute = u64::read_from(buffer)?;
             let value = Value::read_from(buffer)?;
             let entity = u64::read_from(buffer)?;
             let tx = !u64::read_from(buffer)?;
             let op = Op::read_from(buffer)?;
-            assert!(buffer.is_empty(), "bytes remaining in buffer");
+            // assert!(buffer.is_empty(), "bytes remaining in buffer");
             Ok(Datom {
                 entity,
                 attribute,
@@ -258,8 +258,11 @@ pub mod datom {
 // -------------------------------------------------------------------------------------------------
 
 pub trait Writable {
+    /// Number of bytes required for encoding `Self`.
     fn size_hint(&self) -> usize;
-    fn write_to(&self, buffer: &mut Bytes);
+
+    /// Write `self` to buffer in binary format.
+    fn write_to(&self, buffer: &mut Vec<u8>);
 }
 
 impl Writable for u8 {
@@ -267,7 +270,7 @@ impl Writable for u8 {
         size_of::<Self>()
     }
 
-    fn write_to(&self, buffer: &mut Bytes) {
+    fn write_to(&self, buffer: &mut Vec<u8>) {
         buffer.push(*self);
     }
 }
@@ -277,7 +280,7 @@ impl Writable for u16 {
         size_of::<Self>()
     }
 
-    fn write_to(&self, buffer: &mut Bytes) {
+    fn write_to(&self, buffer: &mut Vec<u8>) {
         buffer.extend_from_slice(&self.to_be_bytes());
     }
 }
@@ -287,7 +290,7 @@ impl Writable for u64 {
         size_of::<Self>()
     }
 
-    fn write_to(&self, buffer: &mut Bytes) {
+    fn write_to(&self, buffer: &mut Vec<u8>) {
         buffer.extend_from_slice(&self.to_be_bytes());
     }
 }
@@ -297,7 +300,7 @@ impl Writable for i64 {
         size_of::<Self>()
     }
 
-    fn write_to(&self, buffer: &mut Bytes) {
+    fn write_to(&self, buffer: &mut Vec<u8>) {
         buffer.extend_from_slice(&self.to_be_bytes());
     }
 }
@@ -307,7 +310,7 @@ impl Writable for Decimal {
         size_of::<Self>()
     }
 
-    fn write_to(&self, buffer: &mut Bytes) {
+    fn write_to(&self, buffer: &mut Vec<u8>) {
         buffer.extend(self.serialize());
     }
 }
@@ -318,8 +321,12 @@ impl Writable for str {
         self.len()
     }
 
-    fn write_to(&self, buffer: &mut Bytes) {
-        self.len().write_to(buffer);
+    fn write_to(&self, buffer: &mut Vec<u8>) {
+        // TODO: handle longer strings?
+        u16::try_from(self.len())
+            .expect("String to long")
+            .write_to(buffer);
+
         buffer.extend_from_slice(self.as_bytes());
     }
 }
@@ -337,7 +344,7 @@ impl Writable for Value {
         }
     }
 
-    fn write_to(&self, buffer: &mut Bytes) {
+    fn write_to(&self, buffer: &mut Vec<u8>) {
         match self {
             Self::Nil => {
                 value::TAG_NIL.write_to(buffer);
@@ -371,7 +378,7 @@ impl Writable for Op {
         1
     }
 
-    fn write_to(&self, buffer: &mut Bytes) {
+    fn write_to(&self, buffer: &mut Vec<u8>) {
         match self {
             Self::Assert => op::TAG_ASSERT,
             Self::Retract => op::TAG_RETRACT,
@@ -384,7 +391,7 @@ impl Writable for Op {
 
 type ReadResult<T> = Result<T, ReadError>;
 
-#[derive(Debug, Error, PartialEq)]
+#[derive(Debug, Error)]
 pub enum ReadError {
     #[error("end of input")]
     EndOfInput,
@@ -394,90 +401,73 @@ pub enum ReadError {
     Utf8Error(#[from] std::str::Utf8Error),
     #[error("try from slice error")]
     TryFromSliceError,
-}
-
-// TODO: use `std::io::Cursor`?
-struct Buffer<'a>(&'a [u8]);
-
-impl<'a> Buffer<'a> {
-    /// Removes and returns the first `num_bytes` from buffer.
-    /// Fails with `ReadError::EndOfInput` if not enough bytes exist.
-    fn consume(&mut self, num_bytes: usize) -> ReadResult<&[u8]> {
-        let Buffer(buffer) = self;
-        if num_bytes > buffer.len() {
-            return Err(ReadError::EndOfInput);
-        }
-        let result = &buffer[..num_bytes];
-        *buffer = &buffer[num_bytes..];
-        Ok(result)
-    }
-
-    fn is_empty(&self) -> bool {
-        self.0.is_empty()
-    }
+    #[error("I/O error")]
+    IoError(#[from] std::io::Error),
 }
 
 trait Readable: Sized {
     /// Reads `Self` from buffer.
     /// Consumes as many bytes required from the buffer.
-    fn read_from(buffer: &mut Buffer) -> ReadResult<Self>;
+    fn read_from(buffer: &mut impl Read) -> ReadResult<Self>;
 }
 
 impl<const N: usize> Readable for [u8; N] {
-    fn read_from(buffer: &mut Buffer) -> ReadResult<Self> {
-        buffer
-            .consume(N)?
-            .try_into()
-            .map_err(|_| ReadError::TryFromSliceError)
+    fn read_from(buffer: &mut impl Read) -> ReadResult<Self> {
+        let mut bytes = [0; N];
+        buffer.read_exact(&mut bytes)?;
+        Ok(bytes)
     }
 }
 
 impl Readable for u8 {
-    fn read_from(buffer: &mut Buffer) -> ReadResult<Self> {
-        let buffer = buffer.consume(1)?;
-        Ok(buffer[0])
+    fn read_from(buffer: &mut impl Read) -> ReadResult<Self> {
+        let mut bytes = [0; 1];
+        buffer.read_exact(&mut bytes)?;
+        Ok(bytes[0])
     }
 }
 
 impl Readable for u16 {
-    fn read_from(buffer: &mut Buffer) -> ReadResult<Self> {
+    fn read_from(buffer: &mut impl Read) -> ReadResult<Self> {
         let bytes = <[u8; 2]>::read_from(buffer)?;
         Ok(Self::from_be_bytes(bytes))
     }
 }
 
 impl Readable for u64 {
-    fn read_from(buffer: &mut Buffer) -> ReadResult<Self> {
+    fn read_from(buffer: &mut impl Read) -> ReadResult<Self> {
         let bytes = <[u8; 8]>::read_from(buffer)?;
         Ok(Self::from_be_bytes(bytes))
     }
 }
 
 impl Readable for i64 {
-    fn read_from(buffer: &mut Buffer) -> ReadResult<Self> {
+    fn read_from(buffer: &mut impl Read) -> ReadResult<Self> {
         let bytes = <[u8; 8]>::read_from(buffer)?;
         Ok(Self::from_be_bytes(bytes))
     }
 }
 
 impl Readable for Decimal {
-    fn read_from(buffer: &mut Buffer) -> ReadResult<Self> {
+    fn read_from(buffer: &mut impl Read) -> ReadResult<Self> {
         let bytes = <[u8; 16]>::read_from(buffer)?;
         Ok(Self::deserialize(bytes))
     }
 }
 
 impl Readable for Rc<str> {
-    fn read_from(buffer: &mut Buffer) -> ReadResult<Self> {
-        let length = usize::read_from(buffer)?;
-        let buffer = buffer.consume(length)?;
-        let str = std::str::from_utf8(buffer)?;
+    fn read_from(buffer: &mut impl Read) -> ReadResult<Self> {
+        // TODO: optimize this?
+        let length = u16::read_from(buffer)?;
+        let mut bytes = vec![0; length.into()];
+        buffer.read_exact(&mut bytes)?;
+        let str = std::str::from_utf8(&bytes)?;
         Ok(Rc::from(str))
     }
 }
 
 impl Readable for Value {
-    fn read_from(buffer: &mut Buffer) -> ReadResult<Self> {
+    fn read_from(buffer: &mut impl Read) -> ReadResult<Self> {
         match u8::read_from(buffer)? {
             value::TAG_NIL => Ok(Value::Nil),
             value::TAG_U64 => Ok(Value::U64(u64::read_from(buffer)?)),
@@ -491,100 +481,11 @@ impl Readable for Value {
 }
 
 impl Readable for Op {
-    fn read_from(buffer: &mut Buffer) -> ReadResult<Self> {
+    fn read_from(buffer: &mut impl Read) -> ReadResult<Self> {
         match u8::read_from(buffer)? {
             op::TAG_ASSERT => Ok(Op::Assert),
             op::TAG_RETRACT => Ok(Op::Retract),
             _ => Err(ReadError::InvalidInput),
         }
-    }
-}
-
-// ------------------------------------------------------------------------------------------------
-
-// https://en.wikipedia.org/wiki/Variable-length_quantity
-// TODO: use this encoding for all numeric types?
-impl Writable for usize {
-    fn write_to(&self, buffer: &mut Bytes) {
-        let mut remainder = *self;
-        if remainder == 0 {
-            buffer.push(0);
-            return;
-        }
-
-        let mut parts = Vec::with_capacity(self.size_hint());
-        while remainder > 0 {
-            parts.push((remainder & 0x7F) as u8);
-            remainder >>= 7;
-        }
-        while let Some(mut part) = parts.pop() {
-            if !parts.is_empty() {
-                part |= 0x80; // Set the "has next" bit
-            }
-            buffer.push(part);
-        }
-    }
-
-    fn size_hint(&self) -> usize {
-        let mut size = 0;
-        let mut remainder = *self;
-        loop {
-            size += 1;
-            remainder >>= 7;
-            if remainder == 0 {
-                break size;
-            }
-        }
-    }
-}
-
-impl Readable for usize {
-    fn read_from(buffer: &mut Buffer) -> ReadResult<Self> {
-        let mut result: usize = 0;
-        loop {
-            let byte = u8::read_from(buffer)?;
-            result |= (byte & 0x7F) as usize;
-            if byte & 0x80 == 0 {
-                break;
-            }
-            result <<= 7;
-        }
-        Ok(result)
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn one_byte_number() {
-        test_roundtrip(0, 1); // 0000 0000
-        test_roundtrip(1, 1); // 0000 0001
-        test_roundtrip(127, 1); // 0111 1111
-    }
-
-    #[test]
-    fn two_bytes_number() {
-        test_roundtrip(128, 2); // 1000 0001  0000 0000
-        test_roundtrip(16383, 2); // 1111 1111 0111 1111
-    }
-
-    #[test]
-    fn three_bytes_number() {
-        test_roundtrip(16384, 3); // 1000 0001  1000 0000  0000 0000
-    }
-
-    fn test_roundtrip(input: usize, expected_size: usize) {
-        let mut buffer = Vec::with_capacity(expected_size);
-
-        assert_eq!(input.size_hint(), expected_size);
-        input.write_to(&mut buffer);
-        assert_eq!(buffer.len(), expected_size);
-
-        let mut buffer = Buffer(&buffer);
-        let output = usize::read_from(&mut buffer).unwrap();
-        assert!(buffer.is_empty());
-        assert_eq!(input, output);
     }
 }

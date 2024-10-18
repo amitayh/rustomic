@@ -1,5 +1,7 @@
 extern crate rustomic;
 
+use std::rc::Rc;
+
 use quickcheck::*;
 use quickcheck_macros::quickcheck;
 use rust_decimal::prelude::*;
@@ -7,24 +9,33 @@ use rustomic::datom::*;
 use rustomic::storage::*;
 
 #[quickcheck]
-fn test_serialization(datom: ArbitraryDatom) {
+fn test_eavt_serialization(datom: ArbitraryDatom) {
     let ArbitraryDatom(datom) = datom;
-    let eavt = serde::datom::serialize::eavt(&datom);
-    let aevt = serde::datom::serialize::aevt(&datom);
-    let avet = serde::datom::serialize::avet(&datom);
+    let serialized = serde::datom::serialize::eavt(&datom);
+    let deserialized = serde::datom::deserialize(serde::Index::Eavt, &serialized);
 
-    assert_eq!(
-        datom,
-        serde::datom::deserialize(serde::Index::Eavt, &eavt).unwrap()
-    );
-    assert_eq!(
-        datom,
-        serde::datom::deserialize(serde::Index::Aevt, &aevt).unwrap()
-    );
-    assert_eq!(
-        datom,
-        serde::datom::deserialize(serde::Index::Avet, &avet).unwrap()
-    );
+    assert!(deserialized.is_ok());
+    assert_eq!(datom, deserialized.unwrap());
+}
+
+#[quickcheck]
+fn test_aevt_serialization(datom: ArbitraryDatom) {
+    let ArbitraryDatom(datom) = datom;
+    let serialized = serde::datom::serialize::aevt(&datom);
+    let deserialized = serde::datom::deserialize(serde::Index::Aevt, &serialized);
+
+    assert!(deserialized.is_ok());
+    assert_eq!(datom, deserialized.unwrap());
+}
+
+#[quickcheck]
+fn test_avet_serialization(datom: ArbitraryDatom) {
+    let ArbitraryDatom(datom) = datom;
+    let serialized = serde::datom::serialize::avet(&datom);
+    let deserialized = serde::datom::deserialize(serde::Index::Avet, &serialized);
+
+    assert!(deserialized.is_ok());
+    assert_eq!(datom, deserialized.unwrap());
 }
 
 #[derive(Debug, Clone)]
@@ -35,22 +46,78 @@ impl Arbitrary for ArbitraryDatom {
         Self(Datom {
             entity: u64::arbitrary(g),
             attribute: u64::arbitrary(g),
-            value: arbitrary_value(g),
+            value: ArbitraryValue::arbitrary(g).0,
             tx: u64::arbitrary(g),
             op: arbitrary_op(g),
         })
     }
+
+    fn shrink(&self) -> Box<dyn Iterator<Item = Self>> {
+        let ArbitraryDatom(datom) = self.clone();
+        Box::new(ArbitraryValue(datom.value).shrink().map(move |value| {
+            Self(Datom {
+                entity: datom.entity,
+                attribute: datom.attribute,
+                value: value.0,
+                tx: datom.tx,
+                op: datom.op,
+            })
+        }))
+
+        //Box::new(datom.entity.shrink().flat_map(move |e| {
+        //    datom.attribute.shrink().flat_map(move |a| {
+        //        ArbitraryValue(datom.value.clone()).shrink().map(move |v| {
+        //            Self(Datom {
+        //                entity: e,
+        //                attribute: a,
+        //                value: v.0,
+        //                tx: datom.tx,
+        //                op: datom.op,
+        //            })
+        //        })
+        //    })
+        //}))
+    }
 }
 
-fn arbitrary_value(g: &mut Gen) -> Value {
-    match g.choose(&[0, 1, 2, 3, 4, 5]) {
-        Some(0) => Value::Nil,
-        Some(1) => Value::I64(i64::arbitrary(g)),
-        Some(2) => Value::U64(u64::arbitrary(g)),
-        Some(3) => Value::Decimal(arbitrary_decimal(g)),
-        Some(4) => Value::Str(String::arbitrary(g).into()),
-        Some(5) => Value::Ref(u64::arbitrary(g)),
-        _ => unreachable!(),
+#[derive(Debug, Clone)]
+struct ArbitraryValue(Value);
+
+impl Arbitrary for ArbitraryValue {
+    fn arbitrary(g: &mut Gen) -> Self {
+        Self(match g.choose(&[0, 1, 2, 3, 4, 5]) {
+            Some(0) => Value::Nil,
+            Some(1) => Value::I64(i64::arbitrary(g)),
+            Some(2) => Value::U64(u64::arbitrary(g)),
+            Some(3) => Value::Decimal(arbitrary_decimal(g)),
+            Some(4) => Value::Str(String::arbitrary(g).into()),
+            Some(5) => Value::Ref(u64::arbitrary(g)),
+            _ => unreachable!(),
+        })
+    }
+
+    fn shrink(&self) -> Box<dyn Iterator<Item = Self>> {
+        if matches!(&self.0, Value::Nil) {
+            return empty_shrinker();
+        }
+
+        let chain = single_shrinker(Self(Value::Nil)).chain(
+            match &self.0 {
+                Value::Nil | Value::Decimal(_) => empty_shrinker(),
+                Value::I64(value) => Box::new(value.shrink().map(Value::I64)),
+                Value::U64(value) => Box::new(value.shrink().map(Value::U64)),
+                Value::Str(value) => Box::new(
+                    value
+                        .to_string()
+                        .shrink()
+                        .map(|x| Value::Str(Rc::from(&x as &str))),
+                ),
+                Value::Ref(value) => Box::new(value.shrink().map(Value::Ref)),
+            }
+            .map(Self),
+        );
+
+        Box::new(chain)
     }
 }
 

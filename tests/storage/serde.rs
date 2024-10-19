@@ -63,20 +63,6 @@ impl Arbitrary for ArbitraryDatom {
                 op: datom.op,
             })
         }))
-
-        //Box::new(datom.entity.shrink().flat_map(move |e| {
-        //    datom.attribute.shrink().flat_map(move |a| {
-        //        ArbitraryValue(datom.value.clone()).shrink().map(move |v| {
-        //            Self(Datom {
-        //                entity: e,
-        //                attribute: a,
-        //                value: v.0,
-        //                tx: datom.tx,
-        //                op: datom.op,
-        //            })
-        //        })
-        //    })
-        //}))
     }
 }
 

@@ -6,11 +6,12 @@ use rustomic::query::Find;
 use rustomic::query::Query;
 use rustomic::schema::attribute::*;
 use rustomic::schema::default::default_datoms;
+use rustomic::storage::attribute_resolver::AttributeResolver;
 use rustomic::storage::disk::DiskStorage;
 use rustomic::storage::disk::ReadOnly;
 use rustomic::storage::ReadStorage;
 use rustomic::storage::WriteStorage;
-use rustomic::tx::transactor::Transactor;
+use rustomic::tx::transactor;
 use rustomic::tx::Transaction;
 use server::query_service_server::QueryServiceServer;
 use std::time::SystemTime;
@@ -28,12 +29,13 @@ pub mod server {
     tonic::include_proto!("rustomic.server");
 }
 
-pub struct QueryServiceImpl<'a> {
-    storage: DiskStorage<'a, ReadOnly>,
+pub struct QueryServiceImpl {
+    storage: DiskStorage<ReadOnly>,
+    resolver: AttributeResolver,
 }
 
 #[tonic::async_trait]
-impl QueryService for QueryServiceImpl<'static> {
+impl QueryService for QueryServiceImpl {
     async fn query(
         &self,
         request: Request<QueryRequest>,
@@ -43,9 +45,11 @@ impl QueryService for QueryServiceImpl<'static> {
             .latest_entity_id()
             .map_err(|err| Status::unknown(err.to_string()))?;
         let mut db = Database::new(basis_tx);
+        let mut resolver = AttributeResolver::new();
         let results: Vec<_> = db
             .query(
                 &self.storage,
+                &mut self.resolver,
                 Query::new()
                     .find(Find::variable("?e"))
                     .r#where(Clause::new().with_entity(Pattern::variable("?e"))),
@@ -59,11 +63,13 @@ impl QueryService for QueryServiceImpl<'static> {
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    init_db()?;
+    let mut resolver = AttributeResolver::new();
+
+    init_db(&mut resolver)?;
 
     let addr = "[::1]:50051".parse()?;
     let storage = DiskStorage::read_only(DB_PATH)?;
-    let greeter = QueryServiceImpl { storage };
+    let greeter = QueryServiceImpl { storage, resolver };
 
     Server::builder()
         .add_service(QueryServiceServer::new(greeter))
@@ -73,7 +79,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     Ok(())
 }
 
-fn init_db() -> Result<(), Box<dyn std::error::Error>> {
+fn init_db(resolver: &mut AttributeResolver) -> Result<(), Box<dyn std::error::Error>> {
     let mut storage = DiskStorage::read_write(DB_PATH)?;
     if storage.latest_entity_id()? > 0 {
         // Looks like the DB already has some datoms saved, no need to re-create the schema.
@@ -82,7 +88,6 @@ fn init_db() -> Result<(), Box<dyn std::error::Error>> {
 
     storage.save(&default_datoms())?;
 
-    let mut transactor = Transactor::new();
     let now = Instant(
         SystemTime::now()
             .duration_since(SystemTime::UNIX_EPOCH)
@@ -100,7 +105,7 @@ fn init_db() -> Result<(), Box<dyn std::error::Error>> {
         .with(AttributeDefinition::new("release/name", ValueType::Str))
         .with(AttributeDefinition::new("release/artists", ValueType::Ref).many());
 
-    let tx_result = transactor.transact(&storage, now, tx)?;
+    let tx_result = transactor::transact(&storage, resolver, now, tx)?;
     storage.save(&tx_result.tx_data)?;
 
     Ok(())

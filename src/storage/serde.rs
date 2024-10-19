@@ -142,20 +142,6 @@ pub mod index {
     }
 }
 
-mod value {
-    pub const TAG_NIL: u8 = 0x00;
-    pub const TAG_U64: u8 = 0x01;
-    pub const TAG_I64: u8 = 0x02;
-    pub const TAG_DEC: u8 = 0x03;
-    pub const TAG_STR: u8 = 0x04;
-    pub const TAG_REF: u8 = 0x05;
-}
-
-mod op {
-    pub const TAG_ASSERT: u8 = 0x00;
-    pub const TAG_RETRACT: u8 = 0x01;
-}
-
 pub mod datom {
     use super::*;
 
@@ -257,138 +243,6 @@ pub mod datom {
 
 // -------------------------------------------------------------------------------------------------
 
-pub trait Writable {
-    /// Number of bytes required for encoding `Self`.
-    fn size_hint(&self) -> usize;
-
-    /// Write `self` to buffer in binary format.
-    fn write_to(&self, buffer: &mut Vec<u8>);
-}
-
-impl Writable for u8 {
-    fn size_hint(&self) -> usize {
-        size_of::<Self>()
-    }
-
-    fn write_to(&self, buffer: &mut Vec<u8>) {
-        buffer.push(*self);
-    }
-}
-
-impl Writable for u16 {
-    fn size_hint(&self) -> usize {
-        size_of::<Self>()
-    }
-
-    fn write_to(&self, buffer: &mut Vec<u8>) {
-        buffer.extend_from_slice(&self.to_be_bytes());
-    }
-}
-
-impl Writable for u64 {
-    fn size_hint(&self) -> usize {
-        size_of::<Self>()
-    }
-
-    fn write_to(&self, buffer: &mut Vec<u8>) {
-        buffer.extend_from_slice(&self.to_be_bytes());
-    }
-}
-
-impl Writable for i64 {
-    fn size_hint(&self) -> usize {
-        size_of::<Self>()
-    }
-
-    fn write_to(&self, buffer: &mut Vec<u8>) {
-        buffer.extend_from_slice(&self.to_be_bytes());
-    }
-}
-
-impl Writable for Decimal {
-    fn size_hint(&self) -> usize {
-        size_of::<Self>()
-    }
-
-    fn write_to(&self, buffer: &mut Vec<u8>) {
-        buffer.extend(self.serialize());
-    }
-}
-
-impl Writable for str {
-    fn size_hint(&self) -> usize {
-        size_of::<u16>() + // Length
-        self.len()
-    }
-
-    fn write_to(&self, buffer: &mut Vec<u8>) {
-        // TODO: handle longer strings?
-        u16::try_from(self.len())
-            .expect("String to long")
-            .write_to(buffer);
-
-        buffer.extend_from_slice(self.as_bytes());
-    }
-}
-
-impl Writable for Value {
-    fn size_hint(&self) -> usize {
-        1 + // Value tag
-        match self {
-            Self::Nil => 0,
-            Self::Decimal(value) => value.size_hint(),
-            Self::U64(value) => value.size_hint(),
-            Self::I64(value) => value.size_hint(),
-            Self::Str(value) => value.size_hint(),
-            Self::Ref(value) => value.size_hint(),
-        }
-    }
-
-    fn write_to(&self, buffer: &mut Vec<u8>) {
-        match self {
-            Self::Nil => {
-                value::TAG_NIL.write_to(buffer);
-            }
-            Self::U64(value) => {
-                value::TAG_U64.write_to(buffer);
-                value.write_to(buffer);
-            }
-            Self::I64(value) => {
-                value::TAG_I64.write_to(buffer);
-                value.write_to(buffer);
-            }
-            Self::Decimal(value) => {
-                value::TAG_DEC.write_to(buffer);
-                value.write_to(buffer);
-            }
-            Self::Str(value) => {
-                value::TAG_STR.write_to(buffer);
-                value.write_to(buffer);
-            }
-            Self::Ref(value) => {
-                value::TAG_REF.write_to(buffer);
-                value.write_to(buffer);
-            }
-        }
-    }
-}
-
-impl Writable for Op {
-    fn size_hint(&self) -> usize {
-        1
-    }
-
-    fn write_to(&self, buffer: &mut Vec<u8>) {
-        match self {
-            Self::Assert => op::TAG_ASSERT,
-            Self::Retract => op::TAG_RETRACT,
-        }
-        .write_to(buffer)
-    }
-}
-
-// -------------------------------------------------------------------------------------------------
-
 type ReadResult<T> = Result<T, ReadError>;
 
 #[derive(Debug, Error)]
@@ -411,6 +265,14 @@ trait Readable: Sized {
     fn read_from(buffer: &mut impl Read) -> ReadResult<Self>;
 }
 
+pub trait Writable {
+    /// Number of bytes required for encoding `Self`.
+    fn size_hint(&self) -> usize;
+
+    /// Writes `self` to buffer in binary format.
+    fn write_to(&self, buffer: &mut Vec<u8>);
+}
+
 impl<const N: usize> Readable for [u8; N] {
     fn read_from(buffer: &mut impl Read) -> ReadResult<Self> {
         let mut bytes = [0; N];
@@ -419,73 +281,178 @@ impl<const N: usize> Readable for [u8; N] {
     }
 }
 
-impl Readable for u8 {
-    fn read_from(buffer: &mut impl Read) -> ReadResult<Self> {
-        let mut bytes = [0; 1];
-        buffer.read_exact(&mut bytes)?;
-        Ok(bytes[0])
-    }
+macro_rules! primitive_impl {
+    ($type:ty) => {
+        impl Readable for $type {
+            fn read_from(buffer: &mut impl Read) -> ReadResult<Self> {
+                let bytes = <[u8; size_of::<Self>()]>::read_from(buffer)?;
+                Ok(Self::from_be_bytes(bytes))
+            }
+        }
+
+        impl Writable for $type {
+            fn size_hint(&self) -> usize {
+                size_of::<Self>()
+            }
+
+            fn write_to(&self, buffer: &mut Vec<u8>) {
+                buffer.extend_from_slice(&self.to_be_bytes());
+            }
+        }
+    };
 }
 
-impl Readable for u16 {
-    fn read_from(buffer: &mut impl Read) -> ReadResult<Self> {
-        let bytes = <[u8; 2]>::read_from(buffer)?;
-        Ok(Self::from_be_bytes(bytes))
-    }
-}
+primitive_impl!(u8);
+primitive_impl!(u16);
+primitive_impl!(u64);
+primitive_impl!(i64);
 
-impl Readable for u64 {
-    fn read_from(buffer: &mut impl Read) -> ReadResult<Self> {
-        let bytes = <[u8; 8]>::read_from(buffer)?;
-        Ok(Self::from_be_bytes(bytes))
-    }
-}
+mod decimal {
+    use super::*;
 
-impl Readable for i64 {
-    fn read_from(buffer: &mut impl Read) -> ReadResult<Self> {
-        let bytes = <[u8; 8]>::read_from(buffer)?;
-        Ok(Self::from_be_bytes(bytes))
+    impl Readable for Decimal {
+        fn read_from(buffer: &mut impl Read) -> ReadResult<Self> {
+            let bytes = <[u8; 16]>::read_from(buffer)?;
+            Ok(Self::deserialize(bytes))
+        }
     }
-}
 
-impl Readable for Decimal {
-    fn read_from(buffer: &mut impl Read) -> ReadResult<Self> {
-        let bytes = <[u8; 16]>::read_from(buffer)?;
-        Ok(Self::deserialize(bytes))
-    }
-}
+    impl Writable for Decimal {
+        fn size_hint(&self) -> usize {
+            size_of::<Self>()
+        }
 
-impl Readable for Rc<str> {
-    fn read_from(buffer: &mut impl Read) -> ReadResult<Self> {
-        // TODO: optimize this?
-        let length = u16::read_from(buffer)?;
-        let mut bytes = vec![0; length.into()];
-        buffer.read_exact(&mut bytes)?;
-        let str = std::str::from_utf8(&bytes)?;
-        Ok(Rc::from(str))
-    }
-}
-
-impl Readable for Value {
-    fn read_from(buffer: &mut impl Read) -> ReadResult<Self> {
-        match u8::read_from(buffer)? {
-            value::TAG_NIL => Ok(Value::Nil),
-            value::TAG_U64 => Ok(Value::U64(u64::read_from(buffer)?)),
-            value::TAG_I64 => Ok(Value::I64(i64::read_from(buffer)?)),
-            value::TAG_DEC => Ok(Value::Decimal(Decimal::read_from(buffer)?)),
-            value::TAG_STR => Ok(Value::Str(<Rc<str>>::read_from(buffer)?)),
-            value::TAG_REF => Ok(Value::Ref(u64::read_from(buffer)?)),
-            _ => Err(ReadError::InvalidInput),
+        fn write_to(&self, buffer: &mut Vec<u8>) {
+            buffer.extend(self.serialize());
         }
     }
 }
 
-impl Readable for Op {
-    fn read_from(buffer: &mut impl Read) -> ReadResult<Self> {
-        match u8::read_from(buffer)? {
-            op::TAG_ASSERT => Ok(Op::Assert),
-            op::TAG_RETRACT => Ok(Op::Retract),
-            _ => Err(ReadError::InvalidInput),
+mod string {
+    use super::*;
+
+    impl Readable for Rc<str> {
+        fn read_from(buffer: &mut impl Read) -> ReadResult<Self> {
+            // TODO: optimize this?
+            let length = u16::read_from(buffer)?;
+            let mut bytes = vec![0; length.into()];
+            buffer.read_exact(&mut bytes)?;
+            let str = std::str::from_utf8(&bytes)?;
+            Ok(Rc::from(str))
+        }
+    }
+
+    impl Writable for str {
+        fn size_hint(&self) -> usize {
+            size_of::<u16>() + // Length
+        self.len()
+        }
+
+        fn write_to(&self, buffer: &mut Vec<u8>) {
+            // TODO: handle longer strings?
+            u16::try_from(self.len())
+                .expect("String to long")
+                .write_to(buffer);
+
+            buffer.extend_from_slice(self.as_bytes());
+        }
+    }
+}
+
+mod value {
+    use super::*;
+
+    const TAG_NIL: u8 = 0x00;
+    const TAG_U64: u8 = 0x01;
+    const TAG_I64: u8 = 0x02;
+    const TAG_DEC: u8 = 0x03;
+    const TAG_STR: u8 = 0x04;
+    const TAG_REF: u8 = 0x05;
+
+    impl Readable for Value {
+        fn read_from(buffer: &mut impl Read) -> ReadResult<Self> {
+            match u8::read_from(buffer)? {
+                TAG_NIL => Ok(Value::Nil),
+                TAG_U64 => Ok(Value::U64(u64::read_from(buffer)?)),
+                TAG_I64 => Ok(Value::I64(i64::read_from(buffer)?)),
+                TAG_DEC => Ok(Value::Decimal(Decimal::read_from(buffer)?)),
+                TAG_STR => Ok(Value::Str(<Rc<str>>::read_from(buffer)?)),
+                TAG_REF => Ok(Value::Ref(u64::read_from(buffer)?)),
+                _ => Err(ReadError::InvalidInput),
+            }
+        }
+    }
+
+    impl Writable for Value {
+        fn size_hint(&self) -> usize {
+            1 + // Value tag
+            match self {
+                Self::Nil => 0,
+                Self::Decimal(value) => value.size_hint(),
+                Self::U64(value) => value.size_hint(),
+                Self::I64(value) => value.size_hint(),
+                Self::Str(value) => value.size_hint(),
+                Self::Ref(value) => value.size_hint(),
+            }
+        }
+
+        fn write_to(&self, buffer: &mut Vec<u8>) {
+            match self {
+                Self::Nil => {
+                    TAG_NIL.write_to(buffer);
+                }
+                Self::U64(value) => {
+                    TAG_U64.write_to(buffer);
+                    value.write_to(buffer);
+                }
+                Self::I64(value) => {
+                    TAG_I64.write_to(buffer);
+                    value.write_to(buffer);
+                }
+                Self::Decimal(value) => {
+                    TAG_DEC.write_to(buffer);
+                    value.write_to(buffer);
+                }
+                Self::Str(value) => {
+                    TAG_STR.write_to(buffer);
+                    value.write_to(buffer);
+                }
+                Self::Ref(value) => {
+                    TAG_REF.write_to(buffer);
+                    value.write_to(buffer);
+                }
+            }
+        }
+    }
+}
+
+mod op {
+    use super::*;
+
+    const TAG_ASSERT: u8 = 0x00;
+    const TAG_RETRACT: u8 = 0x01;
+
+    impl Readable for Op {
+        fn read_from(buffer: &mut impl Read) -> ReadResult<Self> {
+            match u8::read_from(buffer)? {
+                TAG_ASSERT => Ok(Op::Assert),
+                TAG_RETRACT => Ok(Op::Retract),
+                _ => Err(ReadError::InvalidInput),
+            }
+        }
+    }
+
+    impl Writable for Op {
+        fn size_hint(&self) -> usize {
+            1
+        }
+
+        fn write_to(&self, buffer: &mut Vec<u8>) {
+            match self {
+                Self::Assert => TAG_ASSERT,
+                Self::Retract => TAG_RETRACT,
+            }
+            .write_to(buffer)
         }
     }
 }

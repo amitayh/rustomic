@@ -1,5 +1,5 @@
 use std::collections::{BTreeMap, BTreeSet};
-use std::rc::Rc;
+use std::sync::Arc;
 
 use nom::branch::*;
 use nom::bytes::complete::*;
@@ -21,22 +21,22 @@ use rustomic::query::{Find, Query};
 
 #[derive(PartialEq, Debug, Clone, PartialOrd, Eq, Ord)]
 pub struct Name {
-    pub namespace: Option<Rc<str>>,
-    pub name: Rc<str>,
+    pub namespace: Option<Arc<str>>,
+    pub name: Arc<str>,
 }
 
 impl Name {
     pub fn from(name: &str) -> Self {
         Self {
             namespace: None,
-            name: Rc::from(name),
+            name: Arc::from(name),
         }
     }
 
     pub fn namespaced(namespace: &str, name: &str) -> Self {
         Self {
-            namespace: Some(Rc::from(namespace)),
-            name: Rc::from(name),
+            namespace: Some(Arc::from(namespace)),
+            name: Arc::from(name),
         }
     }
 }
@@ -68,7 +68,7 @@ mod edn {
 
         /// Strings are enclosed in `"double quotes"`. May span multiple lines. Standard C/Java
         /// escape characters `\t, \r, \n, \\ and \" are supported.
-        String(Rc<str>),
+        String(Arc<str>),
 
         /// Symbols are used to represent identifiers, and should map to something other than
         /// strings, if possible.
@@ -239,7 +239,7 @@ mod edn {
             tag("true").map(|_| Edn::Boolean(true)),
             tag("false").map(|_| Edn::Boolean(false)),
             double.map(<Edn as From<f64>>::from),
-            delimited(char('"'), is_not("\""), char('"')).map(|str| Edn::String(Rc::from(str))),
+            delimited(char('"'), is_not("\""), char('"')).map(|str| Edn::String(Arc::from(str))),
             delimited(char('['), edns, char(']')).map(Edn::Vector),
             delimited(char('('), edns, char(')')).map(Edn::List),
             delimited(tag("#{"), edns, char('}')).map(|xs| Edn::Set(xs.into_iter().collect())),
@@ -292,7 +292,7 @@ mod edn {
         fn test_string() {
             let result = Edn::try_from(r#""hello world""#);
 
-            assert_eq!(result, Ok(Edn::String(Rc::from("hello world"))));
+            assert_eq!(result, Ok(Edn::String(Arc::from("hello world"))));
         }
 
         #[test]
@@ -300,7 +300,7 @@ mod edn {
         fn test_string_escape() {
             let result = Edn::try_from(r#""hello \"world\"""#);
 
-            assert_eq!(result, Ok(Edn::String(Rc::from(r#"hello "world""#))));
+            assert_eq!(result, Ok(Edn::String(Arc::from(r#"hello "world""#))));
         }
 
         #[test]
@@ -518,7 +518,7 @@ fn parse_clause(patterns: Vec<Edn>) -> Result<Clause, String> {
     let entity = match patterns.get(0) {
         Some(Edn::Symbol(name)) => {
             let name: String = name.into();
-            Pattern::Variable(Rc::from(name))
+            Pattern::Variable(Arc::from(name))
         }
         Some(Edn::Integer(id)) => Pattern::Constant(*id as u64),
         // TODO: handle failures
@@ -527,11 +527,11 @@ fn parse_clause(patterns: Vec<Edn>) -> Result<Clause, String> {
     let attribute = match patterns.get(1) {
         Some(Edn::Symbol(name)) => {
             let name: String = name.into();
-            Pattern::Variable(Rc::from(name))
+            Pattern::Variable(Arc::from(name))
         }
         Some(Edn::Keyword(name)) => {
             let name: String = name.into();
-            Pattern::Constant(AttributeIdentifier::Ident(Rc::from(name)))
+            Pattern::Constant(AttributeIdentifier::Ident(Arc::from(name)))
         }
         Some(Edn::Integer(id)) => Pattern::Constant(AttributeIdentifier::Id(*id as u64)),
         // TODO: handle failures
@@ -540,7 +540,7 @@ fn parse_clause(patterns: Vec<Edn>) -> Result<Clause, String> {
     let value = match patterns.get(2) {
         Some(Edn::Symbol(name)) => {
             let name: String = name.into();
-            Pattern::Variable(Rc::from(name))
+            Pattern::Variable(Arc::from(name))
         }
         // TODO: remove clone
         Some(edn) => Pattern::Constant(edn.clone().try_into().unwrap()),

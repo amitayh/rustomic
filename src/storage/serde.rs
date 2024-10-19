@@ -3,7 +3,7 @@ use std::fmt::Debug;
 use std::io::Cursor;
 use std::io::Read;
 use std::mem::size_of;
-use std::rc::Rc;
+use std::sync::Arc;
 use std::u16;
 use thiserror::Error;
 
@@ -331,14 +331,14 @@ mod decimal {
 mod string {
     use super::*;
 
-    impl Readable for Rc<str> {
+    impl Readable for Arc<str> {
         fn read_from(buffer: &mut impl Read) -> ReadResult<Self> {
             // TODO: optimize this?
             let length = u16::read_from(buffer)?;
             let mut bytes = vec![0; length.into()];
             buffer.read_exact(&mut bytes)?;
             let str = std::str::from_utf8(&bytes)?;
-            Ok(Rc::from(str))
+            Ok(Arc::from(str))
         }
     }
 
@@ -376,7 +376,7 @@ mod value {
                 TAG_U64 => Ok(Value::U64(u64::read_from(buffer)?)),
                 TAG_I64 => Ok(Value::I64(i64::read_from(buffer)?)),
                 TAG_DEC => Ok(Value::Decimal(Decimal::read_from(buffer)?)),
-                TAG_STR => Ok(Value::Str(<Rc<str>>::read_from(buffer)?)),
+                TAG_STR => Ok(Value::Str(<Arc<str>>::read_from(buffer)?)),
                 TAG_REF => Ok(Value::Ref(u64::read_from(buffer)?)),
                 _ => Err(ReadError::InvalidInput),
             }

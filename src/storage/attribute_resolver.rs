@@ -1,5 +1,5 @@
 use std::collections::HashMap;
-use std::rc::Rc;
+use std::sync::Arc;
 use thiserror::Error;
 
 use crate::datom::*;
@@ -12,7 +12,7 @@ use super::Restricts;
 
 #[derive(Default)]
 pub struct AttributeResolver {
-    cache: HashMap<Rc<str>, Option<Attribute>>,
+    cache: HashMap<Arc<str>, Option<Attribute>>,
 }
 
 impl AttributeResolver {
@@ -23,17 +23,17 @@ impl AttributeResolver {
     pub fn resolve<'a, S: ReadStorage<'a>>(
         &mut self,
         storage: &'a S,
-        ident: &Rc<str>,
+        ident: &Arc<str>,
         tx: u64,
     ) -> Result<&Attribute, ResolveError<S::Error>> {
-        let result = self.cache.entry(Rc::clone(ident)).or_default();
+        let result = self.cache.entry(Arc::clone(ident)).or_default();
         if result.is_none() {
             // TODO: how to invalidate cache?
-            *result = resolve_by_ident(storage, Rc::clone(ident), tx)?;
+            *result = resolve_by_ident(storage, Arc::clone(ident), tx)?;
         }
         result
             .as_ref()
-            .ok_or_else(|| ResolveError::IdentNotFound(Rc::clone(ident)))
+            .ok_or_else(|| ResolveError::IdentNotFound(Arc::clone(ident)))
     }
 }
 
@@ -42,12 +42,12 @@ pub enum ResolveError<S> {
     #[error("storage error")]
     StorageError(#[from] S),
     #[error("ident `{0}` not found")]
-    IdentNotFound(Rc<str>),
+    IdentNotFound(Arc<str>),
 }
 
 fn resolve_by_ident<'a, S: ReadStorage<'a>>(
     storage: &'a S,
-    ident: Rc<str>,
+    ident: Arc<str>,
     tx: u64,
 ) -> Result<Option<Attribute>, S::Error> {
     // [?attribute :db/attr/ident ?ident]
@@ -136,7 +136,7 @@ mod tests {
     fn returns_none_when_attribute_does_not_exist() {
         let storage = create_storage();
         let mut resolver = AttributeResolver::new();
-        let ident = Rc::from("foo/bar");
+        let ident = Arc::from("foo/bar");
         let result = resolver.resolve(&storage, &ident, u64::MAX);
         assert!(result.is_err_and(|err| err == ResolveError::IdentNotFound(ident)));
     }
@@ -153,11 +153,11 @@ mod tests {
         assert!(tx_result.is_ok());
         assert!(storage.save(&tx_result.unwrap().tx_data).is_ok());
 
-        let result = resolver.resolve(&storage, &Rc::from("foo/bar"), u64::MAX);
+        let result = resolver.resolve(&storage, &Arc::from("foo/bar"), u64::MAX);
         assert!(result.is_ok());
 
         let result = result.unwrap();
-        assert_eq!(Rc::from("foo/bar"), result.definition.ident);
+        assert_eq!(Arc::from("foo/bar"), result.definition.ident);
         assert_eq!(ValueType::U64, result.definition.value_type);
     }
 
@@ -176,7 +176,7 @@ mod tests {
         assert!(storage.save(&tx_result.unwrap().tx_data).is_ok());
 
         let result1 = resolver
-            .resolve(&storage, &Rc::from("foo/bar"), u64::MAX)
+            .resolve(&storage, &Arc::from("foo/bar"), u64::MAX)
             .cloned();
         assert!(result1.is_ok());
 
@@ -185,7 +185,7 @@ mod tests {
         assert!(queries > 0);
 
         let result2 = resolver
-            .resolve(&storage, &Rc::from("foo/bar"), u64::MAX)
+            .resolve(&storage, &Arc::from("foo/bar"), u64::MAX)
             .cloned();
         assert!(result2.is_ok());
         //assert_eq!(result1, result2);

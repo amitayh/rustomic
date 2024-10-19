@@ -14,7 +14,9 @@ use rustomic::storage::WriteStorage;
 use rustomic::tx::transactor;
 use rustomic::tx::Transaction;
 use server::query_service_server::QueryServiceServer;
+use std::sync::Arc;
 use std::time::SystemTime;
+use tokio::sync::Mutex;
 use tonic::{transport::Server, Request, Response, Status};
 
 use server::query_service_server::QueryService;
@@ -31,7 +33,7 @@ pub mod server {
 
 pub struct QueryServiceImpl {
     storage: DiskStorage<ReadOnly>,
-    resolver: AttributeResolver,
+    resolver: Arc<Mutex<AttributeResolver>>,
 }
 
 #[tonic::async_trait]
@@ -40,16 +42,16 @@ impl QueryService for QueryServiceImpl {
         &self,
         request: Request<QueryRequest>,
     ) -> Result<Response<QueryResponse>, Status> {
+        let mut resolver = self.resolver.lock().await;
         let basis_tx = self
             .storage
             .latest_entity_id()
             .map_err(|err| Status::unknown(err.to_string()))?;
         let mut db = Database::new(basis_tx);
-        let mut resolver = AttributeResolver::new();
         let results: Vec<_> = db
             .query(
                 &self.storage,
-                &mut self.resolver,
+                &mut resolver,
                 Query::new()
                     .find(Find::variable("?e"))
                     .r#where(Clause::new().with_entity(Pattern::variable("?e"))),
@@ -69,7 +71,12 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let addr = "[::1]:50051".parse()?;
     let storage = DiskStorage::read_only(DB_PATH)?;
-    let greeter = QueryServiceImpl { storage, resolver };
+    let greeter = QueryServiceImpl {
+        storage,
+        resolver: Arc::new(Mutex::new(resolver)),
+    };
+
+    println!("Starting server on {:?}...", &addr);
 
     Server::builder()
         .add_service(QueryServiceServer::new(greeter))

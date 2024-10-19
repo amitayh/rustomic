@@ -1,5 +1,5 @@
 use rust_decimal::prelude::*;
-use std::rc::Rc;
+use std::sync::Arc;
 
 /// A datom is an immutable atomic fact that represents the addition or retraction of a relation
 /// between an entity, an attribute, a value, and a transaction.
@@ -40,13 +40,13 @@ pub enum Value {
     I64(i64),
     U64(u64),
     Decimal(Decimal),
-    Str(Rc<str>),
+    Str(Arc<str>),
     Ref(u64),
 }
 
 impl Value {
     pub fn str(str: &str) -> Self {
-        Self::Str(Rc::from(str))
+        Self::Str(Arc::from(str))
     }
 }
 
@@ -86,8 +86,8 @@ impl From<&str> for Value {
     }
 }
 
-impl From<Rc<str>> for Value {
-    fn from(val: Rc<str>) -> Self {
+impl From<Arc<str>> for Value {
+    fn from(val: Arc<str>) -> Self {
         Self::Str(val)
     }
 }

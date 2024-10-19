@@ -1,4 +1,4 @@
-use std::rc::Rc;
+use std::sync::Arc;
 
 use crate::datom::*;
 use crate::schema::attribute::*;
@@ -7,10 +7,10 @@ use crate::schema::*;
 pub struct AttributeBuilder {
     id: u64,
     version: u64,
-    ident: Option<Rc<str>>,
+    ident: Option<Arc<str>>,
     value_type: Option<ValueType>,
     cardinality: Option<Cardinality>,
-    doc: Option<Rc<str>>,
+    doc: Option<Arc<str>>,
     unique: bool,
 }
 

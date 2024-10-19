@@ -29,7 +29,7 @@ struct ResultBuilder {
     tx_id: u64,
     next_id: NextId,
     datoms: Vec<Datom>,
-    temp_ids: HashMap<Rc<str>, u64>,
+    temp_ids: HashMap<Arc<str>, u64>,
     unique_values: HashSet<(u64, Value)>,
 }
 
@@ -115,11 +115,11 @@ impl ResultBuilder {
         Ok(())
     }
 
-    fn temp_id<E>(&self, temp_id: &Rc<str>) -> Result<u64, E> {
+    fn temp_id<E>(&self, temp_id: &Arc<str>) -> Result<u64, E> {
         self.temp_ids
             .get(temp_id)
             .copied()
-            .ok_or_else(|| TransactionError::TempIdNotFound(Rc::clone(temp_id)))
+            .ok_or_else(|| TransactionError::TempIdNotFound(Arc::clone(temp_id)))
     }
 
     fn resolve_entity<E>(&mut self, entity: OperatedEntity) -> Result<u64, E> {
@@ -171,12 +171,15 @@ impl ResultBuilder {
 fn generate_temp_ids<E>(
     operations: &[EntityOperation],
     next_id: &mut NextId,
-) -> Result<HashMap<Rc<str>, u64>, E> {
+) -> Result<HashMap<Arc<str>, u64>, E> {
     let mut temp_ids = HashMap::with_capacity(operations.len());
     for operation in operations {
         if let OperatedEntity::TempId(temp_id) = &operation.entity {
-            if temp_ids.insert(Rc::clone(temp_id), next_id.get()).is_some() {
-                return Err(TransactionError::DuplicateTempId(Rc::clone(temp_id)));
+            if temp_ids
+                .insert(Arc::clone(temp_id), next_id.get())
+                .is_some()
+            {
+                return Err(TransactionError::DuplicateTempId(Arc::clone(temp_id)));
             }
         };
     }

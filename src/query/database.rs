@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use crate::query::pattern::AttributeIdentifier;
 use crate::query::pattern::Pattern;
 use crate::query::resolver::Resolver;
@@ -72,7 +74,7 @@ fn project<E>(finds: &[Find], mut assignment: Assignment) -> QueryResult<E> {
         if let Find::Variable(variable) = find {
             match assignment.remove(variable) {
                 Some(value) => result.push(value),
-                None => return Err(QueryError::InvalidFindVariable(Rc::clone(variable))),
+                None => return Err(QueryError::InvalidFindVariable(Arc::clone(variable))),
             }
         }
     }
@@ -110,12 +112,12 @@ fn aggregate<E>(
 struct AggregationKey(Vec<Value>);
 
 impl AggregationKey {
-    fn new<E>(variables: &[Rc<str>], assignment: &Assignment) -> Result<Self, E> {
+    fn new<E>(variables: &[Arc<str>], assignment: &Assignment) -> Result<Self, E> {
         let mut values = Vec::with_capacity(variables.len());
         for variable in variables {
             match assignment.get(variable) {
                 Some(value) => values.push(value.clone()),
-                None => return Err(QueryError::InvalidFindVariable(Rc::clone(variable))),
+                None => return Err(QueryError::InvalidFindVariable(Arc::clone(variable))),
             }
         }
         Ok(Self(values))

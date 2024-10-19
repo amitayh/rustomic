@@ -1,6 +1,6 @@
 extern crate rustomic;
 
-use std::rc::Rc;
+use std::sync::Arc;
 
 use quickcheck::*;
 use quickcheck_macros::quickcheck;
@@ -96,7 +96,7 @@ impl Arbitrary for ArbitraryValue {
                     value
                         .to_string()
                         .shrink()
-                        .map(|x| Value::Str(Rc::from(&x as &str))),
+                        .map(|x| Value::Str(Arc::from(&x as &str))),
                 ),
                 Value::Ref(value) => Box::new(value.shrink().map(Value::Ref)),
             }

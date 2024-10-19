@@ -1,7 +1,7 @@
 pub mod transactor;
 
 use std::collections::HashMap;
-use std::rc::Rc;
+use std::sync::Arc;
 
 use crate::datom::Datom;
 use crate::datom::Op;
@@ -13,19 +13,19 @@ use thiserror::Error;
 pub type Result<T, E> = std::result::Result<T, TransactionError<E>>;
 
 pub enum OperatedEntity {
-    New,             // Create a new entity and assign ID automatically.
-    Id(u64),         // Update existing entity by ID.
-    TempId(Rc<str>), // Use a temp ID within transaction.
+    New,              // Create a new entity and assign ID automatically.
+    Id(u64),          // Update existing entity by ID.
+    TempId(Arc<str>), // Use a temp ID within transaction.
 }
 
 pub enum AttributeValue {
-    Value(Value),    // Set a concrete value to attribute.
-    TempId(Rc<str>), // Reference a temp ID within transaction.
+    Value(Value),     // Set a concrete value to attribute.
+    TempId(Arc<str>), // Reference a temp ID within transaction.
 }
 
 pub struct AttributeOperation {
     // TODO: allow to reference an attribute by ID in addition to ident
-    pub attribute: Rc<str>,
+    pub attribute: Arc<str>,
     pub value: AttributeValue,
     pub op: Op,
 }
@@ -52,12 +52,12 @@ impl EntityOperation {
     }
 
     pub fn on_temp_id(temp_id: &str) -> Self {
-        Self::new(OperatedEntity::TempId(Rc::from(temp_id)))
+        Self::new(OperatedEntity::TempId(Arc::from(temp_id)))
     }
 
     pub fn assert(self, attribute: &str, value: impl Into<Value>) -> Self {
         self.set(
-            Rc::from(attribute),
+            Arc::from(attribute),
             AttributeValue::Value(value.into()),
             Op::Assert,
         )
@@ -65,7 +65,7 @@ impl EntityOperation {
 
     pub fn retract(self, attribute: &str, value: impl Into<Value>) -> Self {
         self.set(
-            Rc::from(attribute),
+            Arc::from(attribute),
             AttributeValue::Value(value.into()),
             Op::Retract,
         )
@@ -73,13 +73,13 @@ impl EntityOperation {
 
     pub fn set_reference(self, attribute: &str, temp_id: &str) -> Self {
         self.set(
-            Rc::from(attribute),
-            AttributeValue::TempId(Rc::from(temp_id)),
+            Arc::from(attribute),
+            AttributeValue::TempId(Arc::from(temp_id)),
             Op::Assert,
         )
     }
 
-    fn set(mut self, attribute: Rc<str>, value: AttributeValue, op: Op) -> Self {
+    fn set(mut self, attribute: Arc<str>, value: AttributeValue, op: Op) -> Self {
         self.attributes.push(AttributeOperation {
             attribute,
             value,
@@ -109,7 +109,7 @@ impl Transaction {
 pub struct TransctionResult {
     pub tx_id: u64,
     pub tx_data: Vec<Datom>,
-    pub temp_ids: HashMap<Rc<str>, u64>,
+    pub temp_ids: HashMap<Arc<str>, u64>,
 }
 
 #[derive(Debug, Error)]
@@ -123,9 +123,9 @@ pub enum TransactionError<S> {
         value: Value,
     },
     #[error("duplicate temp ID `{0}`")]
-    DuplicateTempId(Rc<str>),
+    DuplicateTempId(Arc<str>),
     #[error("temp ID `{0}` not found")]
-    TempIdNotFound(Rc<str>),
+    TempIdNotFound(Arc<str>),
     #[error("resolve error")]
     ResolveError(#[from] ResolveError<S>),
     #[error("duplicate value for attribute {attribute}")]

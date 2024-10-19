@@ -1,14 +1,32 @@
 syntax = "proto3";
 
+import "google/protobuf/empty.proto";
+
 package rustomic.server;
 
 service QueryService {
-    rpc Query (QueryRequest) returns (QueryResponse);
+  rpc Query (QueryRequest) returns (QueryResponse);
 }
 
 message QueryRequest {
-    string query = 1;
+  string query = 1;
 }
 
 message QueryResponse {
+  //repeated Assignment assignments = 1;
+}
+
+message Assignment {
+  repeated Value values = 1;
+}
+
+message Value {
+  oneof value {
+    google.protobuf.Empty nil = 1;
+    int64 i64 = 2;
+    uint64 u64 = 3;
+    double decimal = 4;
+    string str = 5;
+    uint64 ref = 6;
+  }
 }

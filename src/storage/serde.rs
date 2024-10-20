@@ -180,23 +180,23 @@ pub mod datom {
     }
 
     pub fn deserialize(index: Index, buffer: &[u8]) -> ReadResult<Datom> {
-        let mut buffer = Cursor::new(buffer);
+        let mut cursor = Cursor::new(buffer);
         match index {
-            Index::Eavt => deserialize::eavt(&mut buffer),
-            Index::Aevt => deserialize::aevt(&mut buffer),
-            Index::Avet => deserialize::avet(&mut buffer),
+            Index::Eavt => deserialize::eavt(&mut cursor),
+            Index::Aevt => deserialize::aevt(&mut cursor),
+            Index::Avet => deserialize::avet(&mut cursor),
         }
     }
 
     mod deserialize {
         use super::*;
 
-        pub fn eavt(buffer: &mut Cursor<&[u8]>) -> ReadResult<Datom> {
-            let entity = u64::read_from(buffer)?;
-            let attribute = u64::read_from(buffer)?;
-            let value = Value::read_from(buffer)?;
-            let tx = !u64::read_from(buffer)?;
-            let op = Op::read_from(buffer)?;
+        pub fn eavt(cursor: &mut Cursor<&[u8]>) -> ReadResult<Datom> {
+            let entity = u64::read_from(cursor)?;
+            let attribute = u64::read_from(cursor)?;
+            let value = Value::read_from(cursor)?;
+            let tx = !u64::read_from(cursor)?;
+            let op = Op::read_from(cursor)?;
             //assert!(buffer.().is_empty(), "bytes remaining in buffer");
             Ok(Datom {
                 entity,
@@ -207,12 +207,12 @@ pub mod datom {
             })
         }
 
-        pub fn aevt(buffer: &mut impl Read) -> ReadResult<Datom> {
-            let attribute = u64::read_from(buffer)?;
-            let entity = u64::read_from(buffer)?;
-            let value = Value::read_from(buffer)?;
-            let tx = !u64::read_from(buffer)?;
-            let op = Op::read_from(buffer)?;
+        pub fn aevt(cursor: &mut Cursor<&[u8]>) -> ReadResult<Datom> {
+            let attribute = u64::read_from(cursor)?;
+            let entity = u64::read_from(cursor)?;
+            let value = Value::read_from(cursor)?;
+            let tx = !u64::read_from(cursor)?;
+            let op = Op::read_from(cursor)?;
             // assert!(buffer.is_empty(), "bytes remaining in buffer");
             Ok(Datom {
                 entity,
@@ -223,12 +223,12 @@ pub mod datom {
             })
         }
 
-        pub fn avet(buffer: &mut impl Read) -> ReadResult<Datom> {
-            let attribute = u64::read_from(buffer)?;
-            let value = Value::read_from(buffer)?;
-            let entity = u64::read_from(buffer)?;
-            let tx = !u64::read_from(buffer)?;
-            let op = Op::read_from(buffer)?;
+        pub fn avet(cursor: &mut Cursor<&[u8]>) -> ReadResult<Datom> {
+            let attribute = u64::read_from(cursor)?;
+            let value = Value::read_from(cursor)?;
+            let entity = u64::read_from(cursor)?;
+            let tx = !u64::read_from(cursor)?;
+            let op = Op::read_from(cursor)?;
             // assert!(buffer.is_empty(), "bytes remaining in buffer");
             Ok(Datom {
                 entity,
@@ -247,14 +247,10 @@ type ReadResult<T> = Result<T, ReadError>;
 
 #[derive(Debug, Error)]
 pub enum ReadError {
-    #[error("end of input")]
-    EndOfInput,
     #[error("invalid input")]
     InvalidInput,
-    #[error("utf8 error")]
+    #[error("UTF8 error")]
     Utf8Error(#[from] std::str::Utf8Error),
-    #[error("try from slice error")]
-    TryFromSliceError,
     #[error("I/O error")]
     IoError(#[from] std::io::Error),
 }
@@ -345,7 +341,7 @@ mod string {
     impl Writable for str {
         fn size_hint(&self) -> usize {
             size_of::<u16>() + // Length
-        self.len()
+            self.len()
         }
 
         fn write_to(&self, buffer: &mut Vec<u8>) {

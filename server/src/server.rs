@@ -1,9 +1,5 @@
 use rustomic::clock::Instant;
-use rustomic::query::clause::Clause;
 use rustomic::query::database::Database;
-use rustomic::query::pattern::Pattern;
-use rustomic::query::Find;
-use rustomic::query::Query;
 use rustomic::schema::attribute::*;
 use rustomic::schema::default::default_datoms;
 use rustomic::storage::attribute_resolver::AttributeResolver;
@@ -23,7 +19,8 @@ use server::query_service_server::QueryService;
 use server::QueryRequest;
 use server::QueryResponse;
 
-pub mod parser;
+mod edn;
+mod parser;
 
 const DB_PATH: &str = "/tmp/foo";
 
@@ -48,14 +45,10 @@ impl QueryService for QueryServiceImpl {
             .latest_entity_id()
             .map_err(|err| Status::unknown(err.to_string()))?;
         let mut db = Database::new(basis_tx);
+        let request = request.into_inner();
+        let query = parser::parse(&request.query).map_err(Status::invalid_argument)?;
         let results: Vec<_> = db
-            .query(
-                &self.storage,
-                &mut resolver,
-                Query::new()
-                    .find(Find::variable("?e"))
-                    .r#where(Clause::new().with_entity(Pattern::variable("?e"))),
-            )
+            .query(&self.storage, &mut resolver, query)
             .map_err(|err| Status::unknown(err.to_string()))?
             .collect();
         println!("Got a request: {:?} {:?}", request, results);

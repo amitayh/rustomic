@@ -131,16 +131,14 @@ mod tests {
         storage
     }
 
-    /*
     #[test]
     fn returns_none_when_attribute_does_not_exist() {
         let storage = create_storage();
         let mut resolver = AttributeResolver::new();
         let ident = Arc::from("foo/bar");
         let result = resolver.resolve(&storage, &ident, u64::MAX);
-        assert!(result.is_err_and(|err| err == ResolveError::IdentNotFound(ident)));
+        assert!(result.is_err_and(|err| matches!(err, ResolveError::IdentNotFound(_))));
     }
-    */
 
     #[test]
     fn resolves_existing_attribute() {

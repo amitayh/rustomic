@@ -1,6 +1,5 @@
 use std::collections::HashMap;
 use std::collections::HashSet;
-use std::sync::Arc;
 
 use crate::datom::*;
 use crate::query::pattern::*;
@@ -9,11 +8,11 @@ use crate::query::*;
 #[derive(Debug, Eq, PartialEq, Clone)]
 pub struct PartialAssignment {
     assigned: Assignment,
-    unassigned: HashSet<Arc<str>>,
+    unassigned: HashSet<String>,
 }
 
 impl PartialAssignment {
-    pub fn new(variables: HashSet<Arc<str>>) -> Self {
+    pub fn new(variables: HashSet<String>) -> Self {
         Self {
             assigned: HashMap::new(),
             unassigned: variables,

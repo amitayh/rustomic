@@ -1,5 +1,3 @@
-use std::sync::Arc;
-
 use crate::query::pattern::AttributeIdentifier;
 use crate::query::pattern::Pattern;
 use crate::query::resolver::Resolver;
@@ -74,7 +72,7 @@ fn project<E>(finds: &[Find], mut assignment: Assignment) -> QueryResult<E> {
         if let Find::Variable(variable) = find {
             match assignment.remove(variable) {
                 Some(value) => result.push(value),
-                None => return Err(QueryError::InvalidFindVariable(Arc::clone(variable))),
+                None => return Err(QueryError::InvalidFindVariable(variable.clone())),
             }
         }
     }
@@ -94,12 +92,11 @@ fn aggregate<E>(
         Find::Aggregate(aggregate) => Right(aggregate),
     });
 
+    let av = AggregatedValues::new(aggregates);
     for result in results {
         let assignment = result?;
         let key = AggregationKey::new(&variables, &assignment)?;
-        let entry = aggregated
-            .entry(key)
-            .or_insert_with(|| AggregatedValues::new(&aggregates));
+        let entry = aggregated.entry(key).or_insert_with(|| av.clone());
         entry.consume(&assignment)
     }
 
@@ -112,25 +109,26 @@ fn aggregate<E>(
 struct AggregationKey(Vec<Value>);
 
 impl AggregationKey {
-    fn new<E>(variables: &[Arc<str>], assignment: &Assignment) -> Result<Self, E> {
+    fn new<E>(variables: &[String], assignment: &Assignment) -> Result<Self, E> {
         let mut values = Vec::with_capacity(variables.len());
         for variable in variables {
             match assignment.get(variable) {
                 Some(value) => values.push(value.clone()),
-                None => return Err(QueryError::InvalidFindVariable(Arc::clone(variable))),
+                None => return Err(QueryError::InvalidFindVariable(variable.clone())),
             }
         }
         Ok(Self(values))
     }
 }
 
+#[derive(Clone)]
 struct AggregatedValues(Vec<AggregationState>);
 
 impl AggregatedValues {
-    fn new(aggregates: &[AggregationFunction]) -> Self {
+    fn new(aggregates: Vec<AggregationFunction>) -> Self {
         Self(
             aggregates
-                .iter()
+                .into_iter()
                 .map(|aggregate| aggregate.empty_state())
                 .collect(),
         )

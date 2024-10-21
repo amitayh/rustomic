@@ -1,5 +1,3 @@
-use std::sync::Arc;
-
 use crate::datom::*;
 use crate::query::pattern::*;
 
@@ -52,19 +50,19 @@ impl Clause {
     /// assert!(free_variables.contains(&Arc::from("bar")));
     /// assert!(free_variables.contains(&Arc::from("baz")));
     /// ```
-    pub fn free_variables(&self) -> Vec<Arc<str>> {
+    pub fn free_variables(&self) -> Vec<String> {
         let mut variables = Vec::with_capacity(4);
-        if let Pattern::Variable(ref variable) = self.entity {
-            variables.push(Arc::clone(variable));
+        if let Pattern::Variable(variable) = &self.entity {
+            variables.push(variable.clone());
         }
-        if let Pattern::Variable(ref variable) = self.attribute {
-            variables.push(Arc::clone(variable));
+        if let Pattern::Variable(variable) = &self.attribute {
+            variables.push(variable.clone());
         }
-        if let Pattern::Variable(ref variable) = self.value {
-            variables.push(Arc::clone(variable));
+        if let Pattern::Variable(variable) = &self.value {
+            variables.push(variable.clone());
         }
-        if let Pattern::Variable(ref variable) = self.tx {
-            variables.push(Arc::clone(variable));
+        if let Pattern::Variable(variable) = &self.tx {
+            variables.push(variable.clone());
         }
         variables.shrink_to_fit();
         variables

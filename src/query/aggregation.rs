@@ -2,30 +2,30 @@ use crate::datom::Value;
 use crate::query::*;
 use rust_decimal::Decimal;
 use std::collections::HashSet;
-use std::sync::Arc;
 use std::u64;
 
+#[derive(Clone)]
 pub enum AggregationState {
     Count(u64),
     Min {
-        variable: Arc<str>,
+        variable: String,
         min: Option<i64>,
     },
     Max {
-        variable: Arc<str>,
+        variable: String,
         max: Option<i64>,
     },
     Average {
-        variable: Arc<str>,
+        variable: String,
         sum: i64,
         count: usize,
     },
     Sum {
-        variable: Arc<str>,
+        variable: String,
         sum: i64,
     },
     CountDistinct {
-        variable: Arc<str>,
+        variable: String,
         seen: HashSet<Value>,
     },
 }
@@ -35,21 +35,21 @@ impl AggregationState {
         Self::Count(0)
     }
 
-    fn min(variable: Arc<str>) -> Self {
+    fn min(variable: String) -> Self {
         Self::Min {
             variable,
             min: None,
         }
     }
 
-    fn max(variable: Arc<str>) -> Self {
+    fn max(variable: String) -> Self {
         Self::Max {
             variable,
             max: None,
         }
     }
 
-    fn average(variable: Arc<str>) -> Self {
+    fn average(variable: String) -> Self {
         Self::Average {
             variable,
             sum: 0,
@@ -57,11 +57,11 @@ impl AggregationState {
         }
     }
 
-    fn sum(variable: Arc<str>) -> Self {
+    fn sum(variable: String) -> Self {
         Self::Sum { variable, sum: 0 }
     }
 
-    fn count_distinct(variable: Arc<str>) -> Self {
+    fn count_distinct(variable: String) -> Self {
         Self::CountDistinct {
             variable,
             seen: HashSet::new(),
@@ -127,25 +127,23 @@ impl AggregationState {
 #[derive(Clone, Debug, PartialEq)]
 pub enum AggregationFunction {
     Count,
-    Min(Arc<str>),
-    Max(Arc<str>),
-    Average(Arc<str>),
-    Sum(Arc<str>),
-    CountDistinct(Arc<str>),
+    Min(String),
+    Max(String),
+    Average(String),
+    Sum(String),
+    CountDistinct(String),
 }
 
 impl AggregationFunction {
-    pub fn empty_state(&self) -> AggregationState {
+    pub fn empty_state(self) -> AggregationState {
         match self {
             AggregationFunction::Count => AggregationState::count(),
-            AggregationFunction::Min(variable) => AggregationState::min(Arc::clone(variable)),
-            AggregationFunction::Max(variable) => AggregationState::max(Arc::clone(variable)),
-            AggregationFunction::Average(variable) => {
-                AggregationState::average(Arc::clone(variable))
-            }
-            AggregationFunction::Sum(variable) => AggregationState::sum(Arc::clone(variable)),
+            AggregationFunction::Min(variable) => AggregationState::min(variable),
+            AggregationFunction::Max(variable) => AggregationState::max(variable),
+            AggregationFunction::Average(variable) => AggregationState::average(variable),
+            AggregationFunction::Sum(variable) => AggregationState::sum(variable),
             AggregationFunction::CountDistinct(variable) => {
-                AggregationState::count_distinct(Arc::clone(variable))
+                AggregationState::count_distinct(variable)
             }
         }
     }
@@ -156,7 +154,6 @@ mod tests {
     use rust_decimal::prelude::*;
     use rust_decimal::Decimal;
     use std::collections::HashMap;
-    use std::sync::Arc;
 
     use crate::datom::Value;
     use crate::query::aggregation::AggregationFunction;
@@ -188,18 +185,18 @@ mod tests {
 
         #[test]
         fn empty() {
-            let min = AggregationFunction::Min(Arc::from("foo"));
+            let min = AggregationFunction::Min("foo".to_string());
             assert_eq!(Value::Nil, min.empty_state().result());
         }
 
         #[test]
         fn non_empty() {
-            let variable = Arc::from("foo");
-            let min = AggregationFunction::Min(Arc::clone(&variable));
+            let variable = "foo".to_string();
+            let min = AggregationFunction::Min(variable.clone());
 
             let mut state = min.empty_state();
-            state.consume(&HashMap::from([(Arc::clone(&variable), Value::I64(1))]));
-            state.consume(&HashMap::from([(Arc::clone(&variable), Value::I64(2))]));
+            state.consume(&HashMap::from([(variable.clone(), Value::I64(1))]));
+            state.consume(&HashMap::from([(variable.clone(), Value::I64(2))]));
 
             assert_eq!(Value::I64(1), state.result());
         }
@@ -210,18 +207,18 @@ mod tests {
 
         #[test]
         fn empty() {
-            let max = AggregationFunction::Max(Arc::from("foo"));
+            let max = AggregationFunction::Max("foo".to_string());
             assert_eq!(Value::Nil, max.empty_state().result());
         }
 
         #[test]
         fn non_empty() {
-            let variable = Arc::from("foo");
-            let max = AggregationFunction::Max(Arc::clone(&variable));
+            let variable = "foo".to_string();
+            let max = AggregationFunction::Max(variable.clone());
 
             let mut state = max.empty_state();
-            state.consume(&HashMap::from([(Arc::clone(&variable), Value::I64(1))]));
-            state.consume(&HashMap::from([(Arc::clone(&variable), Value::I64(2))]));
+            state.consume(&HashMap::from([(variable.clone(), Value::I64(1))]));
+            state.consume(&HashMap::from([(variable.clone(), Value::I64(2))]));
 
             assert_eq!(Value::I64(2), state.result());
         }
@@ -232,18 +229,18 @@ mod tests {
 
         #[test]
         fn empty() {
-            let average = AggregationFunction::Average(Arc::from("foo"));
+            let average = AggregationFunction::Average("foo".to_string());
             assert_eq!(Value::Nil, average.empty_state().result());
         }
 
         #[test]
         fn non_empty() {
-            let variable = Arc::from("foo");
-            let average = AggregationFunction::Average(Arc::clone(&variable));
+            let variable = "foo".to_string();
+            let average = AggregationFunction::Average(variable.clone());
 
             let mut state = average.empty_state();
-            state.consume(&HashMap::from([(Arc::clone(&variable), Value::I64(1))]));
-            state.consume(&HashMap::from([(Arc::clone(&variable), Value::I64(2))]));
+            state.consume(&HashMap::from([(variable.clone(), Value::I64(1))]));
+            state.consume(&HashMap::from([(variable.clone(), Value::I64(2))]));
 
             assert_eq!(
                 Value::Decimal(Decimal::from_f64(1.5).unwrap()),
@@ -257,18 +254,18 @@ mod tests {
 
         #[test]
         fn empty() {
-            let sum = AggregationFunction::Sum(Arc::from("foo"));
+            let sum = AggregationFunction::Sum("foo".to_string());
             assert_eq!(Value::I64(0), sum.empty_state().result());
         }
 
         #[test]
         fn non_empty() {
-            let variable = Arc::from("foo");
-            let sum = AggregationFunction::Sum(Arc::clone(&variable));
+            let variable = "foo".to_string();
+            let sum = AggregationFunction::Sum(variable.clone());
 
             let mut state = sum.empty_state();
-            state.consume(&HashMap::from([(Arc::clone(&variable), Value::I64(1))]));
-            state.consume(&HashMap::from([(Arc::clone(&variable), Value::I64(2))]));
+            state.consume(&HashMap::from([(variable.clone(), Value::I64(1))]));
+            state.consume(&HashMap::from([(variable.clone(), Value::I64(2))]));
 
             assert_eq!(Value::I64(3), state.result());
         }
@@ -279,30 +276,30 @@ mod tests {
 
         #[test]
         fn empty() {
-            let count_distinct = AggregationFunction::CountDistinct(Arc::from("foo"));
+            let count_distinct = AggregationFunction::CountDistinct("foo".to_string());
             assert_eq!(Value::U64(0), count_distinct.empty_state().result());
         }
 
         #[test]
         fn equal_values() {
-            let variable = Arc::from("foo");
-            let count_distinct = AggregationFunction::CountDistinct(Arc::clone(&variable));
+            let variable = "foo".to_string();
+            let count_distinct = AggregationFunction::CountDistinct(variable.clone());
 
             let mut state = count_distinct.empty_state();
-            state.consume(&HashMap::from([(Arc::clone(&variable), Value::U64(1))]));
-            state.consume(&HashMap::from([(Arc::clone(&variable), Value::U64(1))]));
+            state.consume(&HashMap::from([(variable.clone(), Value::U64(1))]));
+            state.consume(&HashMap::from([(variable.clone(), Value::U64(1))]));
 
             assert_eq!(Value::U64(1), state.result());
         }
 
         #[test]
         fn distinct_values() {
-            let variable = Arc::from("foo");
-            let count_distinct = AggregationFunction::CountDistinct(Arc::clone(&variable));
+            let variable = "foo".to_string();
+            let count_distinct = AggregationFunction::CountDistinct(variable.clone());
 
             let mut state = count_distinct.empty_state();
-            state.consume(&HashMap::from([(Arc::clone(&variable), Value::U64(1))]));
-            state.consume(&HashMap::from([(Arc::clone(&variable), Value::U64(2))]));
+            state.consume(&HashMap::from([(variable.clone(), Value::U64(1))]));
+            state.consume(&HashMap::from([(variable.clone(), Value::U64(2))]));
 
             assert_eq!(Value::U64(2), state.result());
         }

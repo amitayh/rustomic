@@ -1,10 +1,8 @@
-use std::sync::Arc;
-
 use crate::datom::Value;
 
 #[derive(Clone, Debug, PartialEq, Eq, Default)]
 pub enum Pattern<T> {
-    Variable(Arc<str>),
+    Variable(String),
     Constant(T),
     #[default]
     Blank,
@@ -12,7 +10,7 @@ pub enum Pattern<T> {
 
 impl<T> Pattern<T> {
     pub fn variable(name: &str) -> Self {
-        Self::Variable(Arc::from(name))
+        Self::Variable(name.to_string())
     }
 }
 
@@ -22,7 +20,7 @@ impl Pattern<AttributeIdentifier> {
     }
 
     pub fn ident(ident: &str) -> Self {
-        Self::Constant(AttributeIdentifier::Ident(Arc::from(ident)))
+        Self::Constant(AttributeIdentifier::Ident(ident.to_string()))
     }
 }
 
@@ -34,6 +32,6 @@ impl Pattern<Value> {
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum AttributeIdentifier {
-    Ident(Arc<str>),
+    Ident(String),
     Id(u64),
 }

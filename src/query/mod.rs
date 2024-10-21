@@ -15,7 +15,7 @@ use std::sync::Arc;
 use std::u64;
 use thiserror::Error;
 
-pub type Assignment = HashMap<Arc<str>, Value>;
+pub type Assignment = HashMap<String, Value>;
 pub type Result<T, E> = std::result::Result<T, QueryError<E>>;
 pub type AssignmentResult<E> = Result<Assignment, E>;
 pub type QueryResult<E> = Result<Vec<Value>, E>;
@@ -82,13 +82,13 @@ impl Query {
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum Find {
-    Variable(Arc<str>),
+    Variable(String),
     Aggregate(AggregationFunction),
 }
 
 impl Find {
     pub fn variable(name: &str) -> Self {
-        Self::Variable(Arc::from(name))
+        Self::Variable(name.to_string())
     }
 
     pub fn count() -> Self {
@@ -96,23 +96,23 @@ impl Find {
     }
 
     pub fn min(variable: &str) -> Self {
-        Self::Aggregate(AggregationFunction::Min(Arc::from(variable)))
+        Self::Aggregate(AggregationFunction::Min(variable.to_string()))
     }
 
     pub fn max(variable: &str) -> Self {
-        Self::Aggregate(AggregationFunction::Max(Arc::from(variable)))
+        Self::Aggregate(AggregationFunction::Max(variable.to_string()))
     }
 
     pub fn average(variable: &str) -> Self {
-        Self::Aggregate(AggregationFunction::Average(Arc::from(variable)))
+        Self::Aggregate(AggregationFunction::Average(variable.to_string()))
     }
 
     pub fn sum(variable: &str) -> Self {
-        Self::Aggregate(AggregationFunction::Sum(Arc::from(variable)))
+        Self::Aggregate(AggregationFunction::Sum(variable.to_string()))
     }
 
     pub fn count_distinct(variable: &str) -> Self {
-        Self::Aggregate(AggregationFunction::CountDistinct(Arc::from(variable)))
+        Self::Aggregate(AggregationFunction::CountDistinct(variable.to_string()))
     }
 }
 
@@ -125,5 +125,5 @@ pub enum QueryError<S> {
     #[error("resolve error")]
     ResolveError(#[from] ResolveError<S>),
     #[error("invalid variable {0} for find clause")]
-    InvalidFindVariable(Arc<str>),
+    InvalidFindVariable(String),
 }

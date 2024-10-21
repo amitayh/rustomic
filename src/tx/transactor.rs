@@ -11,7 +11,7 @@ use crate::storage::restricts::*;
 use crate::storage::*;
 use crate::tx::*;
 
-pub fn transact<'a, S: ReadStorage<'a>>(
+pub async fn transact<'a, S: ReadStorage<'a>>(
     storage: &'a S,
     resolver: &mut AttributeResolver,
     now: Instant,
@@ -20,7 +20,7 @@ pub fn transact<'a, S: ReadStorage<'a>>(
     let next_id = NextId(storage.latest_entity_id()?);
     let mut builder = ResultBuilder::from(&transaction.operations, now, next_id)?;
     for operation in transaction.operations {
-        builder.update(storage, resolver, operation)?;
+        builder.update(storage, resolver, operation).await?;
     }
     Ok(builder.build())
 }
@@ -50,7 +50,7 @@ impl ResultBuilder {
         })
     }
 
-    pub fn update<'a, S: ReadStorage<'a>>(
+    pub async fn update<'a, S: ReadStorage<'a>>(
         &mut self,
         storage: &'a S,
         resolver: &mut AttributeResolver,
@@ -59,7 +59,9 @@ impl ResultBuilder {
         let entity = self.resolve_entity(operation.entity)?;
         let mut retract_attributes = HashSet::with_capacity(operation.attributes.len());
         for attribute_value in operation.attributes {
-            let attribute = resolver.resolve(storage, &attribute_value.attribute, self.tx_id)?;
+            let attribute = resolver
+                .resolve(storage, &attribute_value.attribute, self.tx_id)
+                .await?;
 
             if attribute.definition.cardinality == Cardinality::One {
                 // Values of attributes with cardinality `Cardinality::One` should be retracted
@@ -68,10 +70,10 @@ impl ResultBuilder {
             }
 
             let value = self.resolve_value(attribute_value.value)?;
-            verify_type(attribute, &value)?;
+            verify_type(&attribute, &value)?;
             if attribute.definition.unique {
-                self.verify_uniqueness_tx(attribute, &value)?;
-                self.verify_uniqueness_db(attribute, &value, storage)?;
+                self.verify_uniqueness_tx(&attribute, &value)?;
+                self.verify_uniqueness_db(&attribute, &value, storage)?;
             }
 
             self.datoms.push(Datom {

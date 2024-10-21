@@ -37,7 +37,7 @@ mod tests {
     type StorageError<'a> = <InMemoryStorage as ReadStorage<'a>>::Error;
 
     impl Sut {
-        fn new() -> Self {
+        async fn new() -> Self {
             let attribute_resolver = AttributeResolver::new();
             let mut storage = InMemoryStorage::new();
             storage
@@ -50,45 +50,52 @@ mod tests {
                 last_tx: 0,
             };
 
-            sut.transact(create_schema());
+            sut.transact(create_schema()).await;
             sut
         }
 
-        fn transact(&mut self, transaction: Transaction) -> TransctionResult {
-            let result = self.try_transact(transaction).expect("Unable to transact");
+        async fn transact(&mut self, transaction: Transaction) -> TransctionResult {
+            let result = self
+                .try_transact(transaction)
+                .await
+                .expect("Unable to transact");
             self.storage.save(&result.tx_data).expect("Unable to save");
             self.last_tx = result.tx_id;
             result
         }
 
-        fn try_transact(&mut self, transaction: Transaction) -> Option<TransctionResult> {
+        async fn try_transact(&mut self, transaction: Transaction) -> Option<TransctionResult> {
             transactor::transact(
                 &self.storage,
                 &mut self.attribute_resolver,
                 now(),
                 transaction,
             )
+            .await
             .ok()
         }
 
-        fn query(&mut self, query: Query) -> Vec<Vec<Value>> {
-            self.query_at_snapshot(self.last_tx, query)
+        async fn query(&mut self, query: Query) -> Vec<Vec<Value>> {
+            self.query_at_snapshot(self.last_tx, query).await
         }
 
-        fn query_at_snapshot(&mut self, snapshot_tx: u64, query: Query) -> Vec<Vec<Value>> {
+        async fn query_at_snapshot(&mut self, snapshot_tx: u64, query: Query) -> Vec<Vec<Value>> {
             let mut db = Database::new(snapshot_tx);
             let results = db
                 .query(&self.storage, &mut self.attribute_resolver, query)
+                .await
                 .expect("Unable to query");
             results.filter_map(|result| result.ok()).collect()
         }
 
-        fn try_query(
+        async fn try_query(
             &mut self,
             query: Query,
         ) -> crate::query::Result<Vec<QueryResult<StorageError<'_>>>, StorageError<'_>> {
             let mut db = Database::new(self.last_tx);
-            let result = db.query(&self.storage, &mut self.attribute_resolver, query)?;
+            let result = db
+                .query(&self.storage, &mut self.attribute_resolver, query)
+                .await?;
             Ok(result.collect())
         }
     }
@@ -169,9 +176,9 @@ mod tests {
             )
     }
 
-    #[test]
-    fn return_empty_result() {
-        let mut sut = Sut::new();
+    #[tokio::test]
+    async fn return_empty_result() {
+        let mut sut = Sut::new().await;
 
         // Insert data
         // [{:person/name "Alice}
@@ -180,44 +187,51 @@ mod tests {
             Transaction::new()
                 .with(EntityOperation::on_new().assert("person/name", "Alice"))
                 .with(EntityOperation::on_new().assert("person/name", "Bob")),
-        );
+        )
+        .await;
 
         // [:find ?name
         //  :where [?name :person/name "Eve"]]
-        let query_result = sut.query(
-            Query::new().find(Find::variable("?name")).r#where(
-                Clause::new()
-                    .with_entity(Pattern::variable("?name"))
-                    .with_attribute(Pattern::ident("person/name"))
-                    .with_value(Pattern::value("Eve")),
-            ),
-        );
+        let query_result = sut
+            .query(
+                Query::new().find(Find::variable("?name")).r#where(
+                    Clause::new()
+                        .with_entity(Pattern::variable("?name"))
+                        .with_attribute(Pattern::ident("person/name"))
+                        .with_value(Pattern::value("Eve")),
+                ),
+            )
+            .await;
 
         assert!(query_result.is_empty());
     }
 
-    #[test]
-    fn create_entity_by_temp_id() {
-        let mut sut = Sut::new();
+    #[tokio::test]
+    async fn create_entity_by_temp_id() {
+        let mut sut = Sut::new().await;
 
         // Insert data
         // [{:db/id "joe"
         //   :person/name "Joe"}]
-        let tx_result = sut.transact(
-            Transaction::new()
-                .with(EntityOperation::on_temp_id("joe").assert("person/name", "Joe")),
-        );
+        let tx_result = sut
+            .transact(
+                Transaction::new()
+                    .with(EntityOperation::on_temp_id("joe").assert("person/name", "Joe")),
+            )
+            .await;
 
         // [:find ?joe
         //  :where [?joe :person/name "Joe"]]
-        let query_result = sut.query(
-            Query::new().find(Find::variable("?joe")).r#where(
-                Clause::new()
-                    .with_entity(Pattern::variable("?joe"))
-                    .with_attribute(Pattern::ident("person/name"))
-                    .with_value(Pattern::value("Joe")),
-            ),
-        );
+        let query_result = sut
+            .query(
+                Query::new().find(Find::variable("?joe")).r#where(
+                    Clause::new()
+                        .with_entity(Pattern::variable("?joe"))
+                        .with_attribute(Pattern::ident("person/name"))
+                        .with_value(Pattern::value("Joe")),
+                ),
+            )
+            .await;
 
         let joe_id = tx_result.temp_ids.get("joe");
         assert!(joe_id.is_some());
@@ -228,33 +242,33 @@ mod tests {
         );
     }
 
-    #[test]
-    fn reject_transaction_with_invalid_attribute_type() {
-        let mut sut = Sut::new();
+    #[tokio::test]
+    async fn reject_transaction_with_invalid_attribute_type() {
+        let mut sut = Sut::new().await;
 
         // This transaction should fail: "person/name" is of type `ValueType::Str`.
         let tx = Transaction::new().with(EntityOperation::on_new().assert("person/name", 42));
-        let tx_result = sut.try_transact(tx);
+        let tx_result = sut.try_transact(tx).await;
 
         assert!(tx_result.is_none());
     }
 
-    #[test]
-    fn reject_transaction_with_duplicate_temp_ids() {
-        let mut sut = Sut::new();
+    #[tokio::test]
+    async fn reject_transaction_with_duplicate_temp_ids() {
+        let mut sut = Sut::new().await;
 
         // This transaction should fail: temp ID "duplicate" should only be used once.
         let tx = Transaction::new()
             .with(EntityOperation::on_temp_id("duplicate").assert("person/name", "Alice"))
             .with(EntityOperation::on_temp_id("duplicate").assert("person/name", "Bob"));
-        let tx_result = sut.try_transact(tx);
+        let tx_result = sut.try_transact(tx).await;
 
         assert!(tx_result.is_none());
     }
 
-    #[test]
-    fn reference_temp_id_in_transaction() {
-        let mut sut = Sut::new();
+    #[tokio::test]
+    async fn reference_temp_id_in_transaction() {
+        let mut sut = Sut::new().await;
 
         // Insert data
         // [{:db/id "john"
@@ -275,34 +289,37 @@ mod tests {
                         .set_reference("release/artists", "john")
                         .set_reference("release/artists", "paul"),
                 ),
-        );
+        )
+        .await;
 
         // [:find ?release-name
         //  :where [?artist :artist/name "John Lenon"]
         //         [?release :release/artist ?artist]
         //         [?release :release/name ?release-name]]
-        let query_result = sut.query(
-            Query::new()
-                .find(Find::variable("?release-name"))
-                .r#where(
-                    Clause::new()
-                        .with_entity(Pattern::variable("?artist"))
-                        .with_attribute(Pattern::ident("artist/name"))
-                        .with_value(Pattern::value("John Lenon")),
-                )
-                .r#where(
-                    Clause::new()
-                        .with_entity(Pattern::variable("?release"))
-                        .with_attribute(Pattern::ident("release/artists"))
-                        .with_value(Pattern::variable("?artist")),
-                )
-                .r#where(
-                    Clause::new()
-                        .with_entity(Pattern::variable("?release"))
-                        .with_attribute(Pattern::ident("release/name"))
-                        .with_value(Pattern::variable("?release-name")),
-                ),
-        );
+        let query_result = sut
+            .query(
+                Query::new()
+                    .find(Find::variable("?release-name"))
+                    .r#where(
+                        Clause::new()
+                            .with_entity(Pattern::variable("?artist"))
+                            .with_attribute(Pattern::ident("artist/name"))
+                            .with_value(Pattern::value("John Lenon")),
+                    )
+                    .r#where(
+                        Clause::new()
+                            .with_entity(Pattern::variable("?release"))
+                            .with_attribute(Pattern::ident("release/artists"))
+                            .with_value(Pattern::variable("?artist")),
+                    )
+                    .r#where(
+                        Clause::new()
+                            .with_entity(Pattern::variable("?release"))
+                            .with_attribute(Pattern::ident("release/name"))
+                            .with_value(Pattern::variable("?release-name")),
+                    ),
+            )
+            .await;
 
         assert_that!(
             query_result,
@@ -310,21 +327,23 @@ mod tests {
         );
     }
 
-    #[test]
-    fn return_latest_value_with_cardinality_one() {
-        let mut sut = Sut::new();
+    #[tokio::test]
+    async fn return_latest_value_with_cardinality_one() {
+        let mut sut = Sut::new().await;
 
         // Insert initial data
         // [{:db/id "joe"
         //   :person/name "Joe"
         //   :person/email "foo@bar.com"}]
-        let tx_result = sut.transact(
-            Transaction::new().with(
-                EntityOperation::on_temp_id("joe")
-                    .assert("person/name", "Joe")
-                    .assert("person/email", "foo@bar.com"),
-            ),
-        );
+        let tx_result = sut
+            .transact(
+                Transaction::new().with(
+                    EntityOperation::on_temp_id("joe")
+                        .assert("person/name", "Joe")
+                        .assert("person/email", "foo@bar.com"),
+                ),
+            )
+            .await;
         let joe_id = tx_result.temp_ids["joe"];
 
         // Update Joe's email
@@ -333,18 +352,21 @@ mod tests {
         sut.transact(
             Transaction::new()
                 .with(EntityOperation::on_id(joe_id).assert("person/email", "foo@baz.com")),
-        );
+        )
+        .await;
 
         // [:find ?email
         //  :where [?joe_id :person/email ?email]]
-        let query_result = sut.query(
-            Query::new().find(Find::variable("?email")).r#where(
-                Clause::new()
-                    .with_entity(Pattern::Constant(joe_id))
-                    .with_attribute(Pattern::ident("person/email"))
-                    .with_value(Pattern::variable("?email")),
-            ),
-        );
+        let query_result = sut
+            .query(
+                Query::new().find(Find::variable("?email")).r#where(
+                    Clause::new()
+                        .with_entity(Pattern::Constant(joe_id))
+                        .with_attribute(Pattern::ident("person/email"))
+                        .with_value(Pattern::variable("?email")),
+                ),
+            )
+            .await;
 
         assert_that!(
             query_result,
@@ -352,21 +374,23 @@ mod tests {
         );
     }
 
-    #[test]
-    fn return_all_values_with_cardinality_many() {
-        let mut sut = Sut::new();
+    #[tokio::test]
+    async fn return_all_values_with_cardinality_many() {
+        let mut sut = Sut::new().await;
 
         // Insert initial data
         // [{:db/id "joe"
         //   :person/name "Joe"
         //   :person/likes "Pizza"}]
-        let tx_result = sut.transact(
-            Transaction::new().with(
-                EntityOperation::on_temp_id("joe")
-                    .assert("person/name", "Joe")
-                    .assert("person/likes", "Pizza"),
-            ),
-        );
+        let tx_result = sut
+            .transact(
+                Transaction::new().with(
+                    EntityOperation::on_temp_id("joe")
+                        .assert("person/name", "Joe")
+                        .assert("person/likes", "Pizza"),
+                ),
+            )
+            .await;
         let joe_id = tx_result.temp_ids["joe"];
 
         // Update what Joe likes
@@ -375,7 +399,8 @@ mod tests {
         sut.transact(
             Transaction::new()
                 .with(EntityOperation::on_id(joe_id).assert("person/likes", "Ice cream")),
-        );
+        )
+        .await;
 
         // [:find ?likes
         //  :where [?joe_id :person/likes ?likes]]
@@ -385,14 +410,16 @@ mod tests {
         //         [?vote :vote/user ?user]
         //         [?user :user/name ?user-name]
         //         [?tx :db/tx/time ?time]]
-        let query_result = sut.query(
-            Query::new().find(Find::variable("?likes")).r#where(
-                Clause::new()
-                    .with_entity(Pattern::Constant(joe_id))
-                    .with_attribute(Pattern::ident("person/likes"))
-                    .with_value(Pattern::variable("?likes")),
-            ),
-        );
+        let query_result = sut
+            .query(
+                Query::new().find(Find::variable("?likes")).r#where(
+                    Clause::new()
+                        .with_entity(Pattern::Constant(joe_id))
+                        .with_attribute(Pattern::ident("person/likes"))
+                        .with_value(Pattern::variable("?likes")),
+                ),
+            )
+            .await;
 
         assert_that!(
             query_result,
@@ -403,21 +430,23 @@ mod tests {
         );
     }
 
-    #[test]
-    fn return_correct_value_for_database_snapshot() {
-        let mut sut = Sut::new();
+    #[tokio::test]
+    async fn return_correct_value_for_database_snapshot() {
+        let mut sut = Sut::new().await;
 
         // Insert initial data
         // [{:db/id "joe"
         //   :person/name "Joe"
         //   :person/likes "Pizza"}]
-        let first_tx_result = sut.transact(
-            Transaction::new().with(
-                EntityOperation::on_temp_id("joe")
-                    .assert("person/name", "Joe")
-                    .assert("person/likes", "Pizza"),
-            ),
-        );
+        let first_tx_result = sut
+            .transact(
+                Transaction::new().with(
+                    EntityOperation::on_temp_id("joe")
+                        .assert("person/name", "Joe")
+                        .assert("person/likes", "Pizza"),
+                ),
+            )
+            .await;
         let joe_id = first_tx_result.temp_ids["joe"];
 
         // Update what Joe likes
@@ -429,19 +458,22 @@ mod tests {
                     .assert("person/name", "Joe")
                     .assert("person/likes", "Ice cream"),
             ),
-        );
+        )
+        .await;
 
         // [:find ?likes
         //  :where [?joe_id :person/likes ?likes]]
-        let query_result = sut.query_at_snapshot(
-            first_tx_result.tx_id,
-            Query::new().find(Find::variable("?likes")).r#where(
-                Clause::new()
-                    .with_entity(Pattern::Constant(joe_id))
-                    .with_attribute(Pattern::ident("person/likes"))
-                    .with_value(Pattern::variable("?likes")),
-            ),
-        );
+        let query_result = sut
+            .query_at_snapshot(
+                first_tx_result.tx_id,
+                Query::new().find(Find::variable("?likes")).r#where(
+                    Clause::new()
+                        .with_entity(Pattern::Constant(joe_id))
+                        .with_attribute(Pattern::ident("person/likes"))
+                        .with_value(Pattern::variable("?likes")),
+                ),
+            )
+            .await;
 
         assert_that!(
             query_result,
@@ -449,35 +481,39 @@ mod tests {
         );
     }
 
-    #[test]
-    fn search_for_tx_pattern() {
-        let mut sut = Sut::new();
+    #[tokio::test]
+    async fn search_for_tx_pattern() {
+        let mut sut = Sut::new().await;
 
         // Insert initial data
-        let tx_result = sut.transact(
-            Transaction::new().with(EntityOperation::on_new().assert("person/name", "Joe")),
-        );
+        let tx_result = sut
+            .transact(
+                Transaction::new().with(EntityOperation::on_new().assert("person/name", "Joe")),
+            )
+            .await;
 
         // [:find ?tx ?tx_time
         //  :where [_ :person/name "Joe" ?tx]
         //         [?tx ?tx_time_id ?tx_time]]
-        let query_result = sut.query(
-            Query::new()
-                .find(Find::variable("?tx"))
-                .find(Find::variable("?tx_time"))
-                .r#where(
-                    Clause::new()
-                        .with_attribute(Pattern::ident("person/name"))
-                        .with_value(Pattern::value("Joe"))
-                        .with_tx(Pattern::variable("?tx")),
-                )
-                .r#where(
-                    Clause::new()
-                        .with_entity(Pattern::variable("?tx"))
-                        .with_attribute(Pattern::id(DB_TX_TIME_ID))
-                        .with_value(Pattern::variable("?tx_time")),
-                ),
-        );
+        let query_result = sut
+            .query(
+                Query::new()
+                    .find(Find::variable("?tx"))
+                    .find(Find::variable("?tx_time"))
+                    .r#where(
+                        Clause::new()
+                            .with_attribute(Pattern::ident("person/name"))
+                            .with_value(Pattern::value("Joe"))
+                            .with_tx(Pattern::variable("?tx")),
+                    )
+                    .r#where(
+                        Clause::new()
+                            .with_entity(Pattern::variable("?tx"))
+                            .with_attribute(Pattern::id(DB_TX_TIME_ID))
+                            .with_value(Pattern::variable("?tx_time")),
+                    ),
+            )
+            .await;
 
         assert_that!(
             query_result,
@@ -488,31 +524,35 @@ mod tests {
         );
     }
 
-    #[test]
-    fn restrict_result_by_tx() {
-        let mut sut = Sut::new();
+    #[tokio::test]
+    async fn restrict_result_by_tx() {
+        let mut sut = Sut::new().await;
 
         // Insert initial data
-        let tx_result = sut.transact(
-            Transaction::new().with(EntityOperation::on_new().assert("person/name", "Joe")),
-        );
+        let tx_result = sut
+            .transact(
+                Transaction::new().with(EntityOperation::on_new().assert("person/name", "Joe")),
+            )
+            .await;
 
         // Find all datoms belonging to transaction
         // [:find ?e ?a ?v
         //  :where [?e ?a ?v ?tx_id]]
-        let query_result = sut.query(
-            Query::new()
-                .find(Find::variable("?e"))
-                .find(Find::variable("?a"))
-                .find(Find::variable("?v"))
-                .r#where(
-                    Clause::new()
-                        .with_entity(Pattern::variable("?e"))
-                        .with_attribute(Pattern::variable("?a"))
-                        .with_value(Pattern::variable("?v"))
-                        .with_tx(Pattern::Constant(tx_result.tx_id)),
-                ),
-        );
+        let query_result = sut
+            .query(
+                Query::new()
+                    .find(Find::variable("?e"))
+                    .find(Find::variable("?a"))
+                    .find(Find::variable("?v"))
+                    .r#where(
+                        Clause::new()
+                            .with_entity(Pattern::variable("?e"))
+                            .with_attribute(Pattern::variable("?a"))
+                            .with_value(Pattern::variable("?v"))
+                            .with_tx(Pattern::Constant(tx_result.tx_id)),
+                    ),
+            )
+            .await;
 
         assert_that!(
             query_result,
@@ -529,25 +569,28 @@ mod tests {
         );
     }
 
-    #[test]
-    fn aggregation_single_entity() {
-        let mut sut = Sut::new();
+    #[tokio::test]
+    async fn aggregation_single_entity() {
+        let mut sut = Sut::new().await;
 
         // Insert data
         // [{:person/new "John"}]
         sut.transact(
             Transaction::new().with(EntityOperation::on_new().assert("person/name", "John")),
-        );
+        )
+        .await;
 
         // [:find (count)
         //  : where [?person :person/name]]
-        let query_result = sut.query(
-            Query::new().find(Find::count()).r#where(
-                Clause::new()
-                    .with_entity(Pattern::variable("?person"))
-                    .with_attribute(Pattern::ident("person/name")),
-            ),
-        );
+        let query_result = sut
+            .query(
+                Query::new().find(Find::count()).r#where(
+                    Clause::new()
+                        .with_entity(Pattern::variable("?person"))
+                        .with_attribute(Pattern::ident("person/name")),
+                ),
+            )
+            .await;
 
         assert_that!(
             query_result,
@@ -555,12 +598,12 @@ mod tests {
         );
     }
 
-    #[test]
-    fn aggregation_with_key() {
-        let mut sut = Sut::new();
+    #[tokio::test]
+    async fn aggregation_with_key() {
+        let mut sut = Sut::new().await;
 
         // Insert data
-        sut.transact(create_beatles());
+        sut.transact(create_beatles()).await;
 
         // [:find ?born (count)
         //  :where [?person :person/born ?born]
@@ -581,7 +624,7 @@ mod tests {
                     .with_value(Pattern::variable("?name")),
             );
 
-        let query_result = sut.query(query);
+        let query_result = sut.query(query).await;
 
         assert_that!(
             query_result,
@@ -593,12 +636,12 @@ mod tests {
         );
     }
 
-    #[test]
-    fn aggregation_with_arbitrary_order() {
-        let mut sut = Sut::new();
+    #[tokio::test]
+    async fn aggregation_with_arbitrary_order() {
+        let mut sut = Sut::new().await;
 
         // Insert data
-        sut.transact(create_beatles());
+        sut.transact(create_beatles()).await;
 
         // [:find (sum ?born) ?born
         //  :where [?person :person/born ?born]
@@ -619,7 +662,7 @@ mod tests {
                     .with_value(Pattern::variable("?name")),
             );
 
-        let query_result = sut.query(query);
+        let query_result = sut.query(query).await;
 
         assert_that!(
             query_result,
@@ -631,9 +674,9 @@ mod tests {
         );
     }
 
-    #[test]
-    fn count_distinct_with_key() {
-        let mut sut = Sut::new();
+    #[tokio::test]
+    async fn count_distinct_with_key() {
+        let mut sut = Sut::new().await;
 
         // Insert data
         // [{:person/name "John"
@@ -676,7 +719,8 @@ mod tests {
                         .assert("person/likes", "Beer")
                         .assert("person/born", 1963),
                 ),
-        );
+        )
+        .await;
 
         // [:find ?name (count-distinct ?likes)
         //  :where [?person :person/name ?name]
@@ -697,7 +741,7 @@ mod tests {
                     .with_value(Pattern::variable("?likes")),
             );
 
-        let query_result = sut.query(query);
+        let query_result = sut.query(query).await;
 
         assert_that!(
             query_result,
@@ -709,12 +753,12 @@ mod tests {
         );
     }
 
-    #[test]
-    fn fail_query_when_requesting_invalid_identifiers() {
-        let mut sut = Sut::new();
+    #[tokio::test]
+    async fn fail_query_when_requesting_invalid_identifiers() {
+        let mut sut = Sut::new().await;
 
         // Insert data
-        sut.transact(create_beatles());
+        sut.transact(create_beatles()).await;
 
         // [:find ?name
         //  :where [?person :person/born ?born]]
@@ -727,6 +771,7 @@ mod tests {
                         .with_value(Pattern::variable("?born")),
                 ),
             )
+            .await
             .expect("Unable to query");
 
         assert!(!query_result.is_empty());
@@ -735,26 +780,28 @@ mod tests {
             .all(|result| matches!(result, Err(QueryError::InvalidFindVariable(_)))));
     }
 
-    #[test]
-    fn fail_aggregated_query_when_requesting_invalid_identifiers() {
-        let mut sut = Sut::new();
+    #[tokio::test]
+    async fn fail_aggregated_query_when_requesting_invalid_identifiers() {
+        let mut sut = Sut::new().await;
 
         // Insert data
-        sut.transact(create_beatles());
+        sut.transact(create_beatles()).await;
 
         // [:find ?name (count)
         //  :where [?person :person/born ?born]]
-        let query_result = sut.try_query(
-            Query::new()
-                .find(Find::variable("?name"))
-                .find(Find::count())
-                .r#where(
-                    Clause::new()
-                        .with_entity(Pattern::variable("?person"))
-                        .with_attribute(Pattern::ident("person/born"))
-                        .with_value(Pattern::variable("?born")),
-                ),
-        );
+        let query_result = sut
+            .try_query(
+                Query::new()
+                    .find(Find::variable("?name"))
+                    .find(Find::count())
+                    .r#where(
+                        Clause::new()
+                            .with_entity(Pattern::variable("?person"))
+                            .with_attribute(Pattern::ident("person/born"))
+                            .with_value(Pattern::variable("?born")),
+                    ),
+            )
+            .await;
 
         assert!(matches!(
             query_result,
@@ -762,37 +809,39 @@ mod tests {
         ));
     }
 
-    #[test]
-    fn support_query_predicates() {
-        let mut sut = Sut::new();
+    #[tokio::test]
+    async fn support_query_predicates() {
+        let mut sut = Sut::new().await;
 
         // Insert data
-        sut.transact(create_beatles());
+        sut.transact(create_beatles()).await;
 
         // [:find ?name
         //  :where [?person :person/born ?born]
         //         [?person :person/name ?name]
         //         [(> ?born 1940)]]
-        let query_result = sut.query(
-            Query::new()
-                .find(Find::variable("?name"))
-                .r#where(
-                    Clause::new()
-                        .with_entity(Pattern::variable("?person"))
-                        .with_attribute(Pattern::ident("person/born"))
-                        .with_value(Pattern::variable("?born")),
-                )
-                .r#where(
-                    Clause::new()
-                        .with_entity(Pattern::variable("?person"))
-                        .with_attribute(Pattern::ident("person/name"))
-                        .with_value(Pattern::variable("?name")),
-                )
-                .value_pred("?born", |value| match value {
-                    &Value::I64(born) => born > 1940,
-                    _ => false,
-                }),
-        );
+        let query_result = sut
+            .query(
+                Query::new()
+                    .find(Find::variable("?name"))
+                    .r#where(
+                        Clause::new()
+                            .with_entity(Pattern::variable("?person"))
+                            .with_attribute(Pattern::ident("person/born"))
+                            .with_value(Pattern::variable("?born")),
+                    )
+                    .r#where(
+                        Clause::new()
+                            .with_entity(Pattern::variable("?person"))
+                            .with_attribute(Pattern::ident("person/name"))
+                            .with_value(Pattern::variable("?name")),
+                    )
+                    .value_pred("?born", |value| match value {
+                        &Value::I64(born) => born > 1940,
+                        _ => false,
+                    }),
+            )
+            .await;
 
         assert_that!(
             query_result,
@@ -803,18 +852,20 @@ mod tests {
         );
     }
 
-    #[test]
-    fn retract_facts() {
-        let mut sut = Sut::new();
+    #[tokio::test]
+    async fn retract_facts() {
+        let mut sut = Sut::new().await;
 
         // Insert data
-        let tx_result = sut.transact(
-            Transaction::new().with(
-                EntityOperation::on_temp_id("joe")
-                    .assert("person/name", "Joe")
-                    .assert("person/likes", "Pizza"),
-            ),
-        );
+        let tx_result = sut
+            .transact(
+                Transaction::new().with(
+                    EntityOperation::on_temp_id("joe")
+                        .assert("person/name", "Joe")
+                        .assert("person/likes", "Pizza"),
+                ),
+            )
+            .await;
 
         let joe_id = tx_result.temp_ids["joe"];
         // [:find ?likes
@@ -827,7 +878,7 @@ mod tests {
         );
 
         assert_that!(
-            sut.query(query.clone()),
+            sut.query(query.clone()).await,
             unordered_elements_are![elements_are![eq(Value::str("Pizza"))]]
         );
 
@@ -835,17 +886,18 @@ mod tests {
         sut.transact(
             Transaction::new()
                 .with(EntityOperation::on_id(joe_id).retract("person/likes", "Pizza")),
-        );
+        )
+        .await;
 
-        assert_that!(sut.query(query), empty());
+        assert_that!(sut.query(query).await, empty());
     }
 
     mod reject_a_transaction_with_duplicate_unique_value {
         use super::*;
 
-        #[test]
-        fn across_transactions() {
-            let mut sut = Sut::new();
+        #[tokio::test]
+        async fn across_transactions() {
+            let mut sut = Sut::new().await;
 
             sut.transact(
                 Transaction::new().with(
@@ -853,36 +905,41 @@ mod tests {
                         .assert("person/name", "Alice")
                         .assert("person/email", "foo@bar.com"),
                 ),
-            );
+            )
+            .await;
 
-            let tx_result = sut.try_transact(
-                Transaction::new().with(
-                    EntityOperation::on_new()
-                        .assert("person/name", "Bob")
-                        .assert("person/email", "foo@bar.com"),
-                ),
-            );
-
-            assert!(tx_result.is_none());
-        }
-
-        #[test]
-        fn within_a_transaction() {
-            let mut sut = Sut::new();
-
-            let tx_result = sut.try_transact(
-                Transaction::new()
-                    .with(
-                        EntityOperation::on_new()
-                            .assert("person/name", "Alice")
-                            .assert("person/email", "foo@bar.com"),
-                    )
-                    .with(
+            let tx_result = sut
+                .try_transact(
+                    Transaction::new().with(
                         EntityOperation::on_new()
                             .assert("person/name", "Bob")
                             .assert("person/email", "foo@bar.com"),
                     ),
-            );
+                )
+                .await;
+
+            assert!(tx_result.is_none());
+        }
+
+        #[tokio::test]
+        async fn within_a_transaction() {
+            let mut sut = Sut::new().await;
+
+            let tx_result = sut
+                .try_transact(
+                    Transaction::new()
+                        .with(
+                            EntityOperation::on_new()
+                                .assert("person/name", "Alice")
+                                .assert("person/email", "foo@bar.com"),
+                        )
+                        .with(
+                            EntityOperation::on_new()
+                                .assert("person/name", "Bob")
+                                .assert("person/email", "foo@bar.com"),
+                        ),
+                )
+                .await;
 
             assert!(tx_result.is_none());
         }

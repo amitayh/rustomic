@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 use std::sync::Arc;
 use thiserror::Error;
+use tokio::sync::RwLock;
 
 use crate::datom::*;
 use crate::schema::attribute::*;
@@ -12,7 +13,7 @@ use super::Restricts;
 
 #[derive(Default)]
 pub struct AttributeResolver {
-    cache: HashMap<Arc<str>, Option<Attribute>>,
+    cache: Arc<RwLock<HashMap<Arc<str>, Option<Arc<Attribute>>>>>,
 }
 
 impl AttributeResolver {
@@ -20,20 +21,25 @@ impl AttributeResolver {
         Self::default()
     }
 
-    pub fn resolve<'a, S: ReadStorage<'a>>(
+    pub async fn resolve<'a, S: ReadStorage<'a>>(
         &mut self,
         storage: &'a S,
         ident: &Arc<str>,
         tx: u64,
-    ) -> Result<&Attribute, ResolveError<S::Error>> {
-        let result = self.cache.entry(Arc::clone(ident)).or_default();
-        if result.is_none() {
-            // TODO: how to invalidate cache?
-            *result = resolve_by_ident(storage, Arc::clone(ident), tx)?;
+    ) -> Result<Arc<Attribute>, ResolveError<S::Error>> {
+        {
+            let cache_read = self.cache.read().await;
+            if let Some(attribute) = cache_read.get(ident) {
+                return attribute
+                    .clone()
+                    .ok_or_else(|| ResolveError::IdentNotFound(Arc::clone(ident)));
+            }
         }
-        result
-            .as_ref()
-            .ok_or_else(|| ResolveError::IdentNotFound(Arc::clone(ident)))
+
+        let result = resolve_by_ident(storage, Arc::clone(ident), tx)?;
+        let mut cache_write = self.cache.write().await;
+        cache_write.insert(Arc::clone(ident), result.clone());
+        result.ok_or_else(|| ResolveError::IdentNotFound(Arc::clone(ident)))
     }
 }
 
@@ -49,7 +55,7 @@ fn resolve_by_ident<'a, S: ReadStorage<'a>>(
     storage: &'a S,
     ident: Arc<str>,
     tx: u64,
-) -> Result<Option<Attribute>, S::Error> {
+) -> Result<Option<Arc<Attribute>>, S::Error> {
     // [?attribute :db/attr/ident ?ident]
     let restricts = Restricts::new(tx)
         .with_attribute(DB_ATTR_IDENT_ID)
@@ -64,14 +70,17 @@ fn resolve_by_id<'a, S: ReadStorage<'a>>(
     storage: &'a S,
     attribute_id: u64,
     tx: u64,
-) -> Result<Option<Attribute>, S::Error> {
+) -> Result<Option<Arc<Attribute>>, S::Error> {
     let mut builder = AttributeBuilder::new(attribute_id);
     // [?attribute _ _]
     let restricts = Restricts::new(tx).with_entity(attribute_id);
     for datom in storage.find(restricts) {
         builder.consume(datom?);
     }
-    Ok(builder.build())
+    match builder.build() {
+        Some(attribute) => Ok(Some(Arc::new(attribute))),
+        None => Ok(None),
+    }
 }
 
 #[cfg(test)]
@@ -131,27 +140,30 @@ mod tests {
         storage
     }
 
-    #[test]
-    fn returns_none_when_attribute_does_not_exist() {
+    #[tokio::test]
+    async fn returns_none_when_attribute_does_not_exist() {
         let storage = create_storage();
         let mut resolver = AttributeResolver::new();
         let ident = Arc::from("foo/bar");
-        let result = resolver.resolve(&storage, &ident, u64::MAX);
+        let result = resolver.resolve(&storage, &ident, u64::MAX).await;
         assert!(result.is_err_and(|err| matches!(err, ResolveError::IdentNotFound(_))));
     }
 
-    #[test]
-    fn resolves_existing_attribute() {
+    #[tokio::test]
+    async fn resolves_existing_attribute() {
         let mut storage = create_storage();
 
         let mut resolver = AttributeResolver::new();
         let attribute = AttributeDefinition::new("foo/bar", ValueType::U64);
         let transaction = Transaction::new().with(attribute);
-        let tx_result = transactor::transact(&storage, &mut resolver, Instant(0), transaction);
+        let tx_result =
+            transactor::transact(&storage, &mut resolver, Instant(0), transaction).await;
         assert!(tx_result.is_ok());
         assert!(storage.save(&tx_result.unwrap().tx_data).is_ok());
 
-        let result = resolver.resolve(&storage, &Arc::from("foo/bar"), u64::MAX);
+        let result = resolver
+            .resolve(&storage, &Arc::from("foo/bar"), u64::MAX)
+            .await;
         assert!(result.is_ok());
 
         let result = result.unwrap();
@@ -159,8 +171,8 @@ mod tests {
         assert_eq!(ValueType::U64, result.definition.value_type);
     }
 
-    #[test]
-    fn cache_hit() {
+    #[tokio::test]
+    async fn cache_hit() {
         let mut storage = create_storage();
 
         // No calls to `CountingStorage::find` yet.
@@ -169,13 +181,14 @@ mod tests {
         let mut resolver = AttributeResolver::new();
         let attribute = AttributeDefinition::new("foo/bar", ValueType::U64);
         let transaction = Transaction::new().with(attribute);
-        let tx_result = transactor::transact(&storage, &mut resolver, Instant(0), transaction);
+        let tx_result =
+            transactor::transact(&storage, &mut resolver, Instant(0), transaction).await;
         assert!(tx_result.is_ok());
         assert!(storage.save(&tx_result.unwrap().tx_data).is_ok());
 
         let result1 = resolver
             .resolve(&storage, &Arc::from("foo/bar"), u64::MAX)
-            .cloned();
+            .await;
         assert!(result1.is_ok());
 
         // Storage was used to resolve `foo/bar`.
@@ -184,7 +197,7 @@ mod tests {
 
         let result2 = resolver
             .resolve(&storage, &Arc::from("foo/bar"), u64::MAX)
-            .cloned();
+            .await;
         assert!(result2.is_ok());
         //assert_eq!(result1, result2);
 

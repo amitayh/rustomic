@@ -17,13 +17,13 @@ impl Database {
         Self { basis_tx }
     }
 
-    pub fn query<'a, S: ReadStorage<'a>>(
+    pub async fn query<'a, S: ReadStorage<'a>>(
         &mut self,
         storage: &'a S,
         resolver: &mut AttributeResolver,
         mut query: Query,
     ) -> Result<impl Iterator<Item = QueryResult<S::Error>>, S::Error> {
-        self.resolve_idents(storage, resolver, &mut query)?;
+        self.resolve_idents(storage, resolver, &mut query).await?;
         let Query {
             find,
             clauses,
@@ -48,7 +48,7 @@ impl Database {
 
     /// Resolves attribute idents. Mutates input `query` such that clauses with
     /// `AttributeIdentifier::Ident` will be replaced with `AttributeIdentifier::Id`.
-    fn resolve_idents<'a, S: ReadStorage<'a>>(
+    async fn resolve_idents<'a, S: ReadStorage<'a>>(
         &mut self,
         storage: &'a S,
         resolver: &mut AttributeResolver,
@@ -56,7 +56,7 @@ impl Database {
     ) -> Result<(), S::Error> {
         for clause in &mut query.clauses {
             if let Pattern::Constant(AttributeIdentifier::Ident(ident)) = &clause.attribute {
-                let attribute = resolver.resolve(storage, ident, self.basis_tx)?;
+                let attribute = resolver.resolve(storage, ident, self.basis_tx).await?;
                 clause.attribute = Pattern::id(attribute.id);
             }
         }

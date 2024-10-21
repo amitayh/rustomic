@@ -3,7 +3,6 @@ use std::fmt::Debug;
 use std::io::Cursor;
 use std::io::Read;
 use std::mem::size_of;
-use std::sync::Arc;
 use std::u16;
 use thiserror::Error;
 
@@ -250,7 +249,7 @@ pub enum ReadError {
     #[error("invalid input")]
     InvalidInput,
     #[error("UTF8 error")]
-    Utf8Error(#[from] std::str::Utf8Error),
+    Utf8Error(#[from] std::string::FromUtf8Error),
     #[error("I/O error")]
     IoError(#[from] std::io::Error),
 }
@@ -327,14 +326,13 @@ mod decimal {
 mod string {
     use super::*;
 
-    impl Readable for Arc<str> {
+    impl Readable for String {
         fn read_from(buffer: &mut impl Read) -> ReadResult<Self> {
-            // TODO: optimize this?
             let length = u16::read_from(buffer)?;
             let mut bytes = vec![0; length.into()];
             buffer.read_exact(&mut bytes)?;
-            let str = std::str::from_utf8(&bytes)?;
-            Ok(Arc::from(str))
+            let string = String::from_utf8(bytes)?;
+            Ok(string)
         }
     }
 
@@ -372,7 +370,7 @@ mod value {
                 TAG_U64 => Ok(Value::U64(u64::read_from(buffer)?)),
                 TAG_I64 => Ok(Value::I64(i64::read_from(buffer)?)),
                 TAG_DEC => Ok(Value::Decimal(Decimal::read_from(buffer)?)),
-                TAG_STR => Ok(Value::Str(<Arc<str>>::read_from(buffer)?)),
+                TAG_STR => Ok(Value::Str(String::read_from(buffer)?)),
                 TAG_REF => Ok(Value::Ref(u64::read_from(buffer)?)),
                 _ => Err(ReadError::InvalidInput),
             }

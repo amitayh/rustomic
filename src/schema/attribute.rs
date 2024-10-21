@@ -1,5 +1,3 @@
-use std::sync::Arc;
-
 use crate::datom::Value;
 use crate::schema::*;
 use crate::tx;
@@ -46,7 +44,6 @@ impl TryFrom<u64> for ValueType {
 
 impl From<&Value> for ValueType {
     /// ```
-    /// use std::rc::Arc;
     /// use rustomic::datom::Value;
     /// use rustomic::schema::attribute::*;
     /// use rust_decimal::prelude::*;
@@ -105,17 +102,17 @@ pub struct Attribute {
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct AttributeDefinition {
-    pub ident: Arc<str>,
+    pub ident: String,
     pub value_type: ValueType,
     pub cardinality: Cardinality,
-    pub doc: Option<Arc<str>>,
+    pub doc: Option<String>,
     pub unique: bool,
 }
 
 impl AttributeDefinition {
     pub fn new(ident: &str, value_type: ValueType) -> Self {
         AttributeDefinition {
-            ident: Arc::from(ident),
+            ident: ident.to_string(),
             value_type,
             cardinality: Cardinality::One,
             doc: None,
@@ -124,7 +121,7 @@ impl AttributeDefinition {
     }
 
     pub fn with_doc(mut self, doc: &str) -> Self {
-        self.doc = Some(Arc::from(doc));
+        self.doc = Some(doc.to_string());
         self
     }
 

@@ -1,5 +1,3 @@
-use std::sync::Arc;
-
 use crate::datom::*;
 use crate::query::pattern::*;
 
@@ -37,7 +35,6 @@ impl Clause {
     }
 
     /// ```
-    /// use std::rc::Arc;
     /// use rustomic::query::clause::*;
     /// use rustomic::query::pattern::*;
     ///
@@ -48,23 +45,23 @@ impl Clause {
     ///
     /// let free_variables = clause.free_variables();
     /// assert_eq!(3, free_variables.len());
-    /// assert!(free_variables.contains(&Arc::from("foo")));
-    /// assert!(free_variables.contains(&Arc::from("bar")));
-    /// assert!(free_variables.contains(&Arc::from("baz")));
+    /// assert!(free_variables.contains(&"foo".to_string()));
+    /// assert!(free_variables.contains(&"bar".to_string()));
+    /// assert!(free_variables.contains(&"baz".to_string()));
     /// ```
-    pub fn free_variables(&self) -> Vec<Arc<str>> {
+    pub fn free_variables(&self) -> Vec<String> {
         let mut variables = Vec::with_capacity(4);
-        if let Pattern::Variable(ref variable) = self.entity {
-            variables.push(Arc::clone(variable));
+        if let Pattern::Variable(variable) = &self.entity {
+            variables.push(variable.clone());
         }
-        if let Pattern::Variable(ref variable) = self.attribute {
-            variables.push(Arc::clone(variable));
+        if let Pattern::Variable(variable) = &self.attribute {
+            variables.push(variable.clone());
         }
-        if let Pattern::Variable(ref variable) = self.value {
-            variables.push(Arc::clone(variable));
+        if let Pattern::Variable(variable) = &self.value {
+            variables.push(variable.clone());
         }
-        if let Pattern::Variable(ref variable) = self.tx {
-            variables.push(Arc::clone(variable));
+        if let Pattern::Variable(variable) = &self.tx {
+            variables.push(variable.clone());
         }
         variables.shrink_to_fit();
         variables

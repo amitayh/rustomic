@@ -1,6 +1,5 @@
 use std::collections::HashMap;
 use std::collections::HashSet;
-use std::sync::Arc;
 
 use crate::datom::*;
 use crate::query::pattern::*;
@@ -9,11 +8,11 @@ use crate::query::*;
 #[derive(Debug, Eq, PartialEq, Clone)]
 pub struct PartialAssignment {
     assigned: Assignment,
-    unassigned: HashSet<Arc<str>>,
+    unassigned: HashSet<String>,
 }
 
 impl PartialAssignment {
-    pub fn new(variables: HashSet<Arc<str>>) -> Self {
+    pub fn new(variables: HashSet<String>) -> Self {
         Self {
             assigned: HashMap::new(),
             unassigned: variables,
@@ -66,13 +65,12 @@ impl PartialAssignment {
     /// An assignment is considered "complete" when there are no more unassigned variables.
     ///
     /// ```
-    /// use std::rc::Arc;
     /// use std::collections::HashSet;
     /// use rustomic::query::assignment::*;
     /// use rustomic::datom::*;
     ///
     /// let mut variables = HashSet::new();
-    /// variables.insert(Arc::from("?foo"));
+    /// variables.insert("?foo".to_string());
     /// let mut assignment = PartialAssignment::new(variables);
     /// assert!(!assignment.is_complete());
     ///
@@ -91,17 +89,16 @@ impl PartialAssignment {
     ///
     /// ```
     /// use std::collections::HashSet;
-    /// use std::rc::Arc;
     /// use rustomic::query::assignment::*;
     /// use rustomic::query::clause::*;
     /// use rustomic::query::pattern::*;
     /// use rustomic::datom::*;
     ///
     /// let mut variables = HashSet::new();
-    /// variables.insert(Arc::from("?entity"));
-    /// variables.insert(Arc::from("?attribute"));
-    /// variables.insert(Arc::from("?value"));
-    /// variables.insert(Arc::from("?tx"));
+    /// variables.insert("?entity".to_string());
+    /// variables.insert("?attribute".to_string());
+    /// variables.insert("?value".to_string());
+    /// variables.insert("?tx".to_string());
     /// let assignment = PartialAssignment::new(variables);
     ///
     /// let clause = Clause::new()

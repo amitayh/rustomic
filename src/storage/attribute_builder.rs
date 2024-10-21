@@ -1,5 +1,3 @@
-use std::sync::Arc;
-
 use crate::datom::*;
 use crate::schema::attribute::*;
 use crate::schema::*;
@@ -7,10 +5,10 @@ use crate::schema::*;
 pub struct AttributeBuilder {
     id: u64,
     version: u64,
-    ident: Option<Arc<str>>,
+    ident: Option<String>,
     value_type: Option<ValueType>,
     cardinality: Option<Cardinality>,
-    doc: Option<Arc<str>>,
+    doc: Option<String>,
     unique: bool,
 }
 
@@ -34,7 +32,7 @@ impl AttributeBuilder {
                 attribute: DB_ATTR_IDENT_ID,
                 value: Value::Str(ident),
                 ..
-            } => self.ident = Some(ident),
+            } => self.ident = Some(ident.to_string()),
             Datom {
                 attribute: DB_ATTR_TYPE_ID,
                 value: Value::U64(value_type),
@@ -49,7 +47,7 @@ impl AttributeBuilder {
                 attribute: DB_ATTR_DOC_ID,
                 value: Value::Str(doc),
                 ..
-            } => self.doc = Some(doc),
+            } => self.doc = Some(doc.to_string()),
             Datom {
                 attribute: DB_ATTR_UNIQUE_ID,
                 value: Value::U64(1),

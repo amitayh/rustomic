@@ -1,7 +1,5 @@
 extern crate rustomic;
 
-use std::sync::Arc;
-
 use quickcheck::*;
 use quickcheck_macros::quickcheck;
 use rust_decimal::prelude::*;
@@ -92,12 +90,7 @@ impl Arbitrary for ArbitraryValue {
                 Value::Nil | Value::Decimal(_) => empty_shrinker(),
                 Value::I64(value) => Box::new(value.shrink().map(Value::I64)),
                 Value::U64(value) => Box::new(value.shrink().map(Value::U64)),
-                Value::Str(value) => Box::new(
-                    value
-                        .to_string()
-                        .shrink()
-                        .map(|x| Value::Str(Arc::from(&x as &str))),
-                ),
+                Value::Str(value) => Box::new(value.to_string().shrink().map(Value::Str)),
                 Value::Ref(value) => Box::new(value.shrink().map(Value::Ref)),
             }
             .map(Self),

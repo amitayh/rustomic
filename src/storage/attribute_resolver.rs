@@ -13,7 +13,7 @@ use super::Restricts;
 
 #[derive(Default)]
 pub struct AttributeResolver {
-    cache: Arc<RwLock<HashMap<Arc<str>, Option<Arc<Attribute>>>>>,
+    cache: Arc<RwLock<HashMap<String, Arc<Attribute>>>>,
 }
 
 impl AttributeResolver {
@@ -24,22 +24,23 @@ impl AttributeResolver {
     pub async fn resolve<'a, S: ReadStorage<'a>>(
         &mut self,
         storage: &'a S,
-        ident: &Arc<str>,
+        ident: &str,
         tx: u64,
     ) -> Result<Arc<Attribute>, ResolveError<S::Error>> {
         {
             let cache_read = self.cache.read().await;
             if let Some(attribute) = cache_read.get(ident) {
-                return attribute
-                    .clone()
-                    .ok_or_else(|| ResolveError::IdentNotFound(Arc::clone(ident)));
+                return Ok(attribute.clone());
             }
         }
 
-        let result = resolve_by_ident(storage, Arc::clone(ident), tx)?;
-        let mut cache_write = self.cache.write().await;
-        cache_write.insert(Arc::clone(ident), result.clone());
-        result.ok_or_else(|| ResolveError::IdentNotFound(Arc::clone(ident)))
+        if let Some(attribute) = resolve_by_ident(storage, ident, tx)? {
+            let mut cache_write = self.cache.write().await;
+            cache_write.insert(ident.to_string(), attribute.clone());
+            return Ok(attribute);
+        }
+
+        Err(ResolveError::IdentNotFound(ident.to_string()))
     }
 }
 
@@ -48,18 +49,18 @@ pub enum ResolveError<S> {
     #[error("storage error")]
     StorageError(#[from] S),
     #[error("ident `{0}` not found")]
-    IdentNotFound(Arc<str>),
+    IdentNotFound(String),
 }
 
 fn resolve_by_ident<'a, S: ReadStorage<'a>>(
     storage: &'a S,
-    ident: Arc<str>,
+    ident: &str,
     tx: u64,
 ) -> Result<Option<Arc<Attribute>>, S::Error> {
     // [?attribute :db/attr/ident ?ident]
     let restricts = Restricts::new(tx)
         .with_attribute(DB_ATTR_IDENT_ID)
-        .with_value(Value::Str(ident));
+        .with_value(Value::Str(ident.to_string()));
     if let Some(datom) = storage.find(restricts).next() {
         return resolve_by_id(storage, datom?.entity, tx);
     }
@@ -144,8 +145,7 @@ mod tests {
     async fn returns_none_when_attribute_does_not_exist() {
         let storage = create_storage();
         let mut resolver = AttributeResolver::new();
-        let ident = Arc::from("foo/bar");
-        let result = resolver.resolve(&storage, &ident, u64::MAX).await;
+        let result = resolver.resolve(&storage, "foo/bar", u64::MAX).await;
         assert!(result.is_err_and(|err| matches!(err, ResolveError::IdentNotFound(_))));
     }
 
@@ -161,13 +161,11 @@ mod tests {
         assert!(tx_result.is_ok());
         assert!(storage.save(&tx_result.unwrap().tx_data).is_ok());
 
-        let result = resolver
-            .resolve(&storage, &Arc::from("foo/bar"), u64::MAX)
-            .await;
+        let result = resolver.resolve(&storage, "foo/bar", u64::MAX).await;
         assert!(result.is_ok());
 
         let result = result.unwrap();
-        assert_eq!(Arc::from("foo/bar"), result.definition.ident);
+        assert_eq!("foo/bar".to_string(), result.definition.ident);
         assert_eq!(ValueType::U64, result.definition.value_type);
     }
 
@@ -186,18 +184,14 @@ mod tests {
         assert!(tx_result.is_ok());
         assert!(storage.save(&tx_result.unwrap().tx_data).is_ok());
 
-        let result1 = resolver
-            .resolve(&storage, &Arc::from("foo/bar"), u64::MAX)
-            .await;
+        let result1 = resolver.resolve(&storage, "foo/bar", u64::MAX).await;
         assert!(result1.is_ok());
 
         // Storage was used to resolve `foo/bar`.
         let queries = storage.current_count();
         assert!(queries > 0);
 
-        let result2 = resolver
-            .resolve(&storage, &Arc::from("foo/bar"), u64::MAX)
-            .await;
+        let result2 = resolver.resolve(&storage, "foo/bar", u64::MAX).await;
         assert!(result2.is_ok());
         //assert_eq!(result1, result2);
 

@@ -96,65 +96,63 @@ fn parse_clause(patterns: Vec<Edn>) -> Result<Clause, String> {
 
 #[cfg(test)]
 mod tests {
-    use rustomic::query::Find;
-
     use super::*;
+    use rustomic::query::Find;
 
     #[test]
     fn test_empty_query() {
-        let result = parse("");
+        let query = parse("");
 
-        assert!(result.is_err());
+        assert!(query.is_err());
     }
 
     #[test]
     fn parse_a_single_find_clause() {
-        let query = "[:find ?foo]";
+        let query = parse("[:find ?foo]");
 
-        assert_eq!(parse(query), Ok(Query::new().find(Find::variable("?foo"))));
+        assert!(query.is_ok());
+        assert_eq!(query.unwrap().find, vec![Find::variable("?foo")]);
     }
 
     #[test]
     fn parse_multiple_find_clauses() {
-        let query = "[:find ?foo ?bar]";
+        let query = parse("[:find ?foo ?bar]");
 
+        assert!(query.is_ok());
         assert_eq!(
-            parse(query),
-            Ok(Query::new()
-                .find(Find::variable("?foo"))
-                .find(Find::variable("?bar")))
+            query.unwrap().find,
+            vec![Find::variable("?foo"), Find::variable("?bar")]
         );
     }
 
     #[test]
     fn parse_where_clauses() {
-        let query = r#"[:find ?release-name
+        let query = parse(
+            r#"[:find ?release-name
                         :where [?artist :artist/name "John Lenon"]
                                [?release :release/artists ?artist]
-                               [?release :release/name ?release-name]]"#;
+                               [?release :release/name ?release-name]]"#,
+        );
 
+        assert!(query.is_ok());
+        let Query { find, clauses, .. } = query.unwrap();
+        assert_eq!(find, vec![Find::variable("?release-name")]);
         assert_eq!(
-            parse(query),
-            Ok(Query::new()
-                .find(Find::variable("?release-name"))
-                .r#where(
-                    Clause::new()
-                        .with_entity(Pattern::variable("?artist"))
-                        .with_attribute(Pattern::ident("artist/name"))
-                        .with_value(Pattern::value("John Lenon")),
-                )
-                .r#where(
-                    Clause::new()
-                        .with_entity(Pattern::variable("?release"))
-                        .with_attribute(Pattern::ident("release/artists"))
-                        .with_value(Pattern::variable("?artist")),
-                )
-                .r#where(
-                    Clause::new()
-                        .with_entity(Pattern::variable("?release"))
-                        .with_attribute(Pattern::ident("release/name"))
-                        .with_value(Pattern::variable("?release-name")),
-                ))
+            clauses,
+            vec![
+                Clause::new()
+                    .with_entity(Pattern::variable("?artist"))
+                    .with_attribute(Pattern::ident("artist/name"))
+                    .with_value(Pattern::value("John Lenon")),
+                Clause::new()
+                    .with_entity(Pattern::variable("?release"))
+                    .with_attribute(Pattern::ident("release/artists"))
+                    .with_value(Pattern::variable("?artist")),
+                Clause::new()
+                    .with_entity(Pattern::variable("?release"))
+                    .with_attribute(Pattern::ident("release/name"))
+                    .with_value(Pattern::variable("?release-name")),
+            ]
         );
     }
 }

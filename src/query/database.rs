@@ -16,7 +16,7 @@ impl Database {
     }
 
     pub async fn query<'a, S: ReadStorage<'a>>(
-        &mut self,
+        &self,
         storage: &'a S,
         resolver: &AttributeResolver,
         mut query: Query,
@@ -47,7 +47,7 @@ impl Database {
     /// Resolves attribute idents. Mutates input `query` such that clauses with
     /// `AttributeIdentifier::Ident` will be replaced with `AttributeIdentifier::Id`.
     async fn resolve_idents<'a, S: ReadStorage<'a>>(
-        &mut self,
+        &self,
         storage: &'a S,
         resolver: &AttributeResolver,
         query: &mut Query,

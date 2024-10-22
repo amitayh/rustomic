@@ -75,8 +75,7 @@ mod tests {
         }
 
         async fn query_at_snapshot(&self, snapshot_tx: u64, query: Query) -> Vec<Vec<Value>> {
-            let mut db = Database::new(snapshot_tx);
-            let results = db
+            let results = Database::new(snapshot_tx)
                 .query(&self.storage, &self.resolver, query)
                 .await
                 .expect("Unable to query");
@@ -87,8 +86,9 @@ mod tests {
             &self,
             query: Query,
         ) -> crate::query::Result<Vec<QueryResult<StorageError<'_>>>, StorageError<'_>> {
-            let mut db = Database::new(self.last_tx);
-            let result = db.query(&self.storage, &self.resolver, query).await?;
+            let result = Database::new(self.last_tx)
+                .query(&self.storage, &self.resolver, query)
+                .await?;
             Ok(result.collect())
         }
     }

@@ -41,10 +41,9 @@ impl QueryService for QueryServiceImpl {
             .storage
             .latest_entity_id()
             .map_err(|err| Status::unknown(err.to_string()))?;
-        let mut db = Database::new(basis_tx);
         let request = request.into_inner();
         let query = parser::parse(&request.query).map_err(Status::invalid_argument)?;
-        let results: Vec<_> = db
+        let results: Vec<_> = Database::new(basis_tx)
             .query(&self.storage, &self.resolver, query)
             .await
             .map_err(|err| Status::unknown(err.to_string()))?
@@ -59,14 +58,14 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let resolver = AttributeResolver::new();
     init_db(&resolver).await?;
 
-    let addr = "[::1]:50051".parse()?;
     let storage = DiskStorage::read_only(DB_PATH)?;
-    let greeter = QueryServiceImpl { storage, resolver };
+    let query_service = QueryServiceImpl { storage, resolver };
 
+    let addr = "[::1]:50051".parse()?;
     println!("Starting server on {:?}...", &addr);
 
     Server::builder()
-        .add_service(QueryServiceServer::new(greeter))
+        .add_service(QueryServiceServer::new(query_service))
         .serve(addr)
         .await?;
 

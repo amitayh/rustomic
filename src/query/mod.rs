@@ -21,7 +21,7 @@ pub type AssignmentResult<E> = Result<Assignment, E>;
 pub type QueryResult<E> = Result<Vec<Value>, E>;
 
 #[derive(Clone)]
-pub struct Predicate(Arc<dyn Fn(&Assignment) -> bool>);
+pub struct Predicate(Arc<dyn Fn(&Assignment) -> bool + Send + Sync>);
 
 impl Predicate {
     fn test(&self, assignment: &Assignment) -> bool {
@@ -35,13 +35,7 @@ impl Debug for Predicate {
     }
 }
 
-impl PartialEq for Predicate {
-    fn eq(&self, _: &Self) -> bool {
-        false // TODO
-    }
-}
-
-#[derive(Default, Clone, Debug, PartialEq)]
+#[derive(Default, Clone, Debug)]
 pub struct Query {
     pub find: Vec<Find>,
     pub clauses: Vec<Clause>,
@@ -63,7 +57,7 @@ impl Query {
         self
     }
 
-    pub fn pred(mut self, predicate: impl Fn(&Assignment) -> bool + 'static) -> Self {
+    pub fn pred(mut self, predicate: impl Fn(&Assignment) -> bool + Send + Sync + 'static) -> Self {
         self.predicates.push(Predicate(Arc::new(predicate)));
         self
     }
@@ -71,7 +65,7 @@ impl Query {
     pub fn value_pred(
         self,
         variable: &'static str,
-        predicate: impl Fn(&Value) -> bool + 'static,
+        predicate: impl Fn(&Value) -> bool + Send + Sync + 'static,
     ) -> Self {
         self.pred(move |assignment| {
             let value = assignment.get(variable);

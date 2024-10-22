@@ -10,9 +10,7 @@ use rustomic::storage::WriteStorage;
 use rustomic::tx::transactor;
 use rustomic::tx::Transaction;
 use server::query_service_server::QueryServiceServer;
-use std::sync::Arc;
 use std::time::SystemTime;
-use tokio::sync::Mutex;
 use tonic::{transport::Server, Request, Response, Status};
 
 use server::query_service_server::QueryService;
@@ -30,7 +28,7 @@ pub mod server {
 
 pub struct QueryServiceImpl {
     storage: DiskStorage<ReadOnly>,
-    resolver: Arc<Mutex<AttributeResolver>>,
+    resolver: AttributeResolver,
 }
 
 #[tonic::async_trait]
@@ -39,7 +37,6 @@ impl QueryService for QueryServiceImpl {
         &self,
         request: Request<QueryRequest>,
     ) -> Result<Response<QueryResponse>, Status> {
-        let mut resolver = self.resolver.lock().await;
         let basis_tx = self
             .storage
             .latest_entity_id()
@@ -48,7 +45,8 @@ impl QueryService for QueryServiceImpl {
         let request = request.into_inner();
         let query = parser::parse(&request.query).map_err(Status::invalid_argument)?;
         let results: Vec<_> = db
-            .query(&self.storage, &mut resolver, query)
+            .query(&self.storage, &self.resolver, query)
+            .await
             .map_err(|err| Status::unknown(err.to_string()))?
             .collect();
         println!("Got a request: {:?} {:?}", request, results);
@@ -58,16 +56,12 @@ impl QueryService for QueryServiceImpl {
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let mut resolver = AttributeResolver::new();
-
-    init_db(&mut resolver)?;
+    let resolver = AttributeResolver::new();
+    init_db(&resolver).await?;
 
     let addr = "[::1]:50051".parse()?;
     let storage = DiskStorage::read_only(DB_PATH)?;
-    let greeter = QueryServiceImpl {
-        storage,
-        resolver: Arc::new(Mutex::new(resolver)),
-    };
+    let greeter = QueryServiceImpl { storage, resolver };
 
     println!("Starting server on {:?}...", &addr);
 
@@ -79,7 +73,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     Ok(())
 }
 
-fn init_db(resolver: &mut AttributeResolver) -> Result<(), Box<dyn std::error::Error>> {
+async fn init_db(resolver: &AttributeResolver) -> Result<(), Box<dyn std::error::Error>> {
     let mut storage = DiskStorage::read_write(DB_PATH)?;
     if storage.latest_entity_id()? > 0 {
         // Looks like the DB already has some datoms saved, no need to re-create the schema.
@@ -105,7 +99,7 @@ fn init_db(resolver: &mut AttributeResolver) -> Result<(), Box<dyn std::error::E
         .with(AttributeDefinition::new("release/name", ValueType::Str))
         .with(AttributeDefinition::new("release/artists", ValueType::Ref).many());
 
-    let tx_result = transactor::transact(&storage, resolver, now, tx)?;
+    let tx_result = transactor::transact(&storage, resolver, now, tx).await?;
     storage.save(&tx_result.tx_data)?;
 
     Ok(())

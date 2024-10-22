@@ -29,7 +29,7 @@ mod tests {
     use super::tx::*;
 
     struct Sut {
-        attribute_resolver: AttributeResolver,
+        resolver: AttributeResolver,
         storage: InMemoryStorage,
         last_tx: u64,
     }
@@ -38,14 +38,14 @@ mod tests {
 
     impl Sut {
         async fn new() -> Self {
-            let attribute_resolver = AttributeResolver::new();
+            let resolver = AttributeResolver::new();
             let mut storage = InMemoryStorage::new();
             storage
                 .save(&default_datoms())
                 .expect("Unable to save default datoms");
 
             let mut sut = Self {
-                attribute_resolver,
+                resolver,
                 storage,
                 last_tx: 0,
             };
@@ -64,38 +64,31 @@ mod tests {
             result
         }
 
-        async fn try_transact(&mut self, transaction: Transaction) -> Option<TransctionResult> {
-            transactor::transact(
-                &self.storage,
-                &mut self.attribute_resolver,
-                now(),
-                transaction,
-            )
-            .await
-            .ok()
+        async fn try_transact(&self, transaction: Transaction) -> Option<TransctionResult> {
+            transactor::transact(&self.storage, &self.resolver, now(), transaction)
+                .await
+                .ok()
         }
 
         async fn query(&mut self, query: Query) -> Vec<Vec<Value>> {
             self.query_at_snapshot(self.last_tx, query).await
         }
 
-        async fn query_at_snapshot(&mut self, snapshot_tx: u64, query: Query) -> Vec<Vec<Value>> {
+        async fn query_at_snapshot(&self, snapshot_tx: u64, query: Query) -> Vec<Vec<Value>> {
             let mut db = Database::new(snapshot_tx);
             let results = db
-                .query(&self.storage, &mut self.attribute_resolver, query)
+                .query(&self.storage, &self.resolver, query)
                 .await
                 .expect("Unable to query");
             results.filter_map(|result| result.ok()).collect()
         }
 
         async fn try_query(
-            &mut self,
+            &self,
             query: Query,
         ) -> crate::query::Result<Vec<QueryResult<StorageError<'_>>>, StorageError<'_>> {
             let mut db = Database::new(self.last_tx);
-            let result = db
-                .query(&self.storage, &mut self.attribute_resolver, query)
-                .await?;
+            let result = db.query(&self.storage, &self.resolver, query).await?;
             Ok(result.collect())
         }
     }
@@ -244,7 +237,7 @@ mod tests {
 
     #[tokio::test]
     async fn reject_transaction_with_invalid_attribute_type() {
-        let mut sut = Sut::new().await;
+        let sut = Sut::new().await;
 
         // This transaction should fail: "person/name" is of type `ValueType::Str`.
         let tx = Transaction::new().with(EntityOperation::on_new().assert("person/name", 42));
@@ -255,7 +248,7 @@ mod tests {
 
     #[tokio::test]
     async fn reject_transaction_with_duplicate_temp_ids() {
-        let mut sut = Sut::new().await;
+        let sut = Sut::new().await;
 
         // This transaction should fail: temp ID "duplicate" should only be used once.
         let tx = Transaction::new()
@@ -923,7 +916,7 @@ mod tests {
 
         #[tokio::test]
         async fn within_a_transaction() {
-            let mut sut = Sut::new().await;
+            let sut = Sut::new().await;
 
             let tx_result = sut
                 .try_transact(

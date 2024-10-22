@@ -22,7 +22,7 @@ impl AttributeResolver {
     }
 
     pub async fn resolve<'a, S: ReadStorage<'a>>(
-        &mut self,
+        &self,
         storage: &'a S,
         ident: &str,
         tx: u64,
@@ -144,7 +144,7 @@ mod tests {
     #[tokio::test]
     async fn returns_none_when_attribute_does_not_exist() {
         let storage = create_storage();
-        let mut resolver = AttributeResolver::new();
+        let resolver = AttributeResolver::new();
         let result = resolver.resolve(&storage, "foo/bar", u64::MAX).await;
         assert!(result.is_err_and(|err| matches!(err, ResolveError::IdentNotFound(_))));
     }
@@ -153,11 +153,10 @@ mod tests {
     async fn resolves_existing_attribute() {
         let mut storage = create_storage();
 
-        let mut resolver = AttributeResolver::new();
+        let resolver = AttributeResolver::new();
         let attribute = AttributeDefinition::new("foo/bar", ValueType::U64);
         let transaction = Transaction::new().with(attribute);
-        let tx_result =
-            transactor::transact(&storage, &mut resolver, Instant(0), transaction).await;
+        let tx_result = transactor::transact(&storage, &resolver, Instant(0), transaction).await;
         assert!(tx_result.is_ok());
         assert!(storage.save(&tx_result.unwrap().tx_data).is_ok());
 
@@ -176,11 +175,10 @@ mod tests {
         // No calls to `CountingStorage::find` yet.
         assert_eq!(0, storage.current_count());
 
-        let mut resolver = AttributeResolver::new();
+        let resolver = AttributeResolver::new();
         let attribute = AttributeDefinition::new("foo/bar", ValueType::U64);
         let transaction = Transaction::new().with(attribute);
-        let tx_result =
-            transactor::transact(&storage, &mut resolver, Instant(0), transaction).await;
+        let tx_result = transactor::transact(&storage, &resolver, Instant(0), transaction).await;
         assert!(tx_result.is_ok());
         assert!(storage.save(&tx_result.unwrap().tx_data).is_ok());
 

@@ -18,7 +18,7 @@ impl Database {
     pub async fn query<'a, S: ReadStorage<'a>>(
         &mut self,
         storage: &'a S,
-        resolver: &mut AttributeResolver,
+        resolver: &AttributeResolver,
         mut query: Query,
     ) -> Result<impl Iterator<Item = QueryResult<S::Error>>, S::Error> {
         self.resolve_idents(storage, resolver, &mut query).await?;
@@ -49,7 +49,7 @@ impl Database {
     async fn resolve_idents<'a, S: ReadStorage<'a>>(
         &mut self,
         storage: &'a S,
-        resolver: &mut AttributeResolver,
+        resolver: &AttributeResolver,
         query: &mut Query,
     ) -> Result<(), S::Error> {
         for clause in &mut query.clauses {

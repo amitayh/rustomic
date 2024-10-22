@@ -1,5 +1,4 @@
 use std::collections::{BTreeMap, BTreeSet};
-use std::sync::Arc;
 
 use nom::branch::*;
 use nom::bytes::complete::*;
@@ -15,22 +14,22 @@ use ordered_float::OrderedFloat;
 
 #[derive(PartialEq, Debug, Clone, PartialOrd, Eq, Ord)]
 pub struct Name {
-    pub namespace: Option<Arc<str>>,
-    pub name: Arc<str>,
+    pub namespace: Option<String>,
+    pub name: String,
 }
 
 impl Name {
     pub fn from(name: &str) -> Self {
         Self {
             namespace: None,
-            name: Arc::from(name),
+            name: name.to_string(),
         }
     }
 
     pub fn namespaced(namespace: &str, name: &str) -> Self {
         Self {
-            namespace: Some(Arc::from(namespace)),
-            name: Arc::from(name),
+            namespace: Some(namespace.to_string()),
+            name: name.to_string(),
         }
     }
 }
@@ -39,7 +38,7 @@ impl Into<String> for &Name {
     fn into(self) -> String {
         match &self.namespace {
             Some(namespace) => format!("{}/{}", namespace, self.name),
-            None => format!("{}", self.name),
+            None => self.name.clone(),
         }
     }
 }
@@ -59,7 +58,7 @@ pub enum Edn {
 
     /// Strings are enclosed in `"double quotes"`. May span multiple lines. Standard C/Java
     /// escape characters `\t, \r, \n, \\ and \" are supported.
-    String(Arc<str>),
+    String(String),
 
     /// Symbols are used to represent identifiers, and should map to something other than
     /// strings, if possible.
@@ -190,6 +189,12 @@ pub enum Edn {
     Set(BTreeSet<Edn>),
 }
 
+impl Edn {
+    fn string(str: &str) -> Self {
+        Self::String(str.to_string())
+    }
+}
+
 impl From<f64> for Edn {
     fn from(number: f64) -> Self {
         if number.fract() == 0.0 {
@@ -244,7 +249,7 @@ fn edn(input: &str) -> IResult<&str, Edn> {
         tag("true").map(|_| Edn::Boolean(true)),
         tag("false").map(|_| Edn::Boolean(false)),
         double.map(<Edn as From<f64>>::from),
-        delimited(char('"'), is_not("\""), char('"')).map(|str| Edn::String(Arc::from(str))),
+        delimited(char('"'), is_not("\""), char('"')).map(Edn::string),
         delimited(char('['), edns, char(']')).map(Edn::Vector),
         delimited(char('('), edns, char(')')).map(Edn::List),
         delimited(tag("#{"), edns, char('}')).map(|xs| Edn::Set(xs.into_iter().collect())),
@@ -297,7 +302,7 @@ mod tests {
     fn test_string() {
         let result = Edn::try_from(r#""hello world""#);
 
-        assert_eq!(result, Ok(Edn::String(Arc::from("hello world"))));
+        assert_eq!(result, Ok(Edn::String("hello world".to_string())));
     }
 
     #[test]
@@ -305,7 +310,7 @@ mod tests {
     fn test_string_escape() {
         let result = Edn::try_from(r#""hello \"world\"""#);
 
-        assert_eq!(result, Ok(Edn::String(Arc::from(r#"hello "world""#))));
+        assert_eq!(result, Ok(Edn::String(r#"hello "world""#.to_string())));
     }
 
     #[test]

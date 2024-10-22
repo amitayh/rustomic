@@ -13,7 +13,7 @@ use crate::tx::*;
 
 pub async fn transact<'a, S: ReadStorage<'a>>(
     storage: &'a S,
-    resolver: &mut AttributeResolver,
+    resolver: &AttributeResolver,
     now: Instant,
     transaction: Transaction,
 ) -> Result<TransctionResult, S::Error> {
@@ -53,7 +53,7 @@ impl ResultBuilder {
     pub async fn update<'a, S: ReadStorage<'a>>(
         &mut self,
         storage: &'a S,
-        resolver: &mut AttributeResolver,
+        resolver: &AttributeResolver,
         operation: EntityOperation,
     ) -> Result<(), S::Error> {
         let entity = self.resolve_entity(operation.entity)?;

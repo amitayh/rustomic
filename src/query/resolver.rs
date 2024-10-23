@@ -49,12 +49,10 @@ impl<'a, S: ReadStorage<'a>> Resolver<'a, S> {
     }
 
     fn iterator(storage: &'a S, frame: &Frame, clauses: &[Clause], basis_tx: u64) -> S::Iter {
-        let clause = clauses.get(frame.clause_index);
-        let restricts = Restricts::from(
-            clause.unwrap_or(&Clause::default()),
-            &frame.assignment,
-            basis_tx,
-        );
+        let clause = clauses
+            .get(frame.clause_index)
+            .expect("clause index should be valid");
+        let restricts = Restricts::from(clause, &frame.assignment, basis_tx);
         storage.find(restricts)
     }
 }

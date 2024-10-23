@@ -67,12 +67,20 @@ impl TryFrom<Edn> for Value {
 
 fn parse_clause(patterns: Vec<Edn>) -> Result<Clause, String> {
     let entity = match patterns.get(0) {
+        Some(Edn::Symbol(Name {
+            namespace: None,
+            name,
+        })) if name == "_" => Pattern::Blank,
         Some(Edn::Symbol(name)) => Pattern::Variable(name.into()),
         Some(Edn::Integer(id)) => Pattern::Constant(*id as u64),
         // TODO: handle failures
         _ => Pattern::Blank,
     };
     let attribute = match patterns.get(1) {
+        Some(Edn::Symbol(Name {
+            namespace: None,
+            name,
+        })) if name == "_" => Pattern::Blank,
         Some(Edn::Symbol(name)) => Pattern::Variable(name.into()),
         Some(Edn::Keyword(name)) => Pattern::Constant(AttributeIdentifier::Ident(name.into())),
         Some(Edn::Integer(id)) => Pattern::Constant(AttributeIdentifier::Id(*id as u64)),
@@ -80,6 +88,10 @@ fn parse_clause(patterns: Vec<Edn>) -> Result<Clause, String> {
         _ => Pattern::Blank,
     };
     let value = match patterns.get(2) {
+        Some(Edn::Symbol(Name {
+            namespace: None,
+            name,
+        })) if name == "_" => Pattern::Blank,
         Some(Edn::Symbol(name)) => Pattern::Variable(name.into()),
         // TODO: remove clone
         Some(edn) => Pattern::Constant(edn.clone().try_into().unwrap()),

@@ -13,7 +13,7 @@ message QueryRequest {
 }
 
 message QueryResponse {
-  //repeated Assignment assignments = 1;
+  repeated string assignments = 1;
 }
 
 message Assignment {

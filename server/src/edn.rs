@@ -1,4 +1,5 @@
 use std::collections::{BTreeMap, BTreeSet};
+use std::fmt::Display;
 
 use nom::branch::*;
 use nom::bytes::complete::*;
@@ -34,12 +35,18 @@ impl Name {
     }
 }
 
+impl Display for Name {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match &self.namespace {
+            Some(namespace) => write!(f, "{}/{}", namespace, self.name),
+            None => write!(f, "{}", self.name),
+        }
+    }
+}
+
 impl Into<String> for &Name {
     fn into(self) -> String {
-        match &self.namespace {
-            Some(namespace) => format!("{}/{}", namespace, self.name),
-            None => self.name.clone(),
-        }
+        format!("{}", self)
     }
 }
 
@@ -213,6 +220,31 @@ impl TryFrom<&str> for Edn {
             Ok(("", edn)) => Ok(edn),
             Ok((leftovers, _)) => Err(format!("Leftovers: {}", leftovers)),
             Err(err) => Err(err.to_string()),
+        }
+    }
+}
+
+impl Display for Edn {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Edn::Nil => write!(f, "nil"),
+            Edn::Boolean(value) => write!(f, "{}", value),
+            Edn::String(value) => write!(f, r#""{}""#, value),
+            Edn::Integer(value) => write!(f, "{}", value),
+            Edn::Float(value) => write!(f, "{}", value),
+            Edn::Symbol(value) => write!(f, "{}", value),
+            Edn::Vector(values) => {
+                write!(f, "[")?;
+                for (index, value) in values.iter().enumerate() {
+                    if index > 0 {
+                        write!(f, " ")?;
+                    }
+                    write!(f, "{}", value)?;
+                }
+                write!(f, "]")?;
+                Ok(())
+            }
+            _ => Err(std::fmt::Error),
         }
     }
 }
@@ -426,5 +458,59 @@ mod tests {
                 Edn::Integer(3)
             ])))
         );
+    }
+
+    mod format {
+        use super::*;
+
+        #[test]
+        fn test_nil() {
+            assert_eq!(format!("{}", Edn::Nil), "nil");
+        }
+
+        #[test]
+        fn test_boolean() {
+            assert_eq!(format!("{}", Edn::Boolean(true)), "true");
+            assert_eq!(format!("{}", Edn::Boolean(false)), "false");
+        }
+
+        #[test]
+        fn test_string() {
+            let edn = Edn::string("hello world");
+
+            assert_eq!(format!("{}", edn), r#""hello world""#);
+        }
+
+        // TODO: string escaping
+
+        #[test]
+        fn test_number() {
+            assert_eq!(format!("{}", Edn::Integer(1234)), "1234");
+            assert_eq!(format!("{}", Edn::Float(OrderedFloat(12.34))), "12.34");
+        }
+
+        #[test]
+        fn test_symbol() {
+            let plain = Edn::Symbol(Name::from("foo"));
+            let namespaced = Edn::Symbol(Name::namespaced("foo", "bar"));
+
+            assert_eq!(format!("{}", plain), "foo");
+            assert_eq!(format!("{}", namespaced), "foo/bar");
+        }
+
+        #[test]
+        fn test_empty_vector() {
+            assert_eq!(format!("{}", Edn::Vector(vec![])), "[]");
+        }
+
+        #[test]
+        fn test_non_empty_vector() {
+            let edn = Edn::Vector(vec![
+                Edn::Symbol(Name::from("foo")),
+                Edn::Symbol(Name::from("bar")),
+            ]);
+
+            assert_eq!(format!("{}", edn), "[foo bar]");
+        }
     }
 }

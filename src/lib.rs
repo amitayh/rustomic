@@ -148,24 +148,32 @@ mod tests {
         //  {:person/name "Ringo" :person/born 1940}]
         Transaction::new()
             .with(
-                EntityOperation::on_new()
+                EntityOperation::on_temp_id("john")
                     .assert("person/name", "John")
                     .assert("person/born", 1940),
             )
             .with(
-                EntityOperation::on_new()
+                EntityOperation::on_temp_id("paul")
                     .assert("person/name", "Paul")
                     .assert("person/born", 1942),
             )
             .with(
-                EntityOperation::on_new()
+                EntityOperation::on_temp_id("george")
                     .assert("person/name", "George")
                     .assert("person/born", 1943),
             )
             .with(
-                EntityOperation::on_new()
+                EntityOperation::on_temp_id("ringo")
                     .assert("person/name", "Ringo")
                     .assert("person/born", 1940),
+            )
+            .with(
+                EntityOperation::on_temp_id("abbey-road")
+                    .assert("release/name", "Abbey Road")
+                    .set_reference("release/artists", "john")
+                    .set_reference("release/artists", "paul")
+                    .set_reference("release/artists", "george")
+                    .set_reference("release/artists", "ringo"),
             )
     }
 
@@ -625,6 +633,78 @@ mod tests {
                 elements_are![eq(Value::I64(1940)), eq(Value::U64(2))], // John, Ringo
                 elements_are![eq(Value::I64(1942)), eq(Value::U64(1))], // Paul
                 elements_are![eq(Value::I64(1943)), eq(Value::U64(1))], // George
+            ]
+        );
+    }
+
+    #[tokio::test]
+    async fn aggregation_with_multiple_keys() {
+        let mut sut = Sut::new().await;
+
+        // Insert data
+        sut.transact(create_beatles()).await;
+
+        // [:find ?born ?release-name (count) (sum ?born)
+        //  :where [?person :person/born ?born]
+        //         [?person :person/name ?name]
+        //         [?release :release/artists ?person]
+        //         [?release :release/name ?release-name]]
+        let query = Query::new()
+            .find(Find::variable("?born"))
+            .find(Find::variable("?release-name"))
+            .find(Find::count())
+            .find(Find::sum("?born"))
+            .r#where(
+                Clause::new()
+                    .with_entity(Pattern::variable("?person"))
+                    .with_attribute(Pattern::ident("person/born"))
+                    .with_value(Pattern::variable("?born")),
+            )
+            .r#where(
+                Clause::new()
+                    .with_entity(Pattern::variable("?person"))
+                    .with_attribute(Pattern::ident("person/name"))
+                    .with_value(Pattern::variable("?name")),
+            )
+            .r#where(
+                Clause::new()
+                    .with_entity(Pattern::variable("?release"))
+                    .with_attribute(Pattern::ident("release/artists"))
+                    .with_value(Pattern::variable("?person")),
+            )
+            .r#where(
+                Clause::new()
+                    .with_entity(Pattern::variable("?release"))
+                    .with_attribute(Pattern::ident("release/name"))
+                    .with_value(Pattern::variable("?release-name")),
+            );
+
+        let query_result = sut.query(query).await;
+
+        assert_that!(
+            query_result,
+            unordered_elements_are![
+                // John, Ringo
+                elements_are![
+                    eq(Value::I64(1940)),
+                    eq(Value::str("Abbey Road")),
+                    eq(Value::U64(2)),
+                    eq(Value::I64(3880))
+                ],
+                // Paul
+                elements_are![
+                    eq(Value::I64(1942)),
+                    eq(Value::str("Abbey Road")),
+                    eq(Value::U64(1)),
+                    eq(Value::I64(1942))
+                ],
+                // George
+                elements_are![
+                    eq(Value::I64(1943)),
+                    eq(Value::str("Abbey Road")),
+                    eq(Value::U64(1)),
+                    eq(Value::I64(1943))
+                ],
             ]
         );
     }

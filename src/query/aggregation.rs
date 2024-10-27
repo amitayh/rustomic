@@ -68,7 +68,7 @@ impl AggregationState {
         }
     }
 
-    pub fn consume(&mut self, assignment: &Assignment) {
+    pub fn update_with(&mut self, assignment: &Assignment) {
         match self {
             Self::Count(count) => *count += 1,
             Self::Min { variable, min } => {
@@ -135,15 +135,15 @@ pub enum AggregationFunction {
 }
 
 impl AggregationFunction {
-    pub fn empty_state(self) -> AggregationState {
+    pub fn empty_state(&self) -> AggregationState {
         match self {
             AggregationFunction::Count => AggregationState::count(),
-            AggregationFunction::Min(variable) => AggregationState::min(variable),
-            AggregationFunction::Max(variable) => AggregationState::max(variable),
-            AggregationFunction::Average(variable) => AggregationState::average(variable),
-            AggregationFunction::Sum(variable) => AggregationState::sum(variable),
+            AggregationFunction::Min(variable) => AggregationState::min(variable.clone()),
+            AggregationFunction::Max(variable) => AggregationState::max(variable.clone()),
+            AggregationFunction::Average(variable) => AggregationState::average(variable.clone()),
+            AggregationFunction::Sum(variable) => AggregationState::sum(variable.clone()),
             AggregationFunction::CountDistinct(variable) => {
-                AggregationState::count_distinct(variable)
+                AggregationState::count_distinct(variable.clone())
             }
         }
     }
@@ -173,8 +173,8 @@ mod tests {
             let assignment = HashMap::new();
 
             let mut state = count.empty_state();
-            state.consume(&assignment);
-            state.consume(&assignment);
+            state.update_with(&assignment);
+            state.update_with(&assignment);
 
             assert_eq!(Value::U64(2), state.result());
         }
@@ -195,8 +195,8 @@ mod tests {
             let min = AggregationFunction::Min(variable.clone());
 
             let mut state = min.empty_state();
-            state.consume(&HashMap::from([(variable.clone(), Value::I64(1))]));
-            state.consume(&HashMap::from([(variable.clone(), Value::I64(2))]));
+            state.update_with(&HashMap::from([(variable.clone(), Value::I64(1))]));
+            state.update_with(&HashMap::from([(variable.clone(), Value::I64(2))]));
 
             assert_eq!(Value::I64(1), state.result());
         }
@@ -217,8 +217,8 @@ mod tests {
             let max = AggregationFunction::Max(variable.clone());
 
             let mut state = max.empty_state();
-            state.consume(&HashMap::from([(variable.clone(), Value::I64(1))]));
-            state.consume(&HashMap::from([(variable.clone(), Value::I64(2))]));
+            state.update_with(&HashMap::from([(variable.clone(), Value::I64(1))]));
+            state.update_with(&HashMap::from([(variable.clone(), Value::I64(2))]));
 
             assert_eq!(Value::I64(2), state.result());
         }
@@ -239,8 +239,8 @@ mod tests {
             let average = AggregationFunction::Average(variable.clone());
 
             let mut state = average.empty_state();
-            state.consume(&HashMap::from([(variable.clone(), Value::I64(1))]));
-            state.consume(&HashMap::from([(variable.clone(), Value::I64(2))]));
+            state.update_with(&HashMap::from([(variable.clone(), Value::I64(1))]));
+            state.update_with(&HashMap::from([(variable.clone(), Value::I64(2))]));
 
             assert_eq!(
                 Value::Decimal(Decimal::from_f64(1.5).unwrap()),
@@ -264,8 +264,8 @@ mod tests {
             let sum = AggregationFunction::Sum(variable.clone());
 
             let mut state = sum.empty_state();
-            state.consume(&HashMap::from([(variable.clone(), Value::I64(1))]));
-            state.consume(&HashMap::from([(variable.clone(), Value::I64(2))]));
+            state.update_with(&HashMap::from([(variable.clone(), Value::I64(1))]));
+            state.update_with(&HashMap::from([(variable.clone(), Value::I64(2))]));
 
             assert_eq!(Value::I64(3), state.result());
         }
@@ -286,8 +286,8 @@ mod tests {
             let count_distinct = AggregationFunction::CountDistinct(variable.clone());
 
             let mut state = count_distinct.empty_state();
-            state.consume(&HashMap::from([(variable.clone(), Value::U64(1))]));
-            state.consume(&HashMap::from([(variable.clone(), Value::U64(1))]));
+            state.update_with(&HashMap::from([(variable.clone(), Value::U64(1))]));
+            state.update_with(&HashMap::from([(variable.clone(), Value::U64(1))]));
 
             assert_eq!(Value::U64(1), state.result());
         }
@@ -298,8 +298,8 @@ mod tests {
             let count_distinct = AggregationFunction::CountDistinct(variable.clone());
 
             let mut state = count_distinct.empty_state();
-            state.consume(&HashMap::from([(variable.clone(), Value::U64(1))]));
-            state.consume(&HashMap::from([(variable.clone(), Value::U64(2))]));
+            state.update_with(&HashMap::from([(variable.clone(), Value::U64(1))]));
+            state.update_with(&HashMap::from([(variable.clone(), Value::U64(2))]));
 
             assert_eq!(Value::U64(2), state.result());
         }

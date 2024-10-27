@@ -1,5 +1,7 @@
+use crate::query::aggregator::Aggregator;
 use crate::query::pattern::AttributeIdentifier;
 use crate::query::pattern::Pattern;
+use crate::query::projector::Projector;
 use crate::query::resolver::Resolver;
 use crate::query::*;
 use crate::storage::attribute_resolver::*;
@@ -27,20 +29,12 @@ impl Database {
             clauses,
             predicates,
         } = query;
-        let resolved = Resolver::new(storage, clauses, self.basis_tx);
-        let filtered = resolved.filter(move |result| match result {
-            Ok(assignment) => predicates
-                .iter()
-                .all(|predicate| predicate.test(assignment)),
-            Err(_) => true,
-        });
-        if is_aggregated(&find) {
-            aggregate(find, filtered).map(Left)
+        let resolved = Resolver::new(storage, clauses, predicates, self.basis_tx);
+        if find.iter().any(|find| matches!(find, Find::Aggregate(_))) {
+            let aggregator = Aggregator::new(find, resolved)?;
+            Ok(Left(aggregator))
         } else {
-            Ok(Right(filtered.map(move |result| match result {
-                Ok(assignment) => project(&find, assignment),
-                Err(err) => Err(err),
-            })))
+            Ok(Right(Projector::new(find, resolved)))
         }
     }
 
@@ -60,130 +54,4 @@ impl Database {
         }
         Ok(())
     }
-}
-
-fn is_aggregated(finds: &[Find]) -> bool {
-    finds.iter().any(|find| matches!(find, Find::Aggregate(_)))
-}
-
-fn project<E>(finds: &[Find], mut assignment: Assignment) -> QueryResult<E> {
-    let mut result = Vec::with_capacity(finds.len());
-    for find in finds {
-        if let Find::Variable(variable) = find {
-            match assignment.remove(variable) {
-                Some(value) => result.push(value),
-                None => return Err(QueryError::InvalidFindVariable(variable.clone())),
-            }
-        }
-    }
-    Ok(result)
-}
-
-fn aggregate<E>(
-    finds: Vec<Find>,
-    results: impl Iterator<Item = AssignmentResult<E>>,
-) -> Result<impl Iterator<Item = QueryResult<E>>, E> {
-    // TODO concurrent aggregation?
-    let mut aggregated = HashMap::new();
-
-    let indices = Indices::new(&finds);
-    let (variables, aggregates) = partition(finds.into_iter(), |find| match find {
-        Find::Variable(variale) => Left(variale),
-        Find::Aggregate(aggregate) => Right(aggregate),
-    });
-
-    let av = AggregatedValues::new(aggregates);
-    for result in results {
-        let assignment = result?;
-        let key = AggregationKey::new(&variables, &assignment)?;
-        let entry = aggregated.entry(key).or_insert_with(|| av.clone());
-        entry.consume(&assignment)
-    }
-
-    Ok(aggregated
-        .into_iter()
-        .map(move |(key, value)| Ok(indices.arrange(key, value))))
-}
-
-#[derive(PartialEq, Eq, Hash)]
-struct AggregationKey(Vec<Value>);
-
-impl AggregationKey {
-    fn new<E>(variables: &[String], assignment: &Assignment) -> Result<Self, E> {
-        let mut values = Vec::with_capacity(variables.len());
-        for variable in variables {
-            match assignment.get(variable) {
-                Some(value) => values.push(value.clone()),
-                None => return Err(QueryError::InvalidFindVariable(variable.clone())),
-            }
-        }
-        Ok(Self(values))
-    }
-}
-
-#[derive(Clone)]
-struct AggregatedValues(Vec<AggregationState>);
-
-impl AggregatedValues {
-    fn new(aggregates: Vec<AggregationFunction>) -> Self {
-        Self(
-            aggregates
-                .into_iter()
-                .map(|aggregate| aggregate.empty_state())
-                .collect(),
-        )
-    }
-
-    fn consume(&mut self, assignment: &Assignment) {
-        for agg in self.0.iter_mut() {
-            agg.consume(assignment);
-        }
-    }
-}
-
-struct Indices {
-    variables: Vec<usize>,
-    aggregates: Vec<usize>,
-}
-
-impl Indices {
-    fn new(finds: &[Find]) -> Self {
-        let (variables, aggregates) =
-            partition(finds.iter().enumerate(), |(index, find)| match find {
-                Find::Variable(_) => Left(index),
-                Find::Aggregate(_) => Right(index),
-            });
-        Self {
-            variables,
-            aggregates,
-        }
-    }
-
-    fn arrange(&self, key: AggregationKey, value: AggregatedValues) -> Vec<Value> {
-        let mut result = vec![Value::Nil; key.0.len() + value.0.len()];
-        for (index, value) in self.variables.iter().zip(key.0.into_iter()) {
-            result[*index] = value;
-        }
-        for (index, agg) in self.aggregates.iter().zip(value.0.into_iter()) {
-            result[*index] = agg.result();
-        }
-        result
-    }
-}
-
-fn partition<T, L, R>(
-    vec: impl ExactSizeIterator<Item = T>,
-    f: impl Fn(T) -> Either<L, R>,
-) -> (Vec<L>, Vec<R>) {
-    let mut left = Vec::with_capacity(vec.len());
-    let mut right = Vec::with_capacity(vec.len());
-    for x in vec {
-        match f(x) {
-            Either::Left(l) => left.push(l),
-            Either::Right(r) => right.push(r),
-        }
-    }
-    left.shrink_to_fit();
-    right.shrink_to_fit();
-    (left, right)
 }

@@ -12,6 +12,7 @@ use crate::storage::*;
 pub struct Resolver<'a, S: ReadStorage<'a>> {
     storage: &'a S,
     clauses: Vec<Clause>,
+    predicates: Vec<Predicate>,
     frame: Frame,
     stack: Vec<Frame>,
     iterator: S::Iter,
@@ -19,12 +20,18 @@ pub struct Resolver<'a, S: ReadStorage<'a>> {
 }
 
 impl<'a, S: ReadStorage<'a>> Resolver<'a, S> {
-    pub fn new(storage: &'a S, clauses: Vec<Clause>, basis_tx: u64) -> Self {
+    pub fn new(
+        storage: &'a S,
+        clauses: Vec<Clause>,
+        predicates: Vec<Predicate>,
+        basis_tx: u64,
+    ) -> Self {
         let frame = Frame::first(PartialAssignment::from_clauses(&clauses));
         let iterator = Self::iterator(storage, &frame, &clauses, basis_tx);
         Resolver {
             storage,
             clauses,
+            predicates,
             frame,
             stack: Vec::new(),
             iterator,
@@ -35,6 +42,9 @@ impl<'a, S: ReadStorage<'a>> Resolver<'a, S> {
     fn process(&mut self, datom: Datom) -> Option<<Self as Iterator>::Item> {
         let clause = self.clauses.get(self.frame.clause_index)?;
         let assignment = self.frame.assignment.update_with(clause, datom);
+        if !assignment.satisfies(&self.predicates) {
+            return self.next();
+        }
         if assignment.is_complete() {
             return Some(Ok(assignment.complete()));
         }

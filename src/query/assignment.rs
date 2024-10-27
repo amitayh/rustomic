@@ -81,6 +81,10 @@ impl PartialAssignment {
         self.unassigned.is_empty()
     }
 
+    pub fn satisfies(&self, predicates: &[Predicate]) -> bool {
+        predicates.iter().all(|pred| pred.test(&self.assigned))
+    }
+
     pub fn complete(self) -> Assignment {
         self.assigned
     }

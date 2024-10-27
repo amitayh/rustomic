@@ -1,8 +1,10 @@
 pub mod aggregation;
+pub mod aggregator;
 pub mod assignment;
 pub mod clause;
 pub mod database;
 pub mod pattern;
+pub mod projector;
 pub mod resolver;
 
 use crate::datom::Value;
@@ -15,6 +17,7 @@ use std::sync::Arc;
 use std::u64;
 use thiserror::Error;
 
+/// An assignment is a mapping between variables and values such that the clauses are satisfied.
 pub type Assignment = HashMap<String, Value>;
 pub type Result<T, E> = std::result::Result<T, QueryError<E>>;
 pub type AssignmentResult<E> = Result<Assignment, E>;

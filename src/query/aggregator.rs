@@ -1,11 +1,11 @@
-use std::collections::hash_map::IntoIter;
+use std::collections::hash_map;
 use std::collections::VecDeque;
 use std::marker::PhantomData;
 
 use crate::query::*;
 
 pub struct Aggregator<E> {
-    results: IntoIter<AggregationKey, AggregatedValues>,
+    results: hash_map::IntoIter<AggregationKey, AggregatedValues>,
     type_per_index: Vec<FindType>,
     marker: PhantomData<E>,
 }
@@ -37,19 +37,15 @@ impl<E> Iterator for Aggregator<E> {
     type Item = QueryResult<E>;
 
     fn next(&mut self) -> Option<Self::Item> {
-        let (AggregationKey(mut keys), AggregatedValues(mut values)) = self.results.next()?;
+        let (mut variables, mut aggregates) = self.results.next()?;
         let mut result = Vec::with_capacity(self.type_per_index.len());
         for find_type in &self.type_per_index {
-            match find_type {
-                FindType::Variable => {
-                    let value = keys.pop_front().expect("value should be present");
-                    result.push(value);
-                }
-                FindType::Aggregate => {
-                    let agg = values.pop_front().expect("value should be present");
-                    result.push(agg.result());
-                }
+            let value = match find_type {
+                FindType::Variable => variables.take_next(),
+                FindType::Aggregate => aggregates.take_next(),
             }
+            .expect("value should be present");
+            result.push(value);
         }
         Some(Ok(result))
     }
@@ -108,6 +104,10 @@ impl AggregationKey {
             .collect();
         Ok(Self(values?))
     }
+
+    fn take_next(&mut self) -> Option<Value> {
+        self.0.pop_front()
+    }
 }
 
 #[derive(Clone)]
@@ -127,5 +127,9 @@ impl AggregatedValues {
         for aggregation_state in self.0.iter_mut() {
             aggregation_state.update_with(assignment);
         }
+    }
+
+    fn take_next(&mut self) -> Option<Value> {
+        self.0.pop_front().map(|agg| agg.result())
     }
 }

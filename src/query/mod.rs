@@ -115,8 +115,6 @@ impl Find {
 
 #[derive(Debug, Error)]
 pub enum QueryError<S> {
-    #[error("error")]
-    Error,
     #[error("storage error")]
     StorageError(#[from] S),
     #[error("resolve error")]

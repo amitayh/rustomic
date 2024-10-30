@@ -43,11 +43,14 @@ impl<'a, S: ReadStorage<'a>> Resolver<'a, S> {
         let clause = self.clauses.get(self.frame.clause_index)?;
         let assignment = self.frame.assignment.update_with(clause, datom);
         if !assignment.satisfies(&self.predicates) {
+            // Assignment doesn't satisfy the predicates, reject
             return self.next();
         }
         if assignment.is_complete() {
+            // Assignment is complete - emit
             return Some(Ok(assignment.complete()));
         }
+        // Push a new frame to the stack and continue
         self.stack.push(self.frame.next(assignment));
         self.next()
     }

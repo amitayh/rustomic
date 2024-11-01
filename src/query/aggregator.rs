@@ -1,54 +1,16 @@
-use std::collections::hash_map;
 use std::collections::VecDeque;
-use std::marker::PhantomData;
 
 use crate::query::*;
 
-pub struct Aggregator<E> {
-    results: hash_map::IntoIter<AggregationKey, AggregatedValues>,
-    type_per_index: Vec<FindType>,
-    marker: PhantomData<E>,
-}
-
-impl<E> Aggregator<E> {
-    pub fn new<R: Iterator<Item = AssignmentResult<E>>>(
-        finds: Vec<Find>,
-        results: R,
-    ) -> Result<Self, E> {
-        // TODO: concurrent aggregation?
-        let mut aggregated = HashMap::new();
-        let partition = FindPartition::new(finds);
-        for result in results {
-            let assignment = result?;
-            aggregated
-                .entry(AggregationKey::new(&partition.variables, &assignment)?)
-                .or_insert_with(|| AggregatedValues::new(&partition.aggregates))
-                .update_with(&assignment);
-        }
-        Ok(Self {
-            results: aggregated.into_iter(),
-            type_per_index: partition.type_per_index,
-            marker: PhantomData,
-        })
-    }
-}
-
-impl<E> Iterator for Aggregator<E> {
-    type Item = QueryResult<E>;
-
-    fn next(&mut self) -> Option<Self::Item> {
-        let (mut variables, mut aggregates) = self.results.next()?;
-        let mut result = Vec::with_capacity(self.type_per_index.len());
-        for find_type in &self.type_per_index {
-            let value = match find_type {
-                FindType::Variable => variables.take_next(),
-                FindType::Aggregate => aggregates.take_next(),
-            }
-            .expect("value should be present");
-            result.push(value);
-        }
-        Some(Ok(result))
-    }
+// TODO: concurrent aggregation?
+pub fn aggregate<E>(
+    finds: Vec<Find>,
+    results: impl Iterator<Item = AssignmentResult<E>>,
+) -> Result<impl Iterator<Item = QueryResult<E>>, E> {
+    let (variables, aggregates, type_per_index) = partition_by_type(finds);
+    let aggregation_result = aggregate0(&variables, &aggregates, results)?;
+    let query_result = project(aggregation_result, &type_per_index);
+    Ok(query_result.into_iter())
 }
 
 enum FindType {
@@ -56,36 +18,63 @@ enum FindType {
     Aggregate,
 }
 
-struct FindPartition {
-    variables: Vec<String>,
-    aggregates: Vec<AggregationFunction>,
-    type_per_index: Vec<FindType>,
-}
-
-impl FindPartition {
-    fn new(finds: Vec<Find>) -> Self {
-        let capacity = finds.len();
-        let mut variables = Vec::with_capacity(capacity);
-        let mut aggregates = Vec::with_capacity(capacity);
-        let mut type_per_index = Vec::with_capacity(capacity);
-        for find in finds {
-            match find {
-                Find::Variable(variable) => {
-                    variables.push(variable);
-                    type_per_index.push(FindType::Variable);
-                }
-                Find::Aggregate(aggregate) => {
-                    aggregates.push(aggregate);
-                    type_per_index.push(FindType::Aggregate);
-                }
+fn partition_by_type(finds: Vec<Find>) -> (Vec<String>, Vec<AggregationFunction>, Vec<FindType>) {
+    let capacity = finds.len();
+    let mut variables = Vec::with_capacity(capacity);
+    let mut aggregates = Vec::with_capacity(capacity);
+    let mut type_per_index = Vec::with_capacity(capacity);
+    for find in finds {
+        match find {
+            Find::Variable(variable) => {
+                variables.push(variable);
+                type_per_index.push(FindType::Variable);
+            }
+            Find::Aggregate(aggregate) => {
+                aggregates.push(aggregate);
+                type_per_index.push(FindType::Aggregate);
             }
         }
-        Self {
-            variables,
-            aggregates,
-            type_per_index,
-        }
     }
+    variables.shrink_to_fit();
+    aggregates.shrink_to_fit();
+    (variables, aggregates, type_per_index)
+}
+
+fn aggregate0<'a, E>(
+    variables: &[String],
+    aggregates: &'a [AggregationFunction],
+    results: impl Iterator<Item = AssignmentResult<E>>,
+) -> Result<HashMap<AggregationKey, AggregatedValues<'a>>, E> {
+    let mut aggregation_result = HashMap::new();
+    for result in results {
+        let assignment = result?;
+        aggregation_result
+            .entry(AggregationKey::new(variables, &assignment)?)
+            .or_insert_with(|| AggregatedValues::new(aggregates))
+            .update_with(&assignment);
+    }
+    Ok(aggregation_result)
+}
+
+fn project<E>(
+    aggregation_result: HashMap<AggregationKey, AggregatedValues>,
+    type_per_index: &[FindType],
+) -> Vec<QueryResult<E>> {
+    aggregation_result
+        .into_iter()
+        .map(|(mut variables, mut aggregates)| {
+            let mut result = Vec::with_capacity(type_per_index.len());
+            for find_type in type_per_index {
+                let value = match find_type {
+                    FindType::Variable => variables.take_next(),
+                    FindType::Aggregate => aggregates.take_next(),
+                }
+                .expect("value should be present");
+                result.push(value);
+            }
+            Ok(result)
+        })
+        .collect()
 }
 
 #[derive(PartialEq, Eq, Hash)]
@@ -111,10 +100,10 @@ impl AggregationKey {
 }
 
 #[derive(Clone)]
-struct AggregatedValues(VecDeque<AggregationState>);
+struct AggregatedValues<'a>(VecDeque<AggregationState<'a>>);
 
-impl AggregatedValues {
-    fn new(aggregates: &[AggregationFunction]) -> Self {
+impl<'a> AggregatedValues<'a> {
+    fn new(aggregates: &'a [AggregationFunction]) -> Self {
         Self(
             aggregates
                 .iter()

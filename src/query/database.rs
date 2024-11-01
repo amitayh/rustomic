@@ -1,4 +1,3 @@
-use crate::query::aggregator::Aggregator;
 use crate::query::pattern::AttributeIdentifier;
 use crate::query::pattern::Pattern;
 use crate::query::projector::Projector;
@@ -31,8 +30,8 @@ impl Database {
         } = query;
         let resolved = Resolver::new(storage, clauses, predicates, self.basis_tx);
         if find.iter().any(|find| matches!(find, Find::Aggregate(_))) {
-            let aggregator = Aggregator::new(find, resolved)?;
-            Ok(Left(aggregator))
+            let aggregated = aggregator::aggregate(find, resolved)?;
+            Ok(Left(aggregated))
         } else {
             Ok(Right(Projector::new(find, resolved)))
         }

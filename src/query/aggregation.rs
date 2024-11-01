@@ -5,51 +5,51 @@ use std::collections::HashSet;
 use std::u64;
 
 #[derive(Clone)]
-pub enum AggregationState {
+pub enum AggregationState<'a> {
     Count(u64),
     Min {
-        variable: String,
+        variable: &'a str,
         min: Option<i64>,
     },
     Max {
-        variable: String,
+        variable: &'a str,
         max: Option<i64>,
     },
     Average {
-        variable: String,
+        variable: &'a str,
         sum: i64,
         count: usize,
     },
     Sum {
-        variable: String,
+        variable: &'a str,
         sum: i64,
     },
     CountDistinct {
-        variable: String,
+        variable: &'a str,
         seen: HashSet<Value>,
     },
 }
 
-impl AggregationState {
+impl<'a> AggregationState<'a> {
     fn count() -> Self {
         Self::Count(0)
     }
 
-    fn min(variable: String) -> Self {
+    fn min(variable: &'a str) -> Self {
         Self::Min {
             variable,
             min: None,
         }
     }
 
-    fn max(variable: String) -> Self {
+    fn max(variable: &'a str) -> Self {
         Self::Max {
             variable,
             max: None,
         }
     }
 
-    fn average(variable: String) -> Self {
+    fn average(variable: &'a str) -> Self {
         Self::Average {
             variable,
             sum: 0,
@@ -57,11 +57,11 @@ impl AggregationState {
         }
     }
 
-    fn sum(variable: String) -> Self {
+    fn sum(variable: &'a str) -> Self {
         Self::Sum { variable, sum: 0 }
     }
 
-    fn count_distinct(variable: String) -> Self {
+    fn count_distinct(variable: &'a str) -> Self {
         Self::CountDistinct {
             variable,
             seen: HashSet::new(),
@@ -72,12 +72,12 @@ impl AggregationState {
         match self {
             Self::Count(count) => *count += 1,
             Self::Min { variable, min } => {
-                if let Some(&Value::I64(value)) = assignment.get(variable) {
+                if let Some(&Value::I64(value)) = assignment.get(*variable) {
                     *min = min.map_or_else(|| Some(value), |prev| Some(prev.min(value)));
                 }
             }
             Self::Max { variable, max } => {
-                if let Some(&Value::I64(value)) = assignment.get(variable) {
+                if let Some(&Value::I64(value)) = assignment.get(*variable) {
                     *max = max.map_or_else(|| Some(value), |prev| Some(prev.max(value)));
                 }
             }
@@ -86,18 +86,18 @@ impl AggregationState {
                 sum,
                 count,
             } => {
-                if let Some(Value::I64(value)) = assignment.get(variable) {
+                if let Some(Value::I64(value)) = assignment.get(*variable) {
                     *sum += value;
                     *count += 1;
                 }
             }
             Self::Sum { variable, sum } => {
-                if let Some(Value::I64(value)) = assignment.get(variable) {
+                if let Some(Value::I64(value)) = assignment.get(*variable) {
                     *sum += value;
                 }
             }
             Self::CountDistinct { variable, seen } => {
-                if let Some(value) = assignment.get(variable) {
+                if let Some(value) = assignment.get(*variable) {
                     if !seen.contains(value) {
                         seen.insert(value.clone());
                     }
@@ -138,12 +138,12 @@ impl AggregationFunction {
     pub fn empty_state(&self) -> AggregationState {
         match self {
             AggregationFunction::Count => AggregationState::count(),
-            AggregationFunction::Min(variable) => AggregationState::min(variable.clone()),
-            AggregationFunction::Max(variable) => AggregationState::max(variable.clone()),
-            AggregationFunction::Average(variable) => AggregationState::average(variable.clone()),
-            AggregationFunction::Sum(variable) => AggregationState::sum(variable.clone()),
+            AggregationFunction::Min(variable) => AggregationState::min(variable),
+            AggregationFunction::Max(variable) => AggregationState::max(variable),
+            AggregationFunction::Average(variable) => AggregationState::average(variable),
+            AggregationFunction::Sum(variable) => AggregationState::sum(variable),
             AggregationFunction::CountDistinct(variable) => {
-                AggregationState::count_distinct(variable.clone())
+                AggregationState::count_distinct(variable)
             }
         }
     }

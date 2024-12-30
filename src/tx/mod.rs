@@ -35,6 +35,7 @@ pub struct EntityOperation {
 }
 
 impl EntityOperation {
+    #[must_use]
     pub fn new(entity: OperatedEntity) -> Self {
         Self {
             entity,
@@ -42,18 +43,22 @@ impl EntityOperation {
         }
     }
 
+    #[must_use]
     pub fn on_new() -> Self {
         Self::new(OperatedEntity::New)
     }
 
+    #[must_use]
     pub fn on_id(entity_id: u64) -> Self {
         Self::new(OperatedEntity::Id(entity_id))
     }
 
+    #[must_use]
     pub fn on_temp_id(temp_id: &str) -> Self {
         Self::new(OperatedEntity::TempId(temp_id.to_string()))
     }
 
+    #[must_use]
     pub fn assert(self, attribute: &str, value: impl Into<Value>) -> Self {
         self.set(
             attribute.to_string(),
@@ -62,6 +67,7 @@ impl EntityOperation {
         )
     }
 
+    #[must_use]
     pub fn retract(self, attribute: &str, value: impl Into<Value>) -> Self {
         self.set(
             attribute.to_string(),
@@ -70,6 +76,7 @@ impl EntityOperation {
         )
     }
 
+    #[must_use]
     pub fn set_reference(self, attribute: &str, temp_id: &str) -> Self {
         self.set(
             attribute.to_string(),
@@ -94,10 +101,12 @@ pub struct Transaction {
 }
 
 impl Transaction {
+    #[must_use]
     pub fn new() -> Self {
         Self::default()
     }
 
+    #[must_use]
     pub fn with(mut self, o: impl Into<EntityOperation>) -> Self {
         self.operations.push(o.into());
         self

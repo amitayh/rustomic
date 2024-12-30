@@ -446,7 +446,7 @@ mod op {
                 Self::Assert => TAG_ASSERT,
                 Self::Retract => TAG_RETRACT,
             }
-            .write_to(buffer)
+            .write_to(buffer);
         }
     }
 }

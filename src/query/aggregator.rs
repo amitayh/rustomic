@@ -64,14 +64,14 @@ fn project<E>(
         .into_iter()
         .map(|(mut variables, mut aggregates)| {
             let mut result = Vec::with_capacity(type_per_index.len());
-            for find_type in type_per_index {
+            type_per_index.iter().for_each(|find_type| {
                 let value = match find_type {
                     FindType::Variable => variables.take_next(),
                     FindType::Aggregate => aggregates.take_next(),
                 }
                 .expect("value should be present");
                 result.push(value);
-            }
+            });
             Ok(result)
         })
         .collect()
@@ -99,7 +99,6 @@ impl AggregationKey {
     }
 }
 
-#[derive(Clone)]
 struct AggregatedValues<'a>(VecDeque<AggregationState<'a>>);
 
 impl<'a> AggregatedValues<'a> {
@@ -113,9 +112,9 @@ impl<'a> AggregatedValues<'a> {
     }
 
     fn update_with(&mut self, assignment: &Assignment) {
-        for aggregation_state in self.0.iter_mut() {
-            aggregation_state.update_with(assignment);
-        }
+        self.0
+            .iter_mut()
+            .for_each(|aggregation_state| aggregation_state.update_with(assignment));
     }
 
     fn take_next(&mut self) -> Option<Value> {

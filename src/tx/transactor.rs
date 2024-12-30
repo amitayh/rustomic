@@ -3,14 +3,18 @@ use std::collections::HashSet;
 use std::u64;
 
 use crate::clock::Instant;
-use crate::datom::*;
 use crate::schema::attribute::*;
 use crate::schema::*;
 use crate::storage::attribute_resolver::*;
 use crate::storage::restricts::*;
 use crate::storage::*;
-use crate::tx::*;
+use crate::tx::{
+    AttributeValue, Datom, EntityOperation, OperatedEntity, Result, Transaction, TransactionError,
+    TransctionResult, Value, ValueType,
+};
 
+/// # Errors
+/// Storage related errors
 pub async fn transact<'a, S: ReadStorage<'a>>(
     storage: &'a S,
     resolver: &AttributeResolver,
@@ -36,7 +40,7 @@ struct ResultBuilder {
 impl ResultBuilder {
     pub fn from<E>(
         operations: &[EntityOperation],
-        now: Instant,
+        Instant(now): Instant,
         mut next_id: NextId,
     ) -> Result<Self, E> {
         let tx_id = next_id.get();
@@ -45,7 +49,7 @@ impl ResultBuilder {
             tx_id,
             next_id,
             temp_ids,
-            datoms: vec![Datom::add(tx_id, DB_TX_TIME_ID, now.0, tx_id)],
+            datoms: vec![Datom::add(tx_id, DB_TX_TIME_ID, now, tx_id)],
             unique_values: HashSet::new(),
         })
     }

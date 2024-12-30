@@ -52,15 +52,19 @@ impl Arbitrary for ArbitraryDatom {
 
     fn shrink(&self) -> Box<dyn Iterator<Item = Self>> {
         let ArbitraryDatom(datom) = self.clone();
-        Box::new(ArbitraryValue(datom.value).shrink().map(move |value| {
-            Self(Datom {
-                entity: datom.entity,
-                attribute: datom.attribute,
-                value: value.0,
-                tx: datom.tx,
-                op: datom.op,
-            })
-        }))
+        Box::new(
+            ArbitraryValue(datom.value)
+                .shrink()
+                .map(move |ArbitraryValue(value)| {
+                    Self(Datom {
+                        entity: datom.entity,
+                        attribute: datom.attribute,
+                        value,
+                        tx: datom.tx,
+                        op: datom.op,
+                    })
+                }),
+        )
     }
 }
 

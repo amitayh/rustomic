@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"struct":["Transactor"]};
+window.SIDEBAR_ITEMS = {"fn":["transact"]};

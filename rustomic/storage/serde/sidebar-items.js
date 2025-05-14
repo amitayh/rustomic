@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"enum":["Index","ReadError"],"mod":["datom","index"],"struct":["Reader"],"trait":["Writable"],"type":["Bytes"]};
+window.SIDEBAR_ITEMS = {"enum":["Index","ReadError"],"mod":["datom","index"],"trait":["Writable"]};

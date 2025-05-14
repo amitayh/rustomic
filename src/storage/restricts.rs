@@ -75,9 +75,9 @@ impl Restricts {
 
     pub fn test(&self, datom: &Datom) -> bool {
         datom.op == Op::Assert
-            && self.entity.map_or(true, |e| datom.entity == e)
-            && self.attribute.map_or(true, |a| datom.attribute == a)
-            && self.value.as_ref().map_or(true, |v| &datom.value == v)
+            && self.entity.is_none_or(|e| datom.entity == e)
+            && self.attribute.is_none_or(|a| datom.attribute == a)
+            && self.value.as_ref().is_none_or(|v| &datom.value == v)
             && self.tx.test(datom.tx)
     }
 }
@@ -91,8 +91,7 @@ pub enum TxRestrict {
 impl TxRestrict {
     pub fn value(&self) -> u64 {
         match *self {
-            TxRestrict::Exact(tx) => tx,
-            TxRestrict::AtMost(tx) => tx,
+            TxRestrict::Exact(tx) | TxRestrict::AtMost(tx) => tx,
         }
     }
 

@@ -3,7 +3,6 @@ use std::fmt::Debug;
 use std::io::Cursor;
 use std::io::Read;
 use std::mem::size_of;
-use std::u16;
 use thiserror::Error;
 
 use crate::datom::*;
@@ -383,10 +382,9 @@ mod value {
             match self {
                 Self::Nil => 0,
                 Self::Decimal(value) => value.size_hint(),
-                Self::U64(value) => value.size_hint(),
+                Self::U64(value) | Self::Ref(value) => value.size_hint(),
                 Self::I64(value) => value.size_hint(),
                 Self::Str(value) => value.size_hint(),
-                Self::Ref(value) => value.size_hint(),
             }
         }
 

@@ -128,14 +128,14 @@ mod tests {
         }
     }
 
-    impl<'a> WriteStorage for CountingStorage {
+    impl WriteStorage for CountingStorage {
         type Error = <InMemoryStorage as WriteStorage>::Error;
         fn save(&mut self, datoms: &[Datom]) -> Result<(), Self::Error> {
             self.inner.save(datoms)
         }
     }
 
-    fn create_storage<'a>() -> CountingStorage {
+    fn create_storage() -> CountingStorage {
         let mut storage = CountingStorage::new();
         storage.save(&default_datoms()).unwrap();
         storage

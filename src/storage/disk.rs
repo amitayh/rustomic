@@ -1,6 +1,5 @@
 use std::marker::PhantomData;
 use std::path::Path;
-use std::u64;
 
 use rocksdb::*;
 use thiserror::Error;

@@ -1,13 +1,12 @@
 use std::collections::HashMap;
 use std::collections::HashSet;
-use std::u64;
 
 use crate::clock::Instant;
 use crate::schema::attribute::*;
 use crate::schema::*;
 use crate::storage::attribute_resolver::*;
-use crate::storage::restricts::*;
-use crate::storage::*;
+use crate::storage::restricts::Restricts;
+use crate::storage::ReadStorage;
 use crate::tx::{
     AttributeValue, Datom, EntityOperation, OperatedEntity, Result, Transaction, TransactionError,
     TransctionResult, Value, ValueType,

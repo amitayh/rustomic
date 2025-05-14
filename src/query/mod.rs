@@ -14,7 +14,6 @@ use crate::storage::attribute_resolver::ResolveError;
 use std::collections::HashMap;
 use std::fmt::Debug;
 use std::sync::Arc;
-use std::u64;
 use thiserror::Error;
 
 /// An assignment is a mapping between variables and values such that the clauses are satisfied.
@@ -72,7 +71,7 @@ impl Query {
     ) -> Self {
         self.pred(move |assignment| {
             let value = assignment.get(variable);
-            value.map_or(true, &predicate)
+            value.is_none_or(&predicate)
         })
     }
 }

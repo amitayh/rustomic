@@ -2,7 +2,6 @@ use crate::datom::Value;
 use crate::query::*;
 use rust_decimal::Decimal;
 use std::collections::HashSet;
-use std::u64;
 
 #[derive(Clone)]
 pub enum AggregationState<'a> {

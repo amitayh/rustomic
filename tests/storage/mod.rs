@@ -5,6 +5,7 @@ use rustomic::datom::*;
 use rustomic::storage::restricts::*;
 use rustomic::storage::*;
 use std::collections::HashSet;
+use std::result::Result;
 
 trait TestStorage {
     fn create() -> Self;
@@ -14,6 +15,7 @@ trait TestStorage {
 }
 
 mod memory {
+
     use super::*;
     use rustomic::storage::memory::*;
 
@@ -25,14 +27,11 @@ mod memory {
         }
 
         fn save(&mut self, datoms: &[Datom]) {
-            self.0.save(datoms).expect("Unable to save datoms")
+            self.0.save(datoms).expect("Unable to save datoms");
         }
 
         fn find(&self, restricts: Restricts) -> HashSet<Datom> {
-            self.0
-                .find(restricts)
-                .filter_map(|result| result.ok())
-                .collect()
+            self.0.find(restricts).filter_map(Result::ok).collect()
         }
 
         fn latest_entity_id(&self) -> u64 {
@@ -124,7 +123,7 @@ mod disk {
             DiskStorage::read_write(&self.path)
                 .expect("Unable to open DB")
                 .save(datoms)
-                .expect("Unable to save datoms")
+                .expect("Unable to save datoms");
         }
 
         fn find(&self, restricts: Restricts) -> HashSet<Datom> {

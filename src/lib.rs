@@ -8,6 +8,7 @@ pub mod tx;
 #[cfg(test)]
 mod tests {
     use googletest::prelude::*;
+    use std::result::Result;
     use std::time::SystemTime;
 
     use crate::clock::Instant;
@@ -79,7 +80,7 @@ mod tests {
                 .query(&self.storage, &self.resolver, query)
                 .await
                 .expect("Unable to query");
-            results.filter_map(|result| result.ok()).collect()
+            results.filter_map(Result::ok).collect()
         }
 
         async fn try_query(
@@ -909,10 +910,10 @@ mod tests {
                             .with_attribute(Pattern::ident("person/name"))
                             .with_value(Pattern::variable("?name")),
                     )
-                    .value_pred("?born", |value| match value {
-                        &Value::I64(born) => born > 1940,
-                        _ => false,
-                    }),
+                    .value_pred(
+                        "?born",
+                        |value| matches!(value, &Value::I64(born) if born > 1940),
+                    ),
             )
             .await;
 

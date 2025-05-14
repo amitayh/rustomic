@@ -78,7 +78,7 @@ impl Arbitrary for ArbitraryValue {
             Some(1) => Value::I64(i64::arbitrary(g)),
             Some(2) => Value::U64(u64::arbitrary(g)),
             Some(3) => Value::Decimal(arbitrary_decimal(g)),
-            Some(4) => Value::Str(String::arbitrary(g).into()),
+            Some(4) => Value::Str(String::arbitrary(g)),
             Some(5) => Value::Ref(u64::arbitrary(g)),
             _ => unreachable!(),
         })
